@@ -381,13 +381,16 @@
     </div>
 
     <script>
-        // Configuration
+        // =====================================================
+        // CONFIGURATION - UPDATE THESE VALUES
+        // =====================================================
         const CONFIG = {
             CLIENT_ID: '1088099187141-ut0dn0scqt3h99htf3rg8gsrg2oo1ad8.apps.googleusercontent.com',
-            SPREADSHEET_ID: '1pGy5OkQd8i4tVlYbcG7afkeDHEdjaZIwwuq6Wqv96jM',
+            SPREADSHEET_ID: '1hTbs5vFzaEAQ87y078-_O5xoP_ad3joRGkneC-8yNzk',  // Your new spreadsheet
             SCOPES: 'https://www.googleapis.com/auth/spreadsheets',
             USER_NAME: 'Aniket'
         };
+        // =====================================================
 
         let accessToken = null;
         let tokenClient = null;
@@ -408,6 +411,7 @@
                 callback: (response) => {
                     if (response.access_token) {
                         accessToken = response.access_token;
+                        localStorage.setItem('gsheet_access_token', accessToken);
                         showForm();
                     }
                 },
@@ -444,9 +448,12 @@
 
         // Handle Logout
         function handleLogout() {
+            const tokenToRevoke = accessToken;
             accessToken = null;
             localStorage.removeItem('gsheet_access_token');
-            google.accounts.oauth2.revoke(accessToken);
+            if (tokenToRevoke) {
+                google.accounts.oauth2.revoke(tokenToRevoke);
+            }
             document.getElementById('login-section').style.display = 'block';
             document.getElementById('form-section').style.display = 'none';
             stopScanner();
@@ -454,7 +461,6 @@
 
         // Show Form after login
         function showForm() {
-            localStorage.setItem('gsheet_access_token', accessToken);
             document.getElementById('login-section').style.display = 'none';
             document.getElementById('form-section').style.display = 'block';
             document.getElementById('user-email').textContent = '👤 ' + CONFIG.USER_NAME;
@@ -560,7 +566,7 @@
             try {
                 const sheetName = getCurrentSheetName();
                 
-                // First, check if sheet exists and get the last row
+                // First, check if sheet exists
                 const sheetExists = await checkSheetExists(sheetName);
                 
                 if (!sheetExists) {
@@ -630,6 +636,8 @@
             );
 
             if (!response.ok) {
+                const errorData = await response.json();
+                console.error('Sheet check error:', errorData);
                 throw new Error('スプレッドシートにアクセスできません');
             }
 
