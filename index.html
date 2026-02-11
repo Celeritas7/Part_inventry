@@ -574,14 +574,14 @@
                     await createNewSheet(sheetName);
                 }
 
+                // Get the next empty row number
+                const nextRow = await getNextRowNumber(sheetName);
+
                 // Format date as M/D
                 const now = new Date();
                 const dateStr = `${now.getMonth() + 1}/${now.getDate()}`;
 
-                // ==============================================
-                // FIXED: Skip Column A (No.) - Start from Column B
-                // Columns: B=日付, C=名前, D=部品番号入力, E-F=auto, G=数量, H=目的, I=SN, J=備考
-                // ==============================================
+                // Data for columns B through J (skipping A which has formula)
                 const rowData = [
                     dateStr,               // B: 日付
                     CONFIG.USER_NAME,      // C: 名前
@@ -594,8 +594,8 @@
                     remarks                // J: 備考欄
                 ];
 
-                // Append row starting from Column B
-                await appendRow(sheetName, rowData);
+                // Write to specific row, columns B through J
+                await writeToRow(sheetName, nextRow, rowData);
 
                 // Success
                 showStatus('✅ 登録完了!', 'success');
@@ -693,14 +693,34 @@
             );
         }
 
-        // ==============================================
-        // FIXED: Append row starting from Column B (skip Column A)
-        // ==============================================
-        async function appendRow(sheetName, rowData) {
+        // Get the next empty row number by checking Column B (日付)
+        async function getNextRowNumber(sheetName) {
             const response = await fetch(
-                `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(sheetName)}!B:J:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS`,
+                `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(sheetName)}!B:B`,
                 {
-                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                throw new Error('行数を取得できません');
+            }
+
+            const data = await response.json();
+            const values = data.values || [];
+            return values.length + 1; // Next empty row
+        }
+
+        // Write data to a specific row, columns B through J
+        async function writeToRow(sheetName, rowNumber, rowData) {
+            const range = `${sheetName}!B${rowNumber}:J${rowNumber}`;
+            
+            const response = await fetch(
+                `https://sheets.googleapis.com/v4/spreadsheets/${CONFIG.SPREADSHEET_ID}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
+                {
+                    method: 'PUT',
                     headers: {
                         'Authorization': `Bearer ${accessToken}`,
                         'Content-Type': 'application/json'
