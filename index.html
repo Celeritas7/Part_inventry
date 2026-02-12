@@ -241,6 +241,16 @@
             font-size: 1rem;
         }
 
+        .inline-location {
+            background: #fff3e0;
+            color: #e65100;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+
         .part-index {
             background: #667eea;
             color: white;
@@ -732,7 +742,7 @@ GPCP-0000154-0-0"></textarea>
         let snScanner = null;
         let snScannerActive = false;
         let snScannerIndex = -1;
-        let parts = []; // Array of { pn, purpose, sn, qty }
+        let parts = []; // Array of { pn, purpose, sn, qty, location, tempLocation, showLocation }
         let databaseCache = null; // Cache for Database_new
 
         // =====================================================
@@ -944,7 +954,7 @@ GPCP-0000154-0-0"></textarea>
         // =====================================================
         // PARTS LIST MANAGEMENT
         // =====================================================
-        function addPart(pn) {
+        function addPart(pn, showLocation = false, locationData = null) {
             // Check for duplicates
             if (parts.some(p => p.pn === pn)) {
                 showStatus('batch-status', `⚠️ ${pn} は既にリストにあります`, 'error');
@@ -956,7 +966,10 @@ GPCP-0000154-0-0"></textarea>
                 pn: pn,
                 purpose: '',
                 sn: '',
-                qty: 1
+                qty: 1,
+                showLocation: showLocation,
+                location: locationData ? locationData.location : '',
+                tempLocation: locationData ? locationData.tempLocation : ''
             });
 
             renderPartsList();
@@ -991,6 +1004,11 @@ GPCP-0000154-0-0"></textarea>
                         </div>
                         <button class="delete-btn" onclick="removePart(${index})">🗑️</button>
                     </div>
+                    ${part.showLocation ? `
+                        <div class="inline-location">
+                            📍 ${part.location || '場所不明'}${part.tempLocation ? ` (仮: ${part.tempLocation})` : ''}
+                        </div>
+                    ` : ''}
                     <div class="part-fields three-col">
                         <div class="field-group">
                             <label>目的</label>
@@ -1037,29 +1055,95 @@ GPCP-0000154-0-0"></textarea>
             document.getElementById('paste-modal').classList.remove('active');
         }
 
-        function processPastedList() {
+        async function processPastedList() {
             const text = document.getElementById('paste-textarea').value;
             const lines = text.split('\n')
                 .map(line => line.trim())
                 .filter(line => line.length > 0);
 
-            let added = 0;
-            lines.forEach(pn => {
-                if (!parts.some(p => p.pn === pn)) {
-                    parts.push({ pn, purpose: '', sn: '', qty: 1 });
-                    added++;
-                }
-            });
+            if (lines.length === 0) {
+                return;
+            }
 
             closePasteModal();
-            renderPartsList();
-            updateSubmitButton();
+            showStatus('batch-status', '部品情報を取得中...', 'loading');
 
-            if (added > 0) {
-                showStatus('batch-status', `✅ ${added}件の部品を追加しました`, 'success');
-                setTimeout(() => hideStatus('batch-status'), 2000);
+            try {
+                // Load database if not cached
+                if (!databaseCache) {
+                    databaseCache = await loadDatabase();
+                }
+
+                let added = 0;
+                lines.forEach(pn => {
+                    if (!parts.some(p => p.pn === pn)) {
+                        // Find location data from database
+                        const found = databaseCache.find(row => row.partNumber === pn);
+                        const locationData = found ? {
+                            location: found.location,
+                            tempLocation: found.tempLocation
+                        } : null;
+
+                        // Add part with location (showLocation = true for pasted items)
+                        parts.push({
+                            pn: pn,
+                            purpose: '',
+                            sn: '',
+                            qty: 1,
+                            showLocation: true,
+                            location: locationData ? locationData.location : '',
+                            tempLocation: locationData ? locationData.tempLocation : ''
+                        });
+                        added++;
+                    }
+                });
+
+                renderPartsList();
+                updateSubmitButton();
+
+                // Also auto-fill the Part Finder tab
+                document.getElementById('finder-input').value = lines.join('\n');
+                
+                // Auto-search in finder (but stay on current tab)
+                await autoSearchFinder(lines);
+
+                if (added > 0) {
+                    showStatus('batch-status', `✅ ${added}件の部品を追加しました（場所情報付き）`, 'success');
+                    setTimeout(() => hideStatus('batch-status'), 3000);
+                }
+
+            } catch (error) {
+                console.error('Error:', error);
+                showStatus('batch-status', 'エラー: ' + error.message, 'error');
             }
         }
+
+        // Auto-search in finder tab without switching
+        async function autoSearchFinder(partNumbers) {
+            try {
+                // Load database if not cached
+                if (!databaseCache) {
+                    databaseCache = await loadDatabase();
+                }
+
+                // Search for each part
+                const results = partNumbers.map(pn => {
+                    const found = databaseCache.find(row => row.partNumber === pn);
+                    return {
+                        pn,
+                        found: !!found,
+                        data: found
+                    };
+                });
+
+                renderFinderResults(results);
+
+            } catch (error) {
+                console.error('Error in auto search:', error);
+            }
+        }
+
+        // Remove the old processPastedListToFinder function as it's no longer needed
 
         // =====================================================
         // BATCH SUBMIT
