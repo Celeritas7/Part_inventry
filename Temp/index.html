@@ -311,31 +311,6 @@
             color: white;
         }
 
-        .sn-qr-btn {
-            background: none;
-            border: 1px solid #f57c00;
-            color: #f57c00;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            cursor: pointer;
-            margin-left: 6px;
-        }
-
-        .sn-qr-btn:hover {
-            background: #f57c00;
-            color: white;
-        }
-
-        .sn-qr-reader-container {
-            width: 100%;
-            border-radius: 10px;
-            overflow: hidden;
-            display: none;
-            margin-top: 12px;
-            border: 2px solid #f57c00;
-        }
-
         /* Remarks */
         .remarks-section {
             margin-bottom: 16px;
@@ -729,9 +704,6 @@ GPCP-0000154-0-0"></textarea>
         let tokenClient = null;
         let html5QrCode = null;
         let scannerActive = false;
-        let snScanner = null;
-        let snScannerActive = false;
-        let snScannerIndex = -1;
         let parts = []; // Array of { pn, purpose, sn, qty }
         let databaseCache = null; // Cache for Database_new
 
@@ -792,7 +764,6 @@ GPCP-0000154-0-0"></textarea>
             document.getElementById('login-section').style.display = 'block';
             document.getElementById('app-section').style.display = 'none';
             stopScanner();
-            closeSnScanner();
         }
 
         function showApp() {
@@ -817,7 +788,6 @@ GPCP-0000154-0-0"></textarea>
             }
 
             stopScanner();
-            closeSnScanner();
         }
 
         // =====================================================
@@ -885,63 +855,6 @@ GPCP-0000154-0-0"></textarea>
         }
 
         // =====================================================
-        // S/N QR SCANNER (for individual parts)
-        // =====================================================
-        function openSnScanner(index) {
-            // Stop main scanner if active
-            stopScanner();
-            
-            // Close any existing SN scanner
-            closeSnScanner();
-
-            const readerId = `sn-qr-reader-${index}`;
-            const readerElement = document.getElementById(readerId);
-            
-            if (!readerElement) return;
-
-            readerElement.style.display = 'block';
-            snScannerIndex = index;
-
-            snScanner = new Html5Qrcode(readerId);
-
-            snScanner.start(
-                { facingMode: "environment" },
-                { fps: 10, qrbox: { width: 200, height: 200 } },
-                (decodedText) => {
-                    // Set the S/N value
-                    document.getElementById(`sn-input-${index}`).value = decodedText;
-                    updatePart(index, 'sn', decodedText);
-                    
-                    // Close scanner
-                    closeSnScanner();
-                    
-                    showStatus('batch-status', `✅ S/N: ${decodedText} を読み取りました`, 'success');
-                    setTimeout(() => hideStatus('batch-status'), 2000);
-                },
-                (errorMessage) => {}
-            ).catch((err) => {
-                showStatus('batch-status', 'カメラにアクセスできません: ' + err, 'error');
-            });
-
-            snScannerActive = true;
-        }
-
-        function closeSnScanner() {
-            if (snScanner && snScannerActive) {
-                snScanner.stop().then(() => {
-                    if (snScannerIndex >= 0) {
-                        const readerElement = document.getElementById(`sn-qr-reader-${snScannerIndex}`);
-                        if (readerElement) {
-                            readerElement.style.display = 'none';
-                        }
-                    }
-                    snScannerActive = false;
-                    snScannerIndex = -1;
-                }).catch(console.log);
-            }
-        }
-
-        // =====================================================
         // PARTS LIST MANAGEMENT
         // =====================================================
         function addPart(pn) {
@@ -1000,7 +913,7 @@ GPCP-0000154-0-0"></textarea>
                             </select>
                         </div>
                         <div class="field-group">
-                            <label>S/N <button class="sn-qr-btn" onclick="openSnScanner(${index})">📷</button></label>
+                            <label>S/N</label>
                             <input type="text" value="${part.sn}" placeholder="シリアル番号" 
                                    onchange="updatePart(${index}, 'sn', this.value)"
                                    id="sn-input-${index}">
@@ -1011,7 +924,6 @@ GPCP-0000154-0-0"></textarea>
                                    onchange="updatePart(${index}, 'qty', this.value)">
                         </div>
                     </div>
-                    <div id="sn-qr-reader-${index}" class="sn-qr-reader-container"></div>
                 </div>
             `).join('');
         }
