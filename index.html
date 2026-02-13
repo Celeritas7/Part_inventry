@@ -874,7 +874,7 @@ GPCP-0000154-0-0"></textarea>
         // =====================================================
         const CONFIG = {
             CLIENT_ID: '1088099187141-ut0dn0scqt3h99htf3rg8gsrg2oo1ad8.apps.googleusercontent.com',
-            SCOPES: 'https://www.googleapis.com/auth/spreadsheets',
+            SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
             
             // Admin email
             ADMIN_EMAIL: 'anikettelexistence@gmail.com',
@@ -939,7 +939,23 @@ GPCP-0000154-0-0"></textarea>
                     if (response.access_token) {
                         accessToken = response.access_token;
                         localStorage.setItem('gsheet_access_token', accessToken);
-                        fetchUserInfo();
+                        
+                        // Check if this is a guest completing auth for an action
+                        if (currentUser.isGuest && pendingAction) {
+                            if (pendingAction === 'submit') {
+                                pendingAction = null;
+                                submitBatch();
+                            } else if (pendingAction === 'paste') {
+                                pendingAction = null;
+                                processPastedListAfterAuth();
+                            } else if (pendingAction === 'find') {
+                                pendingAction = null;
+                                findParts();
+                            }
+                        } else {
+                            // Normal Google login
+                            fetchUserInfo();
+                        }
                     }
                 },
             });
@@ -951,7 +967,10 @@ GPCP-0000154-0-0"></textarea>
             if (storedUser) {
                 currentUser = JSON.parse(storedUser);
                 if (currentUser.isGuest) {
-                    // Guest user - no token needed for now, will use on submit
+                    // Guest user - show app, they may or may not have token
+                    if (storedToken) {
+                        accessToken = storedToken;
+                    }
                     showApp();
                 } else if (storedToken) {
                     accessToken = storedToken;
@@ -983,11 +1002,16 @@ GPCP-0000154-0-0"></textarea>
                 const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
                     headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch user info');
+                }
+                
                 const userInfo = await response.json();
                 
                 currentUser = {
-                    name: userInfo.name || userInfo.email.split('@')[0],
-                    email: userInfo.email,
+                    name: userInfo.name || (userInfo.email ? userInfo.email.split('@')[0] : 'User'),
+                    email: userInfo.email || '',
                     isAdmin: userInfo.email === CONFIG.ADMIN_EMAIL,
                     isGuest: false
                 };
@@ -996,6 +1020,24 @@ GPCP-0000154-0-0"></textarea>
                 showApp();
             } catch (error) {
                 console.error('Error fetching user info:', error);
+                // Fallback: use token info instead
+                try {
+                    const tokenResponse = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + accessToken);
+                    const tokenInfo = await tokenResponse.json();
+                    
+                    currentUser = {
+                        name: tokenInfo.email ? tokenInfo.email.split('@')[0] : 'User',
+                        email: tokenInfo.email || '',
+                        isAdmin: tokenInfo.email === CONFIG.ADMIN_EMAIL,
+                        isGuest: false
+                    };
+                    
+                    localStorage.setItem('current_user', JSON.stringify(currentUser));
+                    showApp();
+                } catch (fallbackError) {
+                    console.error('Fallback also failed:', fallbackError);
+                    showStatus('batch-status', 'ログインに失敗しました', 'error');
+                }
             }
         }
 
@@ -1036,9 +1078,9 @@ GPCP-0000154-0-0"></textarea>
 
             localStorage.setItem('current_user', JSON.stringify(currentUser));
             
-            // Guest needs to trigger Google login for API access
-            // but we'll show the app first and handle auth on submit
-            tokenClient.requestAccessToken();
+            // Show app immediately for guest
+            // Google login will be triggered when they try to submit
+            showApp();
         }
 
         function handleLogout() {
@@ -1364,6 +1406,31 @@ GPCP-0000154-0-0"></textarea>
                 return;
             }
 
+            // Store the text for after auth if needed
+            window.pendingPasteText = text;
+
+            // Check if guest needs to authenticate
+            if (!accessToken) {
+                closePasteModal();
+                showStatus('batch-status', 'Google認証が必要です...', 'loading');
+                pendingAction = 'paste';
+                tokenClient.requestAccessToken();
+                return;
+            }
+
+            await processPastedListAfterAuth();
+        }
+
+        async function processPastedListAfterAuth() {
+            const text = window.pendingPasteText || document.getElementById('paste-textarea').value;
+            const lines = text.split('\n')
+                .map(line => line.trim())
+                .filter(line => line.length > 0);
+
+            if (lines.length === 0) {
+                return;
+            }
+
             closePasteModal();
             showStatus('batch-status', '部品情報を取得中...', 'loading');
 
@@ -1406,6 +1473,8 @@ GPCP-0000154-0-0"></textarea>
                     setTimeout(() => hideStatus('batch-status'), 3000);
                 }
 
+                window.pendingPasteText = null;
+
             } catch (error) {
                 console.error('Error:', error);
                 showStatus('batch-status', 'エラー: ' + error.message, 'error');
@@ -1433,6 +1502,15 @@ GPCP-0000154-0-0"></textarea>
         // BATCH SUBMIT
         // =====================================================
         async function submitBatch() {
+            // Check if guest needs to authenticate
+            if (!accessToken) {
+                showStatus('batch-status', 'Google認証が必要です...', 'loading');
+                // Set up callback for after auth
+                pendingAction = 'submit';
+                tokenClient.requestAccessToken();
+                return;
+            }
+
             const validParts = parts.filter(p => p.purpose);
             
             if (validParts.length === 0) {
@@ -1488,6 +1566,9 @@ GPCP-0000154-0-0"></textarea>
             }
         }
 
+        // Pending action for guest auth
+        let pendingAction = null;
+
         // =====================================================
         // PART FINDER
         // =====================================================
@@ -1499,6 +1580,14 @@ GPCP-0000154-0-0"></textarea>
 
             if (partNumbers.length === 0) {
                 showStatus('finder-status', '部品番号を入力してください', 'error');
+                return;
+            }
+
+            // Check if guest needs to authenticate
+            if (!accessToken) {
+                showStatus('finder-status', 'Google認証が必要です...', 'loading');
+                pendingAction = 'find';
+                tokenClient.requestAccessToken();
                 return;
             }
 
