@@ -4,56 +4,756 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>出庫依頼入力</title>
-    
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    
-    <!-- Google API for Sheets -->
-    <script src="https://apis.google.com/js/api.js"></script>
-    
-    <!-- QR Scanner -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-    
-    <!-- Stylesheet -->
-    <link rel="stylesheet" href="css/styles.css">
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .card {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+        }
+
+        h1 {
+            text-align: center;
+            color: #333;
+            margin-bottom: 8px;
+            font-size: 1.5rem;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #666;
+            margin-bottom: 24px;
+            font-size: 0.9rem;
+        }
+
+        /* Login Section */
+        #login-section {
+            text-align: center;
+            padding: 20px;
+        }
+
+        #login-section p {
+            color: #666;
+            margin-bottom: 20px;
+        }
+
+        .login-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            align-items: center;
+        }
+
+        .login-btn {
+            background: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            width: 100%;
+            max-width: 280px;
+            justify-content: center;
+        }
+
+        .login-btn:hover {
+            background: #3367d6;
+        }
+
+        .login-btn.guest {
+            background: #43a047;
+        }
+
+        .login-btn.guest:hover {
+            background: #388e3c;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 16px 0;
+            color: #999;
+            font-size: 0.85rem;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #ddd;
+            margin: 0 12px;
+        }
+
+        /* Guest Name Input */
+        #guest-name-section {
+            display: none;
+            padding: 20px;
+        }
+
+        #guest-name-section label {
+            display: block;
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        #guest-name-section input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            margin-bottom: 16px;
+        }
+
+        #guest-name-section input:focus {
+            outline: none;
+            border-color: #43a047;
+        }
+
+        .guest-continue-btn {
+            width: 100%;
+            padding: 14px;
+            background: #43a047;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .guest-continue-btn:hover {
+            background: #388e3c;
+        }
+
+        .guest-continue-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-top: 12px;
+            color: #667eea;
+            cursor: pointer;
+            font-size: 0.9rem;
+        }
+
+        /* User Info */
+        .user-info {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px;
+            background: #f5f5f5;
+            border-radius: 10px;
+            margin-bottom: 16px;
+        }
+
+        .user-info span {
+            color: #666;
+            font-size: 0.9rem;
+        }
+
+        .user-info .user-badge {
+            font-size: 0.7rem;
+            padding: 2px 8px;
+            border-radius: 10px;
+            margin-left: 8px;
+        }
+
+        .user-badge.admin {
+            background: #e3f2fd;
+            color: #1565c0;
+        }
+
+        .user-badge.team {
+            background: #f3e5f5;
+            color: #7b1fa2;
+        }
+
+        .logout-btn {
+            background: none;
+            border: 1px solid #999;
+            color: #666;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            cursor: pointer;
+        }
+
+        /* Sheet Selector (Admin Only) */
+        .sheet-selector {
+            margin-bottom: 16px;
+            padding: 12px;
+            background: #fff3e0;
+            border-radius: 10px;
+            border: 2px solid #ffb74d;
+        }
+
+        .sheet-selector label {
+            display: block;
+            color: #e65100;
+            font-weight: 600;
+            margin-bottom: 8px;
+            font-size: 0.85rem;
+        }
+
+        .sheet-selector select {
+            width: 100%;
+            padding: 10px 12px;
+            border: 2px solid #ffb74d;
+            border-radius: 8px;
+            font-size: 0.95rem;
+            background: white;
+        }
+
+        .sheet-selector select:focus {
+            outline: none;
+            border-color: #f57c00;
+        }
+
+        /* Tab Navigation */
+        .tabs {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-btn {
+            flex: 1;
+            padding: 12px 16px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .tab-btn:hover {
+            background: #f0f3ff;
+        }
+
+        .tab-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .tab-btn.finder {
+            border-color: #43a047;
+            color: #43a047;
+        }
+
+        .tab-btn.finder:hover {
+            background: #e8f5e9;
+        }
+
+        .tab-btn.finder.active {
+            background: #43a047;
+            color: white;
+        }
+
+        .tab-content {
+            display: none;
+        }
+
+        .tab-content.active {
+            display: block;
+        }
+
+        /* Current Sheet Display */
+        .current-sheet {
+            background: #e8f5e9;
+            color: #2e7d32;
+            padding: 8px 16px;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 20px;
+            font-weight: 500;
+        }
+
+        .current-sheet.test-mode {
+            background: #fff3e0;
+            color: #e65100;
+        }
+
+        /* Action Buttons */
+        .action-buttons {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .action-btn {
+            flex: 1;
+            padding: 12px;
+            border: 2px solid #667eea;
+            background: white;
+            color: #667eea;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            transition: all 0.2s;
+        }
+
+        .action-btn:hover {
+            background: #667eea;
+            color: white;
+        }
+
+        .action-btn.active {
+            background: #667eea;
+            color: white;
+        }
+
+        /* QR Reader */
+        .qr-reader-container {
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            display: none;
+            margin-bottom: 16px;
+        }
+
+        /* Parts List */
+        .parts-list {
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 16px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+
+        .parts-list-empty {
+            padding: 40px 20px;
+            text-align: center;
+            color: #999;
+        }
+
+        .part-item {
+            padding: 16px;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .part-item:last-child {
+            border-bottom: none;
+        }
+
+        .part-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .part-number {
+            font-weight: 600;
+            color: #333;
+            font-size: 1rem;
+        }
+
+        .inline-location {
+            background: #fff3e0;
+            color: #e65100;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 12px;
+        }
+
+        .part-index {
+            background: #667eea;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 0.8rem;
+            margin-right: 8px;
+        }
+
+        .delete-btn {
+            background: none;
+            border: none;
+            color: #e53935;
+            font-size: 1.2rem;
+            cursor: pointer;
+            padding: 4px 8px;
+        }
+
+        .part-fields {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+        }
+
+        .part-fields.three-col {
+            grid-template-columns: 1fr 1fr 80px;
+        }
+
+        .field-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .field-group label {
+            font-size: 0.75rem;
+            color: #666;
+        }
+
+        .field-group input,
+        .field-group select {
+            padding: 8px 10px;
+            border: 1px solid #ddd;
+            border-radius: 6px;
+            font-size: 0.9rem;
+        }
+
+        .field-group input:focus,
+        .field-group select:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* SN Scanner Button */
+        .sn-qr-btn {
+            background: none;
+            border: 1px solid #f57c00;
+            color: #f57c00;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 0.7rem;
+            cursor: pointer;
+            margin-left: 6px;
+        }
+
+        .sn-qr-btn:hover {
+            background: #f57c00;
+            color: white;
+        }
+
+        .sn-qr-reader-container {
+            width: 100%;
+            border-radius: 10px;
+            overflow: hidden;
+            display: none;
+            margin-top: 12px;
+            border: 2px solid #f57c00;
+        }
+
+        /* Remarks */
+        .remarks-section {
+            margin-bottom: 16px;
+        }
+
+        .remarks-section label {
+            display: block;
+            color: #333;
+            font-weight: 500;
+            margin-bottom: 8px;
+            font-size: 0.9rem;
+        }
+
+        .remarks-section textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 1rem;
+            resize: vertical;
+            min-height: 60px;
+        }
+
+        .remarks-section textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        /* Submit Button */
+        .submit-btn {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        .submit-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .submit-btn.finder-btn {
+            background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
+        }
+
+        .submit-btn.finder-btn:hover {
+            box-shadow: 0 6px 20px rgba(67, 160, 71, 0.4);
+        }
+
+        /* Status Messages */
+        .status {
+            padding: 12px 16px;
+            border-radius: 8px;
+            margin-top: 16px;
+            text-align: center;
+            display: none;
+        }
+
+        .status.success {
+            background: #e8f5e9;
+            color: #2e7d32;
+            display: block;
+        }
+
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            display: block;
+        }
+
+        .status.loading {
+            background: #e3f2fd;
+            color: #1565c0;
+            display: block;
+        }
+
+        /* Paste Modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: white;
+            border-radius: 16px;
+            padding: 24px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal h2 {
+            margin-bottom: 16px;
+            color: #333;
+        }
+
+        .modal textarea {
+            width: 100%;
+            height: 200px;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-family: monospace;
+            margin-bottom: 16px;
+        }
+
+        .modal textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .modal-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .modal-btn {
+            flex: 1;
+            padding: 12px;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+        }
+
+        .modal-btn.cancel {
+            background: #f5f5f5;
+            border: 1px solid #ddd;
+            color: #666;
+        }
+
+        .modal-btn.confirm {
+            background: #667eea;
+            border: none;
+            color: white;
+        }
+
+        /* Part Finder Results */
+        .finder-results {
+            margin-top: 16px;
+        }
+
+        .finder-result-item {
+            padding: 16px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            margin-bottom: 10px;
+        }
+
+        .finder-result-item.found {
+            border-color: #43a047;
+            background: #f1f8e9;
+        }
+
+        .finder-result-item.not-found {
+            border-color: #e53935;
+            background: #ffebee;
+        }
+
+        .finder-pn {
+            font-weight: 600;
+            font-size: 1rem;
+            margin-bottom: 8px;
+        }
+
+        .finder-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+            font-size: 0.85rem;
+        }
+
+        .finder-detail {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .finder-detail-label {
+            color: #666;
+            font-size: 0.75rem;
+        }
+
+        .finder-detail-value {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .location-highlight {
+            background: #fff3e0;
+            padding: 8px 12px;
+            border-radius: 8px;
+            margin-top: 8px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .location-highlight .icon {
+            font-size: 1.5rem;
+        }
+
+        .location-highlight .text {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #e65100;
+        }
+
+        /* Paste textarea for finder */
+        .finder-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 10px;
+            font-size: 0.9rem;
+            font-family: monospace;
+            min-height: 120px;
+            margin-bottom: 16px;
+        }
+
+        .finder-input:focus {
+            outline: none;
+            border-color: #43a047;
+        }
+
+        .finder-hint {
+            color: #666;
+            font-size: 0.85rem;
+            margin-bottom: 12px;
+        }
+    </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
-            <!-- Header with icons -->
-            <div class="app-header">
-                <div class="app-title">
-                    <h1>📦 出庫依頼入力</h1>
-                    <p class="subtitle">生産チーム出庫依頼シート</p>
-                </div>
-                <div class="header-icons" id="header-icons" style="display: none;">
-                    <button class="header-icon-btn" onclick="openFinderModal()" title="部品検索">🔍</button>
-                    <button class="header-icon-btn admin-only" id="sheet-selector-btn" onclick="openSheetSelectorModal()" title="シート選択" style="display: none;">📊</button>
-                    <button class="header-icon-btn" onclick="openSettingsModal()" title="設定">⚙️</button>
-                </div>
-            </div>
-
-            <!-- Loading Section -->
-            <div id="loading-section">
-                <div class="spinner"></div>
-                <p>読み込み中...</p>
-            </div>
+            <h1>📦 出庫依頼入力</h1>
+            <p class="subtitle">生産チーム出庫依頼シート</p>
 
             <!-- Login Section -->
-            <div id="login-section" style="display: none;">
+            <div id="login-section">
                 <p>Googleアカウントでログインしてください</p>
-                <button class="login-btn" onclick="handleGoogleLogin()">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                    </svg>
-                    Googleでログイン
-                </button>
-                <p id="login-error"></p>
+                <div class="login-buttons">
+                    <button class="login-btn" onclick="handleGoogleLogin()">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                        </svg>
+                        Googleでログイン
+                    </button>
+                </div>
+                <p id="login-error" style="color: #c62828; margin-top: 16px; display: none;"></p>
             </div>
 
             <!-- Main App Section -->
@@ -63,8 +763,23 @@
                     <button class="logout-btn" onclick="handleLogout()">ログアウト</button>
                 </div>
 
-                <!-- Main Content (Batch Entry - default view) -->
-                <div id="batch-content">
+                <!-- Sheet Selector (Admin Only) -->
+                <div class="sheet-selector" id="sheet-selector" style="display: none;">
+                    <label>⚙️ 管理者モード: 対象スプレッドシート</label>
+                    <select id="sheet-select" onchange="onSheetChange()">
+                        <option value="production">生産チーム出庫依頼シート</option>
+                        <option value="test">テスト用シート</option>
+                    </select>
+                </div>
+
+                <!-- Tab Navigation -->
+                <div class="tabs">
+                    <button class="tab-btn active" onclick="switchTab('batch')">📝 一括入力</button>
+                    <button class="tab-btn finder" onclick="switchTab('finder')">🔍 部品検索</button>
+                </div>
+
+                <!-- Batch Entry Tab -->
+                <div id="batch-tab" class="tab-content active">
                     <div class="current-sheet" id="current-sheet">
                         📅 対象シート: 読み込み中...
                     </div>
@@ -102,6 +817,23 @@
 
                     <div class="status" id="batch-status"></div>
                 </div>
+
+                <!-- Part Finder Tab -->
+                <div id="finder-tab" class="tab-content">
+                    <p class="finder-hint">部品番号を入力してください（複数の場合は改行で区切る）</p>
+                    
+                    <textarea class="finder-input" id="finder-input" placeholder="GPMP-0540010-0-2
+GPCP-0000360-0-0
+GPCP-0000154-0-0"></textarea>
+
+                    <button class="submit-btn finder-btn" onclick="findParts()">
+                        🔍 部品を検索
+                    </button>
+
+                    <div class="status" id="finder-status"></div>
+
+                    <div class="finder-results" id="finder-results"></div>
+                </div>
             </div>
         </div>
     </div>
@@ -123,163 +855,29 @@ GPCP-0000154-0-0"></textarea>
         </div>
     </div>
 
-    <!-- Part Finder Modal -->
-    <div class="modal-overlay" id="finder-modal">
-        <div class="modal finder-modal">
-            <div class="modal-header">
-                <h2>🔍 部品検索</h2>
-                <button class="modal-close-btn" onclick="closeFinderModal()">✕</button>
-            </div>
-            <p class="finder-hint">部品番号を入力してください（複数の場合は改行で区切る）</p>
-            <textarea class="finder-input" id="finder-input" placeholder="GPMP-0540010-0-2
-GPCP-0000360-0-0
-GPCP-0000154-0-0"></textarea>
-            <button class="submit-btn finder-btn" onclick="findParts()">
-                🔍 部品を検索
-            </button>
-            <div class="status" id="finder-status"></div>
-            <div class="finder-results" id="finder-results"></div>
-        </div>
-    </div>
-
-    <!-- Sheet Selector Modal (Admin Only) -->
-    <div class="modal-overlay" id="sheet-selector-modal">
-        <div class="modal sheet-selector-modal">
-            <div class="modal-header">
-                <h2>📊 シート選択</h2>
-                <button class="modal-close-btn" onclick="closeSheetSelectorModal()">✕</button>
-            </div>
-            <p style="color: #666; margin-bottom: 16px; font-size: 0.9rem;">
-                データを保存するシートを選択してください
-            </p>
-            <div class="sheet-options">
-                <label class="sheet-option">
-                    <input type="radio" name="sheet" value="production" checked onchange="onSheetChange()">
-                    <span class="sheet-option-content">
-                        <span class="sheet-option-icon">📋</span>
-                        <span class="sheet-option-text">
-                            <strong>生産チーム出庫依頼シート</strong>
-                            <small>本番用シート</small>
-                        </span>
-                    </span>
-                </label>
-                <label class="sheet-option">
-                    <input type="radio" name="sheet" value="test" onchange="onSheetChange()">
-                    <span class="sheet-option-content">
-                        <span class="sheet-option-icon">🧪</span>
-                        <span class="sheet-option-text">
-                            <strong>テスト用シート</strong>
-                            <small>動作確認用</small>
-                        </span>
-                    </span>
-                </label>
-            </div>
-            <button class="modal-btn confirm" onclick="closeSheetSelectorModal()" style="width: 100%; margin-top: 16px;">
-                閉じる
-            </button>
-        </div>
-    </div>
-
-    <!-- Settings Modal -->
-    <div class="modal-overlay" id="settings-modal">
-        <div class="modal settings-modal">
-            <div class="modal-header">
-                <h2>⚙️ 設定</h2>
-                <button class="modal-close-btn" onclick="closeSettingsModal()">✕</button>
-            </div>
-            
-            <div class="settings-section">
-                <h3>🎨 テーマ</h3>
-                <div class="theme-options">
-                    <button class="theme-btn" data-theme="purple" onclick="setTheme('purple')">
-                        <span class="theme-preview purple"></span>
-                        <span>パープル</span>
-                    </button>
-                    <button class="theme-btn" data-theme="blue" onclick="setTheme('blue')">
-                        <span class="theme-preview blue"></span>
-                        <span>ブルー</span>
-                    </button>
-                    <button class="theme-btn" data-theme="green" onclick="setTheme('green')">
-                        <span class="theme-preview green"></span>
-                        <span>グリーン</span>
-                    </button>
-                    <button class="theme-btn" data-theme="orange" onclick="setTheme('orange')">
-                        <span class="theme-preview orange"></span>
-                        <span>オレンジ</span>
-                    </button>
-                    <button class="theme-btn" data-theme="dark" onclick="setTheme('dark')">
-                        <span class="theme-preview dark"></span>
-                        <span>ダーク</span>
-                    </button>
-                </div>
-            </div>
-            
-            <button class="modal-btn confirm" onclick="closeSettingsModal()" style="width: 100%; margin-top: 20px;">
-                閉じる
-            </button>
-        </div>
-    </div>
-
-    <!-- Unit Code Modal -->
-    <div class="unit-modal-overlay" id="unit-modal">
-        <div class="unit-modal">
-            <div class="unit-modal-header">
-                <h3>🏭 Unit S/N 検索</h3>
-                <button class="unit-modal-close" onclick="closeUnitModal()">✕</button>
-            </div>
-            
-            <p style="color: #666; font-size: 0.85rem; margin-bottom: 12px;">
-                Ghost Trackerから完全なS/Nを検索します
-            </p>
-            
-            <div class="unit-modal-chips">
-                <button class="unit-modal-chip" data-code="Ghost" onclick="selectUnitChip('Ghost')">👻 Ghost</button>
-                <button class="unit-modal-chip" data-code="MB" onclick="selectUnitChip('MB')">🛞 MB</button>
-                <button class="unit-modal-chip" data-code="Pillar" onclick="selectUnitChip('Pillar')">🏛️ Pillar</button>
-                <button class="unit-modal-chip" data-code="H&B" onclick="selectUnitChip('H&B')">🧠 H&B</button>
-                <button class="unit-modal-chip" data-code="Arm" onclick="selectUnitChip('Arm')">🦾 Arm</button>
-                <button class="unit-modal-chip" data-code="Gripper" onclick="selectUnitChip('Gripper')">🤏 Gripper</button>
-                <button class="unit-modal-chip" data-code="DK" onclick="selectUnitChip('DK')">📦 DK</button>
-                <button class="unit-modal-chip" data-code="L-Mot" onclick="selectUnitChip('L-Mot')">⚙️ L-Mot</button>
-                <button class="unit-modal-chip" data-code="A12" onclick="selectUnitChip('A12')">⚙️ A12</button>
-                <button class="unit-modal-chip" data-code="A35" onclick="selectUnitChip('A35')">⚙️ A35</button>
-                <button class="unit-modal-chip" data-code="A4" onclick="selectUnitChip('A4')">⚙️ A4</button>
-            </div>
-            
-            <div class="unit-modal-number">
-                <label>番号を入力 (例: 34, 105, 426)</label>
-                <input type="number" id="unit-number-input" placeholder="34" oninput="onUnitNumberChange(this.value)">
-            </div>
-            
-            <button class="unit-confirm-btn" id="unit-confirm-btn" onclick="confirmUnitSelection()" disabled>
-                Unitを選択してください
-            </button>
-        </div>
-    </div>
-
     <script>
         // =====================================================
-        // FIREBASE CONFIGURATION
+        // CONFIGURATION
         // =====================================================
-        const firebaseConfig = {
-            apiKey: "AIzaSyAn-N_OPbPGG5pzkQUc4vgP8C-QLf6jgls",
-            authDomain: "part-inventry-app.firebaseapp.com",
-            projectId: "part-inventry-app",
-            storageBucket: "part-inventry-app.firebasestorage.app",
-            messagingSenderId: "503579604735",
-            appId: "1:503579604735:web:cc9915b63a8178145bbeca",
-            measurementId: "G-XL1VNHPFTY"
-        };
-
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-
-        // =====================================================
-        // GOOGLE SHEETS CONFIGURATION
-        // =====================================================
-        const SHEETS_CONFIG = {
+        const CONFIG = {
+            CLIENT_ID: '1088099187141-ut0dn0scqt3h99htf3rg8gsrg2oo1ad8.apps.googleusercontent.com',
+            SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
+            
+            // Admin email
+            ADMIN_EMAIL: 'anikettelexistence@gmail.com',
+            
+            // Approved users list
+            APPROVED_USERS: {
+                // Production Team
+                'anikettelexistence@gmail.com': { name: 'Aniket', team: 'production', isAdmin: true },
+                'igarashi@tx-inc.com': { name: 'Igarashi', team: 'production', isAdmin: false },
+                'niidome@tx-inc.com': { name: 'Niidome', team: 'production', isAdmin: false },
+                
+                // Design Team (add later)
+                // 'designer1@tx-inc.com': { name: 'Designer1', team: 'design', isAdmin: false },
+            },
+            
+            // Spreadsheet IDs
             SPREADSHEETS: {
                 production: {
                     id: '1pGy5OkQd8i4tVlYbcG7afkeDHEdjaZIwwuq6Wqv96jM',
@@ -300,325 +898,291 @@ GPCP-0000154-0-0"></textarea>
             'ECN対応', 'BY構築', '生産ジグ', '確認中', 'その他', '出庫キャンセル'
         ];
 
-        // Unit codes for S/N input with Ghost Tracker sheet mapping
-        const UNIT_CODES = [
-            { code: 'Ghost', icon: '👻', sheetTab: '00_GHOST', snCode: 'GST' },
-            { code: 'MB', icon: '🛞', sheetTab: '05_Mobile Base', snCode: 'MBB' },
-            { code: 'Pillar', icon: '🏛️', sheetTab: '06_Pillar', snCode: 'PLR' },
-            { code: 'H&B', icon: '🧠', sheetTab: '07_Head & Body', snCode: 'HBD' },
-            { code: 'Arm', icon: '🦾', sheetTab: '09_Arm', snCode: 'ARM' },
-            { code: 'Gripper', icon: '🤏', sheetTab: '08_Gripper', snCode: 'GPR' },
-            { code: 'DK', icon: '📦', sheetTab: '10_Deploy Kit', snCode: 'DPK' },
-            { code: 'L-Mot', icon: '⚙️', sheetTab: '01_L-motor', snCode: 'LAC' },
-            { code: 'A12', icon: '⚙️', sheetTab: '02_A12-motor', snCode: 'A12' },
-            { code: 'A35', icon: '⚙️', sheetTab: '03_A35-motor', snCode: 'A35' },
-            { code: 'A4', icon: '⚙️', sheetTab: '04_A4-motor', snCode: 'A4A' }
-        ];
-
-        // Ghost Tracker Sheet ID
-        const GHOST_TRACKER_SHEET_ID = '1mUhNDzucbHpS2y-IYu3A5ML1x5I_opUeNnqqyOtg95M';
-
         // =====================================================
         // STATE
         // =====================================================
-        let currentUser = null;
-        let userProfile = null;
         let accessToken = null;
+        let tokenClient = null;
         let html5QrCode = null;
         let scannerActive = false;
         let snScanner = null;
         let snScannerActive = false;
         let snScannerIndex = -1;
-        let parts = [];
+        let parts = []; // Array of { pn, purpose, sn, qty, location, tempLocation, showLocation }
         let databaseCache = null;
+
+        // User state
+        let currentUser = {
+            name: '',
+            email: '',
+            isAdmin: false,
+            isGuest: false
+        };
+
+        // Current selected sheet
         let currentSheet = 'production';
 
         // =====================================================
         // INITIALIZATION
         // =====================================================
         window.onload = function() {
-            showLoading();
-            
-            // Listen for auth state changes
-            auth.onAuthStateChanged(async (user) => {
-                if (user) {
-                    currentUser = user;
-                    await checkUserApproval(user);
-                } else {
-                    currentUser = null;
-                    userProfile = null;
-                    showLogin();
-                }
-            });
+            initializeGoogleAuth();
         };
 
-        function showLoading() {
-            document.getElementById('loading-section').style.display = 'block';
-            document.getElementById('login-section').style.display = 'none';
-            document.getElementById('app-section').style.display = 'none';
-        }
-
-        function showLogin() {
-            document.getElementById('loading-section').style.display = 'none';
-            document.getElementById('login-section').style.display = 'block';
-            document.getElementById('app-section').style.display = 'none';
-        }
-
-        function showApp() {
-            document.getElementById('loading-section').style.display = 'none';
-            document.getElementById('login-section').style.display = 'none';
-            document.getElementById('app-section').style.display = 'block';
-            document.getElementById('header-icons').style.display = 'flex';
-
-            // Update user display
-            let userDisplay = `👤 ${userProfile.name}`;
-            if (userProfile.isAdmin) {
-                userDisplay += '<span class="user-badge admin">管理者</span>';
-            }
-            userDisplay += `<span class="user-badge team">${userProfile.team}</span>`;
-            document.getElementById('user-display').innerHTML = userDisplay;
-
-            // Show sheet selector button for admin only
-            if (userProfile.isAdmin) {
-                document.getElementById('sheet-selector-btn').style.display = 'flex';
-            } else {
-                document.getElementById('sheet-selector-btn').style.display = 'none';
-            }
-
-            updateCurrentSheetDisplay();
-            initGoogleSheetsAPI();
-            loadSavedTheme();
-        }
-
-        // =====================================================
-        // AUTHENTICATION
-        // =====================================================
-        async function handleGoogleLogin() {
-            const provider = new firebase.auth.GoogleAuthProvider();
-            provider.addScope('https://www.googleapis.com/auth/spreadsheets');
-            
-            try {
-                const result = await auth.signInWithPopup(provider);
-                // Get the Google Access Token for Sheets API
-                accessToken = result.credential.accessToken;
-                localStorage.setItem('sheets_access_token', accessToken);
-            } catch (error) {
-                console.error('Login error:', error);
-                showLoginError('ログインに失敗しました: ' + error.message);
-            }
-        }
-
-        async function checkUserApproval(user) {
-            try {
-                const doc = await db.collection('approved_users').doc(user.email).get();
-                
-                if (doc.exists) {
-                    userProfile = doc.data();
-                    userProfile.email = user.email;
-                    
-                    // Try to get stored access token
-                    if (!accessToken) {
-                        accessToken = localStorage.getItem('sheets_access_token');
+        function initializeGoogleAuth() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: CONFIG.CLIENT_ID,
+                scope: CONFIG.SCOPES,
+                callback: (response) => {
+                    if (response.access_token) {
+                        accessToken = response.access_token;
+                        localStorage.setItem('gsheet_access_token', accessToken);
+                        hideLoginError();
+                        fetchUserInfo();
                     }
-                    
+                },
+            });
+
+            // Check for stored session
+            const storedUser = localStorage.getItem('current_user');
+            const storedToken = localStorage.getItem('gsheet_access_token');
+            
+            if (storedUser && storedToken) {
+                currentUser = JSON.parse(storedUser);
+                accessToken = storedToken;
+                
+                // Verify user is still in approved list
+                if (CONFIG.APPROVED_USERS[currentUser.email]) {
+                    validateToken();
+                } else {
+                    // User removed from approved list
+                    handleLogout();
+                }
+            }
+        }
+
+        async function validateToken() {
+            try {
+                const response = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + accessToken);
+                if (response.ok) {
                     showApp();
                 } else {
-                    // User not approved
-                    await auth.signOut();
-                    showLoginError(`アクセスが拒否されました。\n${user.email} は許可されていません。\n管理者にお問い合わせください。`);
-                    showLogin();
+                    localStorage.removeItem('gsheet_access_token');
+                    localStorage.removeItem('current_user');
+                    accessToken = null;
+                    currentUser = { name: '', email: '', isAdmin: false, isGuest: false };
                 }
             } catch (error) {
-                console.error('Error checking user approval:', error);
-                showLoginError('ユーザー確認中にエラーが発生しました');
-                showLogin();
+                localStorage.removeItem('gsheet_access_token');
+                localStorage.removeItem('current_user');
+                accessToken = null;
             }
         }
 
-        function handleLogout() {
-            auth.signOut();
-            localStorage.removeItem('sheets_access_token');
-            accessToken = null;
-            userProfile = null;
-            parts = [];
-            databaseCache = null;
-            currentSheet = 'production';
-            stopScanner();
-            closeSnScanner();
+        async function fetchUserInfo() {
+            try {
+                const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
+                    headers: { 'Authorization': `Bearer ${accessToken}` }
+                });
+                
+                if (!response.ok) {
+                    throw new Error('Failed to fetch user info');
+                }
+                
+                const userInfo = await response.json();
+                const email = userInfo.email || '';
+                
+                // Check if user is approved
+                const approvedUser = CONFIG.APPROVED_USERS[email];
+                
+                if (!approvedUser) {
+                    // User not in approved list
+                    showLoginError(`アクセスが拒否されました。\n${email} は許可されていません。\n管理者にお問い合わせください。`);
+                    accessToken = null;
+                    localStorage.removeItem('gsheet_access_token');
+                    return;
+                }
+                
+                currentUser = {
+                    name: approvedUser.name,
+                    email: email,
+                    team: approvedUser.team,
+                    isAdmin: approvedUser.isAdmin,
+                    isGuest: false
+                };
+                
+                localStorage.setItem('current_user', JSON.stringify(currentUser));
+                showApp();
+                
+            } catch (error) {
+                console.error('Error fetching user info:', error);
+                // Fallback: use token info instead
+                try {
+                    const tokenResponse = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + accessToken);
+                    const tokenInfo = await tokenResponse.json();
+                    const email = tokenInfo.email || '';
+                    
+                    // Check if user is approved
+                    const approvedUser = CONFIG.APPROVED_USERS[email];
+                    
+                    if (!approvedUser) {
+                        showLoginError(`アクセスが拒否されました。\n${email} は許可されていません。\n管理者にお問い合わせください。`);
+                        accessToken = null;
+                        localStorage.removeItem('gsheet_access_token');
+                        return;
+                    }
+                    
+                    currentUser = {
+                        name: approvedUser.name,
+                        email: email,
+                        team: approvedUser.team,
+                        isAdmin: approvedUser.isAdmin,
+                        isGuest: false
+                    };
+                    
+                    localStorage.setItem('current_user', JSON.stringify(currentUser));
+                    showApp();
+                    
+                } catch (fallbackError) {
+                    console.error('Fallback also failed:', fallbackError);
+                    showLoginError('ログインに失敗しました。もう一度お試しください。');
+                }
+            }
         }
-
+        
         function showLoginError(message) {
             const errorEl = document.getElementById('login-error');
             errorEl.textContent = message;
             errorEl.style.display = 'block';
+            errorEl.style.whiteSpace = 'pre-line';
         }
-
+        
         function hideLoginError() {
-            document.getElementById('login-error').style.display = 'none';
+            const errorEl = document.getElementById('login-error');
+            errorEl.style.display = 'none';
         }
 
         // =====================================================
-        // GOOGLE SHEETS API
+        // LOGIN HANDLERS
         // =====================================================
-        function initGoogleSheetsAPI() {
-            // If we don't have a token, user needs to re-login
-            if (!accessToken) {
-                console.log('No access token, user may need to re-login for Sheets access');
-            }
+        function handleGoogleLogin() {
+            tokenClient.requestAccessToken();
         }
 
-        async function sheetsApiRequest(url, options = {}, isRetry = false) {
-            if (!accessToken) {
-                // Try to get a new token
-                await refreshAccessToken();
-                if (!accessToken) {
-                    throw new Error('Google Sheets認証が必要です。再ログインしてください。');
-                }
-            }
-
-            const response = await fetch(url, {
-                ...options,
-                headers: {
-                    'Authorization': `Bearer ${accessToken}`,
-                    'Content-Type': 'application/json',
-                    ...options.headers
-                }
-            });
-
-            if (response.status === 401) {
-                // Token expired - try to refresh automatically
-                if (!isRetry) {
-                    console.log('Token expired, refreshing...');
-                    await refreshAccessToken();
-                    if (accessToken) {
-                        // Retry the request with new token
-                        return sheetsApiRequest(url, options, true);
-                    }
-                }
-                // Refresh failed
-                localStorage.removeItem('sheets_access_token');
-                accessToken = null;
-                throw new Error('セッションが切れました。再ログインしてください。');
-            }
-
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error?.message || 'API error');
-            }
-
-            return response.json();
+        function showGuestNameInput() {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('guest-name-section').style.display = 'block';
+            document.getElementById('guest-name').focus();
         }
 
-        // Auto refresh access token
-        async function refreshAccessToken() {
-            return new Promise((resolve) => {
-                const provider = new firebase.auth.GoogleAuthProvider();
-                provider.addScope('https://www.googleapis.com/auth/spreadsheets');
-                
-                // Use reauthenticateWithPopup to get new token
-                const user = auth.currentUser;
-                if (user) {
-                    user.getIdToken(true).then(() => {
-                        // Re-authenticate to get new access token
-                        auth.currentUser.reauthenticateWithPopup(provider).then((result) => {
-                            accessToken = result.credential.accessToken;
-                            localStorage.setItem('sheets_access_token', accessToken);
-                            console.log('Token refreshed successfully');
-                            resolve(true);
-                        }).catch((error) => {
-                            console.error('Token refresh failed:', error);
-                            resolve(false);
-                        });
-                    });
-                } else {
-                    resolve(false);
-                }
-            });
+        function backToLogin() {
+            document.getElementById('guest-name-section').style.display = 'none';
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('guest-name').value = '';
+        }
+
+        function validateGuestName() {
+            const name = document.getElementById('guest-name').value.trim();
+            document.getElementById('guest-continue-btn').disabled = name.length === 0;
+        }
+
+        function continueAsGuest() {
+            const name = document.getElementById('guest-name').value.trim();
+            if (!name) return;
+
+            currentUser = {
+                name: name,
+                email: '',
+                isAdmin: false,
+                isGuest: true
+            };
+
+            localStorage.setItem('current_user', JSON.stringify(currentUser));
+            
+            // Show app immediately for guest
+            // Google login will be triggered when they try to submit
+            showApp();
+        }
+
+        function handleLogout() {
+            if (accessToken) {
+                google.accounts.oauth2.revoke(accessToken);
+            }
+            
+            accessToken = null;
+            localStorage.removeItem('gsheet_access_token');
+            localStorage.removeItem('current_user');
+            currentUser = { name: '', email: '', team: '', isAdmin: false, isGuest: false };
+            
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('app-section').style.display = 'none';
+            hideLoginError();
+            
+            stopScanner();
+            closeSnScanner();
+            
+            // Reset state
+            parts = [];
+            databaseCache = null;
+            currentSheet = 'production';
+        }
+
+        function showApp() {
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('app-section').style.display = 'block';
+
+            // Update user display
+            let userDisplay = `👤 ${currentUser.name}`;
+            if (currentUser.isAdmin) {
+                userDisplay += '<span class="user-badge admin">管理者</span>';
+            }
+            userDisplay += `<span class="user-badge team">${currentUser.team}</span>`;
+            document.getElementById('user-display').innerHTML = userDisplay;
+
+            // Show sheet selector for admin only
+            if (currentUser.isAdmin) {
+                document.getElementById('sheet-selector').style.display = 'block';
+            } else {
+                document.getElementById('sheet-selector').style.display = 'none';
+            }
+
+            updateCurrentSheetDisplay();
         }
 
         // =====================================================
-        // SHEET SELECTION
+        // SHEET SELECTION (Admin Only)
         // =====================================================
         function onSheetChange() {
-            const selectedSheet = document.querySelector('input[name="sheet"]:checked');
-            if (selectedSheet) {
-                currentSheet = selectedSheet.value;
-                databaseCache = null;
-                updateCurrentSheetDisplay();
-            }
+            currentSheet = document.getElementById('sheet-select').value;
+            databaseCache = null; // Clear cache when switching sheets
+            updateCurrentSheetDisplay();
         }
 
         function getCurrentSpreadsheetId() {
-            return SHEETS_CONFIG.SPREADSHEETS[currentSheet].id;
+            return CONFIG.SPREADSHEETS[currentSheet].id;
         }
 
         function getCurrentDatabaseSheet() {
-            return SHEETS_CONFIG.SPREADSHEETS[currentSheet].database;
+            return CONFIG.SPREADSHEETS[currentSheet].database;
         }
 
         // =====================================================
-        // MODAL FUNCTIONS
+        // TAB NAVIGATION
         // =====================================================
-        function openFinderModal() {
-            document.getElementById('finder-modal').classList.add('active');
-        }
+        function switchTab(tab) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
 
-        function closeFinderModal() {
-            document.getElementById('finder-modal').classList.remove('active');
-        }
-
-        function openSheetSelectorModal() {
-            // Set the current selection
-            const currentRadio = document.querySelector(`input[name="sheet"][value="${currentSheet}"]`);
-            if (currentRadio) {
-                currentRadio.checked = true;
+            if (tab === 'batch') {
+                document.querySelector('.tab-btn:not(.finder)').classList.add('active');
+                document.getElementById('batch-tab').classList.add('active');
+            } else {
+                document.querySelector('.tab-btn.finder').classList.add('active');
+                document.getElementById('finder-tab').classList.add('active');
             }
-            document.getElementById('sheet-selector-modal').classList.add('active');
-        }
 
-        function closeSheetSelectorModal() {
-            document.getElementById('sheet-selector-modal').classList.remove('active');
-        }
-
-        function openSettingsModal() {
-            updateThemeButtons();
-            document.getElementById('settings-modal').classList.add('active');
-        }
-
-        function closeSettingsModal() {
-            document.getElementById('settings-modal').classList.remove('active');
-        }
-
-        // =====================================================
-        // THEME FUNCTIONS
-        // =====================================================
-        function setTheme(theme) {
-            // Remove all theme classes
-            document.body.classList.remove('theme-purple', 'theme-blue', 'theme-green', 'theme-orange', 'theme-dark');
-            
-            // Add new theme class
-            document.body.classList.add(`theme-${theme}`);
-            
-            // Save to localStorage
-            localStorage.setItem('app-theme', theme);
-            
-            // Update button states
-            updateThemeButtons();
-        }
-
-        function loadSavedTheme() {
-            const savedTheme = localStorage.getItem('app-theme') || 'purple';
-            setTheme(savedTheme);
-        }
-
-        function updateThemeButtons() {
-            const currentTheme = localStorage.getItem('app-theme') || 'purple';
-            document.querySelectorAll('.theme-btn').forEach(btn => {
-                btn.classList.remove('active');
-                if (btn.dataset.theme === currentTheme) {
-                    btn.classList.add('active');
-                }
-            });
+            stopScanner();
+            closeSnScanner();
         }
 
         // =====================================================
@@ -670,9 +1234,12 @@ GPCP-0000154-0-0"></textarea>
                 { facingMode: "environment" },
                 { fps: 10, qrbox: { width: 250, height: 250 } },
                 (decodedText) => {
+                    // Add scanned part to list
                     addPart(decodedText, false, null);
                     showStatus('batch-status', `✅ ${decodedText} を追加しました`, 'success');
                     setTimeout(() => hideStatus('batch-status'), 2000);
+                    
+                    // OPTION A: Stop scanner after each scan
                     stopScanner();
                 },
                 (errorMessage) => {}
@@ -696,7 +1263,7 @@ GPCP-0000154-0-0"></textarea>
         }
 
         // =====================================================
-        // S/N QR SCANNER
+        // S/N QR SCANNER (for individual parts)
         // =====================================================
         function openSnScanner(index) {
             stopScanner();
@@ -716,12 +1283,9 @@ GPCP-0000154-0-0"></textarea>
                 { facingMode: "environment" },
                 { fps: 10, qrbox: { width: 200, height: 200 } },
                 (decodedText) => {
-                    // Set the scanned value directly to S/N (bypasses chip selection)
-                    parts[index].sn = decodedText;
-                    parts[index].snUnit = '';
-                    parts[index].snNumber = '';
+                    document.getElementById(`sn-input-${index}`).value = decodedText;
+                    updatePart(index, 'sn', decodedText);
                     closeSnScanner();
-                    renderPartsList();
                     showStatus('batch-status', `✅ S/N: ${decodedText} を読み取りました`, 'success');
                     setTimeout(() => hideStatus('batch-status'), 2000);
                 },
@@ -762,8 +1326,6 @@ GPCP-0000154-0-0"></textarea>
                 pn: pn,
                 purpose: '',
                 sn: '',
-                snUnit: '',
-                snNumber: '',
                 qty: 1,
                 showLocation: showLocation,
                 location: locationData ? locationData.location : '',
@@ -816,14 +1378,10 @@ GPCP-0000154-0-0"></textarea>
                             </select>
                         </div>
                         <div class="field-group">
-                            <label>S/N</label>
-                            <div class="sn-compact-row">
-                                <input type="text" value="${part.sn}" placeholder="S/N" 
-                                       onchange="updatePart(${index}, 'sn', this.value)"
-                                       id="sn-input-${index}" class="sn-text-input">
-                                <button class="sn-btn" onclick="openSnScanner(${index})" title="QRスキャン">📷</button>
-                                <button class="sn-btn unit-btn" onclick="openUnitModal(${index})" title="Unit選択">🏭</button>
-                            </div>
+                            <label>S/N <button class="sn-qr-btn" onclick="openSnScanner(${index})">📷</button></label>
+                            <input type="text" value="${part.sn}" placeholder="シリアル番号" 
+                                   onchange="updatePart(${index}, 'sn', this.value)"
+                                   id="sn-input-${index}">
                         </div>
                         <div class="field-group">
                             <label>数量</label>
@@ -835,185 +1393,6 @@ GPCP-0000154-0-0"></textarea>
                 </div>
             `).join('');
         }
-
-        // Open Unit Code Modal
-        function openUnitModal(index) {
-            currentSnIndex = index;
-            const part = parts[index];
-            
-            // Set current values in modal
-            document.getElementById('unit-number-input').value = part.snNumber || '';
-            
-            // Clear active state from all chips
-            document.querySelectorAll('.unit-modal-chip').forEach(chip => {
-                chip.classList.remove('active');
-            });
-            
-            // Set active chip if unit is selected
-            if (part.snUnit) {
-                const activeChip = document.querySelector(`.unit-modal-chip[data-code="${part.snUnit}"]`);
-                if (activeChip) {
-                    activeChip.classList.add('active');
-                }
-            }
-            
-            updateUnitPreview();
-            document.getElementById('unit-modal').classList.add('active');
-        }
-
-        function closeUnitModal() {
-            document.getElementById('unit-modal').classList.remove('active');
-            currentSnIndex = -1;
-        }
-
-        function selectUnitChip(code) {
-            // Update active state
-            document.querySelectorAll('.unit-modal-chip').forEach(chip => {
-                chip.classList.remove('active');
-            });
-            document.querySelector(`.unit-modal-chip[data-code="${code}"]`).classList.add('active');
-            
-            if (currentSnIndex >= 0) {
-                parts[currentSnIndex].snUnit = code;
-            }
-            updateUnitPreview();
-        }
-
-        function onUnitNumberChange(value) {
-            if (currentSnIndex >= 0) {
-                parts[currentSnIndex].snNumber = value;
-            }
-            updateUnitPreview();
-        }
-
-        function updateUnitPreview() {
-            const previewBtn = document.getElementById('unit-confirm-btn');
-            if (currentSnIndex >= 0) {
-                const unit = parts[currentSnIndex].snUnit || '';
-                const number = parts[currentSnIndex].snNumber || '';
-                
-                if (unit && number) {
-                    previewBtn.textContent = `🔍 検索: ${unit}-${number}`;
-                    previewBtn.disabled = false;
-                } else if (unit) {
-                    previewBtn.textContent = `番号を入力してください`;
-                    previewBtn.disabled = true;
-                } else if (number) {
-                    previewBtn.textContent = `Unitを選択してください`;
-                    previewBtn.disabled = true;
-                } else {
-                    previewBtn.textContent = `Unitを選択してください`;
-                    previewBtn.disabled = true;
-                }
-            }
-        }
-
-        async function confirmUnitSelection() {
-            if (currentSnIndex >= 0) {
-                const unit = parts[currentSnIndex].snUnit || '';
-                const number = parts[currentSnIndex].snNumber || '';
-                
-                if (unit && number) {
-                    // Show loading state
-                    const previewBtn = document.getElementById('unit-confirm-btn');
-                    previewBtn.textContent = '🔍 検索中...';
-                    previewBtn.disabled = true;
-                    
-                    try {
-                        // Search Ghost Tracker sheet for full S/N
-                        const fullSN = await lookupGhostTrackerSN(unit, number);
-                        
-                        if (fullSN) {
-                            parts[currentSnIndex].sn = fullSN;
-                            showStatus('batch-status', `✅ S/N: ${fullSN} を取得しました`, 'success');
-                            setTimeout(() => hideStatus('batch-status'), 3000);
-                        } else {
-                            // Fallback to simple format if not found
-                            const unitConfig = UNIT_CODES.find(u => u.code === unit);
-                            const snCode = unitConfig ? unitConfig.snCode : unit;
-                            parts[currentSnIndex].sn = `${snCode}-${number}`;
-                            showStatus('batch-status', `⚠️ Ghost Trackerに見つかりません。${snCode}-${number} を設定しました`, 'error');
-                            setTimeout(() => hideStatus('batch-status'), 3000);
-                        }
-                    } catch (error) {
-                        console.error('Ghost Tracker lookup error:', error);
-                        // Fallback to simple format on error
-                        const unitConfig = UNIT_CODES.find(u => u.code === unit);
-                        const snCode = unitConfig ? unitConfig.snCode : unit;
-                        parts[currentSnIndex].sn = `${snCode}-${number}`;
-                        showStatus('batch-status', `⚠️ 検索エラー。${snCode}-${number} を設定しました`, 'error');
-                        setTimeout(() => hideStatus('batch-status'), 3000);
-                    }
-                    
-                    renderPartsList();
-                }
-            }
-            closeUnitModal();
-        }
-
-        // Lookup S/N from Ghost Tracker sheet
-        async function lookupGhostTrackerSN(unitCode, number) {
-            const unitConfig = UNIT_CODES.find(u => u.code === unitCode);
-            if (!unitConfig || !unitConfig.sheetTab) {
-                return null;
-            }
-            
-            try {
-                // Fetch data from the specific tab
-                const url = `https://sheets.googleapis.com/v4/spreadsheets/${GHOST_TRACKER_SHEET_ID}/values/${encodeURIComponent(unitConfig.sheetTab)}!A:Z`;
-                const data = await sheetsApiRequest(url);
-                
-                const rows = data.values || [];
-                if (rows.length < 2) return null;
-                
-                // Find S/N column (usually first column or column named "S/N")
-                const headers = rows[0];
-                let snColIndex = headers.findIndex(h => /^S\/?N$/i.test((h || '').trim()));
-                if (snColIndex === -1) {
-                    // Try to find by looking for GT###-XXX-##### pattern in first few rows
-                    for (let ci = 0; ci < headers.length && ci < 10; ci++) {
-                        for (let ri = 1; ri < Math.min(rows.length, 5); ri++) {
-                            const val = rows[ri][ci] || '';
-                            if (/^GT\d{3}-[A-Z0-9]{2,3}-\d{3,5}$/i.test(val)) {
-                                snColIndex = ci;
-                                break;
-                            }
-                        }
-                        if (snColIndex !== -1) break;
-                    }
-                }
-                
-                if (snColIndex === -1) snColIndex = 0; // Default to first column
-                
-                // Search for matching number in S/N column
-                const paddedNum = number.toString().padStart(5, '0');
-                const snCodeUpper = unitConfig.snCode.toUpperCase();
-                
-                for (let i = 1; i < rows.length; i++) {
-                    const cellValue = (rows[i][snColIndex] || '').trim().toUpperCase();
-                    
-                    // Match pattern: GT###-XXX-#####
-                    const match = cellValue.match(/^(GT\d{3})-([A-Z0-9]{2,3})-(\d{3,5})$/);
-                    if (match) {
-                        const [, prefix, code, num] = match;
-                        const numPadded = num.padStart(5, '0');
-                        
-                        // Check if code matches and number matches
-                        if (code === snCodeUpper && (num === number.toString() || numPadded === paddedNum || parseInt(num) === parseInt(number))) {
-                            return cellValue; // Return the full S/N from sheet
-                        }
-                    }
-                }
-                
-                return null; // Not found
-            } catch (error) {
-                console.error('Error looking up Ghost Tracker:', error);
-                throw error;
-            }
-        }
-
-        // Track which part's S/N is being edited
-        let currentSnIndex = -1;
 
         function updateSubmitButton() {
             const btn = document.getElementById('submit-btn');
@@ -1067,8 +1446,6 @@ GPCP-0000154-0-0"></textarea>
                             pn: pn,
                             purpose: '',
                             sn: '',
-                            snUnit: '',
-                            snNumber: '',
                             qty: 1,
                             showLocation: true,
                             location: locationData ? locationData.location : '',
@@ -1081,6 +1458,7 @@ GPCP-0000154-0-0"></textarea>
                 renderPartsList();
                 updateSubmitButton();
 
+                // Auto-fill the Part Finder tab
                 document.getElementById('finder-input').value = lines.join('\n');
                 await autoSearchFinder(lines);
 
@@ -1092,6 +1470,23 @@ GPCP-0000154-0-0"></textarea>
             } catch (error) {
                 console.error('Error:', error);
                 showStatus('batch-status', 'エラー: ' + error.message, 'error');
+            }
+        }
+
+        async function autoSearchFinder(partNumbers) {
+            try {
+                if (!databaseCache) {
+                    databaseCache = await loadDatabase();
+                }
+
+                const results = partNumbers.map(pn => {
+                    const found = databaseCache.find(row => row.partNumber === pn);
+                    return { pn, found: !!found, data: found };
+                });
+
+                renderFinderResults(results);
+            } catch (error) {
+                console.error('Error in auto search:', error);
             }
         }
 
@@ -1124,24 +1519,19 @@ GPCP-0000154-0-0"></textarea>
                 const dateStr = getDateString();
                 const remarks = document.getElementById('remarks').value.trim();
 
-                // Write each row individually to ensure proper column alignment
-                for (let i = 0; i < validParts.length; i++) {
-                    const part = validParts[i];
-                    // Plain values - same as v7 app
-                    const rowData = [
-                        dateStr,                        // B: 日付
-                        userProfile.name,               // C: 名前
-                        part.pn || '',                  // D: 部品番号
-                        '',                             // E: 部品番号(自動入力)
-                        '',                             // F: 部品名(自動入力)
-                        String(part.qty || 1),          // G: 数量
-                        part.purpose || '',             // H: 目的
-                        part.sn || '',                  // I: SN
-                        remarks || ''                   // J: 備考欄
-                    ];
-                    
-                    await writeRow(sheetName, nextRow + i, rowData, spreadsheetId);
-                }
+                const rows = validParts.map(part => [
+                    dateStr,
+                    currentUser.name,
+                    part.pn,
+                    '',
+                    '',
+                    part.qty,
+                    part.purpose,
+                    part.sn,
+                    remarks
+                ]);
+
+                await writeMultipleRows(sheetName, nextRow, rows, spreadsheetId);
 
                 showStatus('batch-status', `✅ ${validParts.length}件の登録が完了しました！`, 'success');
 
@@ -1194,31 +1584,21 @@ GPCP-0000154-0-0"></textarea>
             }
         }
 
-        async function autoSearchFinder(partNumbers) {
-            try {
-                if (!databaseCache) {
-                    databaseCache = await loadDatabase();
-                }
-
-                const results = partNumbers.map(pn => {
-                    const found = databaseCache.find(row => row.partNumber === pn);
-                    return { pn, found: !!found, data: found };
-                });
-
-                renderFinderResults(results);
-            } catch (error) {
-                console.error('Error in auto search:', error);
-            }
-        }
-
         async function loadDatabase() {
-            const spreadsheetId = SHEETS_CONFIG.SPREADSHEETS.production.id;
-            const databaseSheet = SHEETS_CONFIG.SPREADSHEETS.production.database;
+            // Always use production database for part lookup
+            const spreadsheetId = CONFIG.SPREADSHEETS.production.id;
+            const databaseSheet = CONFIG.SPREADSHEETS.production.database;
             
-            const data = await sheetsApiRequest(
-                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(databaseSheet)}!A:Z`
+            const response = await fetch(
+                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(databaseSheet)}!A:Z`,
+                { headers: { 'Authorization': `Bearer ${accessToken}` } }
             );
 
+            if (!response.ok) {
+                throw new Error('データベースを読み込めません');
+            }
+
+            const data = await response.json();
             const rows = data.values || [];
             
             if (rows.length < 2) return [];
@@ -1284,22 +1664,33 @@ GPCP-0000154-0-0"></textarea>
         // GOOGLE SHEETS API HELPERS
         // =====================================================
         async function checkSheetExists(sheetName, spreadsheetId) {
-            const data = await sheetsApiRequest(
-                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`
+            const response = await fetch(
+                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`,
+                { headers: { 'Authorization': `Bearer ${accessToken}` } }
             );
+
+            if (!response.ok) throw new Error('スプレッドシートにアクセスできません');
+
+            const data = await response.json();
             return (data.sheets || []).some(sheet => sheet.properties.title === sheetName);
         }
 
         async function createNewSheet(sheetName, spreadsheetId) {
-            await sheetsApiRequest(
+            const addResponse = await fetch(
                 `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
                 {
                     method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({
                         requests: [{ addSheet: { properties: { title: sheetName } } }]
                     })
                 }
             );
+
+            if (!addResponse.ok) throw new Error('シートを作成できません');
 
             const headers = [
                 'No.', '日付', '名前', '部品番号かQRの値を入力', '部品番号(自動入力)',
@@ -1307,19 +1698,28 @@ GPCP-0000154-0-0"></textarea>
                 '処理状況', '貸出状況', '保管場所', '仮保管場所', '部署', '出庫メモ'
             ];
 
-            await sheetsApiRequest(
+            await fetch(
                 `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!A1:Q1?valueInputOption=RAW`,
                 {
                     method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ values: [headers] })
                 }
             );
         }
 
         async function getNextRowNumber(sheetName, spreadsheetId) {
-            const data = await sheetsApiRequest(
-                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!B:B`
+            const response = await fetch(
+                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!B:B`,
+                { headers: { 'Authorization': `Bearer ${accessToken}` } }
             );
+
+            if (!response.ok) throw new Error('行数を取得できません');
+
+            const data = await response.json();
             return (data.values || []).length + 1;
         }
 
@@ -1327,26 +1727,22 @@ GPCP-0000154-0-0"></textarea>
             const endRow = startRow + rows.length - 1;
             const range = `${sheetName}!B${startRow}:J${endRow}`;
 
-            await sheetsApiRequest(
+            const response = await fetch(
                 `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
                 {
                     method: 'PUT',
+                    headers: {
+                        'Authorization': `Bearer ${accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
                     body: JSON.stringify({ values: rows })
                 }
             );
-        }
 
-        // Write a single row to ensure proper column alignment
-        async function writeRow(sheetName, rowNumber, rowData, spreadsheetId) {
-            const range = `${sheetName}!B${rowNumber}:J${rowNumber}`;
-
-            await sheetsApiRequest(
-                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
-                {
-                    method: 'PUT',
-                    body: JSON.stringify({ values: [rowData] })
-                }
-            );
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error?.message || 'データを追加できません');
+            }
         }
 
         // =====================================================
