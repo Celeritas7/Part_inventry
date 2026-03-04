@@ -4,756 +4,375 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>出庫依頼入力</title>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    
+    <!-- Supabase JS SDK (replaces Firebase) -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    
+    <!-- Google API for Sheets -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    
+    <!-- QR Scanner -->
     <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
     <style>
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            padding: 20px;
-        }
-
-        .container {
-            max-width: 600px;
-            margin: 0 auto;
-        }
-
-        .card {
-            background: white;
-            border-radius: 16px;
-            padding: 24px;
-            box-shadow: 0 10px 40px rgba(0,0,0,0.2);
-        }
-
-        h1 {
-            text-align: center;
-            color: #333;
-            margin-bottom: 8px;
-            font-size: 1.5rem;
-        }
-
-        .subtitle {
-            text-align: center;
-            color: #666;
-            margin-bottom: 24px;
-            font-size: 0.9rem;
-        }
-
-        /* Login Section */
-        #login-section {
-            text-align: center;
-            padding: 20px;
-        }
-
-        #login-section p {
-            color: #666;
-            margin-bottom: 20px;
-        }
-
-        .login-buttons {
-            display: flex;
-            flex-direction: column;
-            gap: 12px;
-            align-items: center;
-        }
-
-        .login-btn {
-            background: #4285f4;
-            color: white;
-            border: none;
-            padding: 12px 24px;
-            border-radius: 8px;
-            font-size: 1rem;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 8px;
-            width: 100%;
-            max-width: 280px;
-            justify-content: center;
-        }
-
-        .login-btn:hover {
-            background: #3367d6;
-        }
-
-        .login-btn.guest {
-            background: #43a047;
-        }
-
-        .login-btn.guest:hover {
-            background: #388e3c;
-        }
-
-        .divider {
-            display: flex;
-            align-items: center;
-            margin: 16px 0;
-            color: #999;
-            font-size: 0.85rem;
-        }
-
-        .divider::before,
-        .divider::after {
-            content: '';
-            flex: 1;
-            height: 1px;
-            background: #ddd;
-            margin: 0 12px;
-        }
-
-        /* Guest Name Input */
-        #guest-name-section {
-            display: none;
-            padding: 20px;
-        }
-
-        #guest-name-section label {
-            display: block;
-            color: #333;
-            font-weight: 500;
-            margin-bottom: 8px;
-        }
-
-        #guest-name-section input {
-            width: 100%;
-            padding: 12px 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1rem;
-            margin-bottom: 16px;
-        }
-
-        #guest-name-section input:focus {
-            outline: none;
-            border-color: #43a047;
-        }
-
-        .guest-continue-btn {
-            width: 100%;
-            padding: 14px;
-            background: #43a047;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            font-size: 1rem;
-            font-weight: 600;
-            cursor: pointer;
-        }
-
-        .guest-continue-btn:hover {
-            background: #388e3c;
-        }
-
-        .guest-continue-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-        }
-
-        .back-link {
-            display: block;
-            text-align: center;
-            margin-top: 12px;
-            color: #667eea;
-            cursor: pointer;
-            font-size: 0.9rem;
-        }
-
-        /* User Info */
-        .user-info {
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            padding: 12px;
-            background: #f5f5f5;
-            border-radius: 10px;
-            margin-bottom: 16px;
-        }
-
-        .user-info span {
-            color: #666;
-            font-size: 0.9rem;
-        }
-
-        .user-info .user-badge {
-            font-size: 0.7rem;
-            padding: 2px 8px;
-            border-radius: 10px;
-            margin-left: 8px;
-        }
-
-        .user-badge.admin {
-            background: #e3f2fd;
-            color: #1565c0;
-        }
-
-        .user-badge.team {
-            background: #f3e5f5;
-            color: #7b1fa2;
-        }
-
-        .logout-btn {
-            background: none;
-            border: 1px solid #999;
-            color: #666;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.8rem;
-            cursor: pointer;
-        }
-
-        /* Sheet Selector (Admin Only) */
-        .sheet-selector {
-            margin-bottom: 16px;
-            padding: 12px;
-            background: #fff3e0;
-            border-radius: 10px;
-            border: 2px solid #ffb74d;
-        }
-
-        .sheet-selector label {
-            display: block;
-            color: #e65100;
-            font-weight: 600;
-            margin-bottom: 8px;
-            font-size: 0.85rem;
-        }
-
-        .sheet-selector select {
-            width: 100%;
-            padding: 10px 12px;
-            border: 2px solid #ffb74d;
-            border-radius: 8px;
-            font-size: 0.95rem;
-            background: white;
-        }
-
-        .sheet-selector select:focus {
-            outline: none;
-            border-color: #f57c00;
-        }
-
-        /* Tab Navigation */
-        .tabs {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 20px;
-        }
-
-        .tab-btn {
-            flex: 1;
-            padding: 12px 16px;
-            border: 2px solid #667eea;
-            background: white;
-            color: #667eea;
-            border-radius: 10px;
-            font-size: 0.95rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
-        }
-
-        .tab-btn:hover {
-            background: #f0f3ff;
-        }
-
-        .tab-btn.active {
-            background: #667eea;
-            color: white;
-        }
-
-        .tab-btn.finder {
-            border-color: #43a047;
-            color: #43a047;
-        }
-
-        .tab-btn.finder:hover {
-            background: #e8f5e9;
-        }
-
-        .tab-btn.finder.active {
-            background: #43a047;
-            color: white;
-        }
-
-        .tab-content {
-            display: none;
-        }
-
-        .tab-content.active {
-            display: block;
-        }
-
-        /* Current Sheet Display */
-        .current-sheet {
-            background: #e8f5e9;
-            color: #2e7d32;
-            padding: 8px 16px;
-            border-radius: 8px;
-            text-align: center;
-            margin-bottom: 20px;
-            font-weight: 500;
-        }
-
-        .current-sheet.test-mode {
-            background: #fff3e0;
-            color: #e65100;
-        }
-
-        /* Action Buttons */
-        .action-buttons {
-            display: flex;
-            gap: 10px;
-            margin-bottom: 16px;
-        }
-
-        .action-btn {
-            flex: 1;
-            padding: 12px;
-            border: 2px solid #667eea;
-            background: white;
-            color: #667eea;
-            border-radius: 10px;
-            font-size: 0.9rem;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            gap: 6px;
-            transition: all 0.2s;
-        }
-
-        .action-btn:hover {
-            background: #667eea;
-            color: white;
-        }
-
-        .action-btn.active {
-            background: #667eea;
-            color: white;
-        }
-
-        /* QR Reader */
-        .qr-reader-container {
-            width: 100%;
-            border-radius: 10px;
-            overflow: hidden;
-            display: none;
-            margin-bottom: 16px;
-        }
-
-        /* Parts List */
-        .parts-list {
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            margin-bottom: 16px;
-            max-height: 400px;
-            overflow-y: auto;
-        }
-
-        .parts-list-empty {
-            padding: 40px 20px;
-            text-align: center;
-            color: #999;
-        }
-
-        .part-item {
-            padding: 16px;
-            border-bottom: 1px solid #e0e0e0;
-        }
-
-        .part-item:last-child {
-            border-bottom: none;
-        }
-
-        .part-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-
-        .part-number {
-            font-weight: 600;
-            color: #333;
-            font-size: 1rem;
-        }
-
-        .inline-location {
-            background: #fff3e0;
-            color: #e65100;
-            padding: 6px 12px;
-            border-radius: 6px;
-            font-size: 0.85rem;
-            font-weight: 500;
-            margin-bottom: 12px;
-        }
-
-        .part-index {
-            background: #667eea;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 12px;
-            font-size: 0.8rem;
-            margin-right: 8px;
-        }
-
-        .delete-btn {
-            background: none;
-            border: none;
-            color: #e53935;
-            font-size: 1.2rem;
-            cursor: pointer;
-            padding: 4px 8px;
-        }
-
-        .part-fields {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 10px;
-        }
-
-        .part-fields.three-col {
-            grid-template-columns: 1fr 1fr 80px;
-        }
-
-        .field-group {
-            display: flex;
-            flex-direction: column;
-            gap: 4px;
-        }
-
-        .field-group label {
-            font-size: 0.75rem;
-            color: #666;
-        }
-
-        .field-group input,
-        .field-group select {
-            padding: 8px 10px;
-            border: 1px solid #ddd;
-            border-radius: 6px;
-            font-size: 0.9rem;
-        }
-
-        .field-group input:focus,
-        .field-group select:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        /* SN Scanner Button */
-        .sn-qr-btn {
-            background: none;
-            border: 1px solid #f57c00;
-            color: #f57c00;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.7rem;
-            cursor: pointer;
-            margin-left: 6px;
-        }
-
-        .sn-qr-btn:hover {
-            background: #f57c00;
-            color: white;
-        }
-
-        .sn-qr-reader-container {
-            width: 100%;
-            border-radius: 10px;
-            overflow: hidden;
-            display: none;
-            margin-top: 12px;
-            border: 2px solid #f57c00;
-        }
-
-        /* Remarks */
-        .remarks-section {
-            margin-bottom: 16px;
-        }
-
-        .remarks-section label {
-            display: block;
-            color: #333;
-            font-weight: 500;
-            margin-bottom: 8px;
-            font-size: 0.9rem;
-        }
-
-        .remarks-section textarea {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 1rem;
-            resize: vertical;
-            min-height: 60px;
-        }
-
-        .remarks-section textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        /* Submit Button */
-        .submit-btn {
-            width: 100%;
-            padding: 16px;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 12px;
-            font-size: 1.1rem;
-            font-weight: 600;
-            cursor: pointer;
-            transition: transform 0.2s, box-shadow 0.2s;
-        }
-
-        .submit-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
-        }
-
-        .submit-btn:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-
-        .submit-btn.finder-btn {
-            background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%);
-        }
-
-        .submit-btn.finder-btn:hover {
-            box-shadow: 0 6px 20px rgba(67, 160, 71, 0.4);
-        }
-
-        /* Status Messages */
-        .status {
-            padding: 12px 16px;
-            border-radius: 8px;
-            margin-top: 16px;
-            text-align: center;
-            display: none;
-        }
-
-        .status.success {
-            background: #e8f5e9;
-            color: #2e7d32;
-            display: block;
-        }
-
-        .status.error {
-            background: #ffebee;
-            color: #c62828;
-            display: block;
-        }
-
-        .status.loading {
-            background: #e3f2fd;
-            color: #1565c0;
-            display: block;
-        }
-
-        /* Paste Modal */
-        .modal-overlay {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 100;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-
-        .modal-overlay.active {
-            display: flex;
-        }
-
-        .modal {
-            background: white;
-            border-radius: 16px;
-            padding: 24px;
-            width: 100%;
-            max-width: 500px;
-            max-height: 80vh;
-            overflow-y: auto;
-        }
-
-        .modal h2 {
-            margin-bottom: 16px;
-            color: #333;
-        }
-
-        .modal textarea {
-            width: 100%;
-            height: 200px;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 0.9rem;
-            font-family: monospace;
-            margin-bottom: 16px;
-        }
-
-        .modal textarea:focus {
-            outline: none;
-            border-color: #667eea;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 10px;
-        }
-
-        .modal-btn {
-            flex: 1;
-            padding: 12px;
-            border-radius: 8px;
-            font-size: 1rem;
-            cursor: pointer;
-        }
-
-        .modal-btn.cancel {
-            background: #f5f5f5;
-            border: 1px solid #ddd;
-            color: #666;
-        }
-
-        .modal-btn.confirm {
-            background: #667eea;
-            border: none;
-            color: white;
-        }
-
-        /* Part Finder Results */
-        .finder-results {
-            margin-top: 16px;
-        }
-
-        .finder-result-item {
-            padding: 16px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            margin-bottom: 10px;
-        }
-
-        .finder-result-item.found {
-            border-color: #43a047;
-            background: #f1f8e9;
-        }
-
-        .finder-result-item.not-found {
-            border-color: #e53935;
-            background: #ffebee;
-        }
-
-        .finder-pn {
-            font-weight: 600;
-            font-size: 1rem;
-            margin-bottom: 8px;
-        }
-
-        .finder-details {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 8px;
-            font-size: 0.85rem;
-        }
-
-        .finder-detail {
-            display: flex;
-            flex-direction: column;
-        }
-
-        .finder-detail-label {
-            color: #666;
-            font-size: 0.75rem;
-        }
-
-        .finder-detail-value {
-            color: #333;
-            font-weight: 500;
-        }
-
-        .location-highlight {
-            background: #fff3e0;
-            padding: 8px 12px;
-            border-radius: 8px;
-            margin-top: 8px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .location-highlight .icon {
-            font-size: 1.5rem;
-        }
-
-        .location-highlight .text {
-            font-size: 1.1rem;
-            font-weight: 600;
-            color: #e65100;
-        }
-
-        /* Paste textarea for finder */
-        .finder-input {
-            width: 100%;
-            padding: 12px;
-            border: 2px solid #e0e0e0;
-            border-radius: 10px;
-            font-size: 0.9rem;
-            font-family: monospace;
-            min-height: 120px;
-            margin-bottom: 16px;
-        }
-
-        .finder-input:focus {
-            outline: none;
-            border-color: #43a047;
-        }
-
-        .finder-hint {
-            color: #666;
-            font-size: 0.85rem;
-            margin-bottom: 12px;
-        }
+* {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+:root {
+    --primary: #667eea;
+    --primary-dark: #764ba2;
+    --primary-light: #8b9bf4;
+    --primary-bg: rgba(102, 126, 234, 0.1);
+    --primary-bg-hover: rgba(102, 126, 234, 0.15);
+    --accent: #667eea;
+    --accent-hover: #5a6fd6;
+    --badge-admin-bg: #e3f2fd;
+    --badge-admin-text: #1565c0;
+    --badge-team-bg: #f3e5f5;
+    --badge-team-text: #7b1fa2;
+    --card-bg: white;
+    --text-primary: #333;
+    --text-secondary: #666;
+    --text-muted: #999;
+    --border-color: #e0e0e0;
+    --input-focus: #667eea;
+    --success-bg: #e8f5e9;
+    --success-text: #2e7d32;
+    --error-bg: #ffebee;
+    --error-text: #c62828;
+    --warning-bg: #fff3e0;
+    --warning-text: #e65100;
+}
+
+body.theme-purple {
+    --primary: #667eea; --primary-dark: #764ba2; --primary-light: #8b9bf4;
+    --primary-bg: rgba(102, 126, 234, 0.1); --primary-bg-hover: rgba(102, 126, 234, 0.15);
+    --accent: #667eea; --accent-hover: #5a6fd6;
+    --badge-admin-bg: #ede7f6; --badge-admin-text: #5e35b1;
+    --badge-team-bg: #f3e5f5; --badge-team-text: #7b1fa2;
+    --input-focus: #667eea;
+}
+body.theme-blue {
+    --primary: #2196F3; --primary-dark: #1565C0; --primary-light: #64b5f6;
+    --primary-bg: rgba(33, 150, 243, 0.1); --primary-bg-hover: rgba(33, 150, 243, 0.15);
+    --accent: #2196F3; --accent-hover: #1976d2;
+    --badge-admin-bg: #e3f2fd; --badge-admin-text: #1565c0;
+    --badge-team-bg: #e1f5fe; --badge-team-text: #0277bd;
+    --input-focus: #2196F3;
+}
+body.theme-green {
+    --primary: #43a047; --primary-dark: #2e7d32; --primary-light: #66bb6a;
+    --primary-bg: rgba(67, 160, 71, 0.1); --primary-bg-hover: rgba(67, 160, 71, 0.15);
+    --accent: #43a047; --accent-hover: #388e3c;
+    --badge-admin-bg: #e8f5e9; --badge-admin-text: #2e7d32;
+    --badge-team-bg: #f1f8e9; --badge-team-text: #558b2f;
+    --input-focus: #43a047;
+}
+body.theme-orange {
+    --primary: #ff9800; --primary-dark: #e65100; --primary-light: #ffb74d;
+    --primary-bg: rgba(255, 152, 0, 0.1); --primary-bg-hover: rgba(255, 152, 0, 0.15);
+    --accent: #ff9800; --accent-hover: #f57c00;
+    --badge-admin-bg: #fff3e0; --badge-admin-text: #e65100;
+    --badge-team-bg: #fbe9e7; --badge-team-text: #d84315;
+    --input-focus: #ff9800;
+}
+body.theme-dark {
+    --primary: #546e7a; --primary-dark: #37474f; --primary-light: #78909c;
+    --primary-bg: rgba(84, 110, 122, 0.15); --primary-bg-hover: rgba(84, 110, 122, 0.2);
+    --accent: #78909c; --accent-hover: #607d8b;
+    --badge-admin-bg: #eceff1; --badge-admin-text: #455a64;
+    --badge-team-bg: #e0e0e0; --badge-team-text: #616161;
+    --input-focus: #78909c; --card-bg: #fafafa;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    min-height: 100vh;
+    padding: 20px;
+    transition: background 0.3s ease;
+}
+.container { max-width: 600px; margin: 0 auto; }
+.card {
+    background: var(--card-bg); border-radius: 16px; padding: 24px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+.app-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.app-title h1 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 4px; }
+.app-title .subtitle { color: var(--text-secondary); font-size: 0.85rem; margin: 0; }
+.header-icons { display: flex; gap: 8px; }
+.header-icon-btn {
+    width: 40px; height: 40px; border: none; border-radius: 10px;
+    background: var(--primary-bg); font-size: 1.2rem; cursor: pointer;
+    display: flex; align-items: center; justify-content: center; transition: all 0.2s;
+}
+.header-icon-btn:hover { background: var(--primary-bg-hover); transform: scale(1.05); }
+h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-size: 1.5rem; }
+.subtitle { text-align: center; color: var(--text-secondary); margin-bottom: 24px; font-size: 0.9rem; }
+
+#login-section { text-align: center; padding: 20px; }
+#login-section p { color: #666; margin-bottom: 20px; }
+.login-btn {
+    background: #4285f4; color: white; border: none; padding: 12px 24px; border-radius: 8px;
+    font-size: 1rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px;
+    width: 100%; max-width: 280px; justify-content: center;
+}
+.login-btn:hover { background: #3367d6; }
+#login-error { color: #c62828; margin-top: 16px; display: none; white-space: pre-line; }
+
+#loading-section { text-align: center; padding: 40px; display: none; }
+.spinner {
+    border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%;
+    width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px;
+}
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.user-info {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 12px; background: var(--primary-bg); border-radius: 10px;
+    margin-bottom: 16px; flex-wrap: wrap; gap: 8px;
+}
+.user-info span { color: var(--text-secondary); font-size: 0.9rem; }
+.user-info .user-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+.user-badge.admin { background: var(--badge-admin-bg); color: var(--badge-admin-text); }
+.user-badge.team { background: var(--badge-team-bg); color: var(--badge-team-text); }
+.logout-btn {
+    background: none; border: 1px solid var(--text-muted); color: var(--text-secondary);
+    padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s;
+}
+.logout-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+.sheet-selector { margin-bottom: 16px; padding: 12px; background: #fff3e0; border-radius: 10px; border: 2px solid #ffb74d; }
+.sheet-selector label { display: block; color: #e65100; font-weight: 600; margin-bottom: 8px; font-size: 0.85rem; }
+.sheet-selector select { width: 100%; padding: 10px 12px; border: 2px solid #ffb74d; border-radius: 8px; font-size: 0.95rem; background: white; }
+
+.tabs { display: flex; gap: 10px; margin-bottom: 20px; }
+.tab-btn { flex: 1; padding: 12px 16px; border: 2px solid var(--primary); background: white; color: var(--primary); border-radius: 10px; font-size: 0.95rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.tab-btn:hover { background: var(--primary-bg); }
+.tab-btn.active { background: var(--primary); color: white; }
+.tab-btn.finder { border-color: var(--success-text); color: var(--success-text); }
+.tab-btn.finder:hover { background: var(--success-bg); }
+.tab-btn.finder.active { background: var(--success-text); color: white; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.current-sheet { background: var(--success-bg); color: var(--success-text); padding: 8px 16px; border-radius: 8px; text-align: center; margin-bottom: 20px; font-weight: 500; }
+.current-sheet.test-mode { background: var(--warning-bg); color: var(--warning-text); }
+
+.action-buttons { display: flex; gap: 10px; margin-bottom: 16px; }
+.action-btn {
+    flex: 1; padding: 12px; border: 2px solid var(--primary); background: white; color: var(--primary);
+    border-radius: 10px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center;
+    justify-content: center; gap: 6px; transition: all 0.2s;
+}
+.action-btn:hover { background: var(--primary); color: white; }
+.action-btn.active { background: var(--primary); color: white; }
+
+.qr-reader-container { width: 100%; border-radius: 10px; overflow: hidden; display: none; margin-bottom: 16px; }
+
+.parts-list { border: 2px solid #e0e0e0; border-radius: 10px; margin-bottom: 16px; max-height: 400px; overflow-y: auto; }
+.parts-list-empty { padding: 40px 20px; text-align: center; color: #999; }
+.part-item { padding: 16px; border-bottom: 1px solid #e0e0e0; }
+.part-item:last-child { border-bottom: none; }
+.part-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.part-number { font-weight: 600; color: #333; font-size: 1rem; }
+.part-header-left { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+.part-name { color: #666; font-size: 0.8rem; font-weight: 500; background: #f0f0f0; padding: 2px 8px; border-radius: 4px; margin-left: 6px; border-left: 3px solid var(--primary); }
+.inline-location { background: var(--warning-bg); color: var(--warning-text); padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; margin-bottom: 12px; }
+.part-index { background: var(--primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 8px; }
+.delete-btn { background: none; border: none; color: #e53935; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; }
+.part-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.part-fields.three-col { grid-template-columns: 1fr 1.2fr 70px; }
+.part-fields.two-col { grid-template-columns: 1fr 80px; }
+
+.sn-compact-row { display: flex; gap: 4px; }
+.sn-text-input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+.sn-text-input:focus { outline: none; border-color: var(--input-focus); }
+.sn-btn { padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; background: #f5f5f5; cursor: pointer; font-size: 0.9rem; }
+.sn-btn:hover { background: #e0e0e0; }
+.sn-btn.unit-btn { background: #fff3e0; border-color: #ffb74d; }
+.sn-btn.unit-btn:hover { background: #ffe0b2; }
+
+.unit-modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+.unit-modal-overlay.active { display: flex; }
+.unit-modal { background: white; border-radius: 16px; padding: 24px; width: 100%; max-width: 400px; position: relative; }
+.unit-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.unit-modal-header h3 { margin: 0; color: #333; }
+.unit-modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; padding: 0; line-height: 1; }
+.unit-modal-close:hover { color: #333; }
+.unit-modal-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.unit-modal-chip { padding: 10px 14px; border: 2px solid #e0e0e0; border-radius: 20px; background: #f9f9f9; color: #333; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+.unit-modal-chip:hover { background: #f0f0f0; border-color: #999; }
+.unit-modal-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+.unit-modal-number { margin-bottom: 20px; }
+.unit-modal-number label { display: block; color: #666; font-size: 0.85rem; margin-bottom: 8px; }
+.unit-modal-number input { width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1.1rem; text-align: center; }
+.unit-modal-number input:focus { outline: none; border-color: var(--input-focus); }
+.unit-confirm-btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.unit-confirm-btn:hover { background: var(--accent-hover); }
+.unit-confirm-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+.field-group { display: flex; flex-direction: column; gap: 4px; }
+.field-group label { font-size: 0.75rem; color: #666; }
+.field-group input, .field-group select { padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+.field-group input:focus, .field-group select:focus { outline: none; border-color: var(--input-focus); }
+
+.sn-qr-btn { background: none; border: 1px solid #f57c00; color: #f57c00; padding: 2px 6px; border-radius: 4px; font-size: 0.7rem; cursor: pointer; margin-left: 6px; }
+.sn-qr-btn:hover { background: #f57c00; color: white; }
+.sn-qr-reader-container { width: 100%; border-radius: 10px; overflow: hidden; display: none; margin-top: 12px; border: 2px solid #f57c00; }
+
+.remarks-section { margin-bottom: 16px; }
+.remarks-section label { display: block; color: #333; font-weight: 500; margin-bottom: 8px; font-size: 0.9rem; }
+.remarks-section textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; resize: vertical; min-height: 60px; }
+.remarks-section textarea:focus { outline: none; border-color: var(--input-focus); }
+
+.submit-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+.submit-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); }
+.submit-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+.submit-btn.finder-btn { background: linear-gradient(135deg, var(--success-text) 0%, #1b5e20 100%); }
+
+.status { padding: 12px 16px; border-radius: 8px; margin-top: 16px; text-align: center; display: none; }
+.status.success { background: var(--success-bg); color: var(--success-text); display: block; }
+.status.error { background: var(--error-bg); color: var(--error-text); display: block; }
+.status.loading { background: var(--primary-bg); color: var(--primary); display: block; }
+
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.active { display: flex; }
+.modal { background: white; border-radius: 16px; padding: 24px; width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+.modal h2 { margin-bottom: 16px; color: #333; }
+.modal textarea { width: 100%; height: 200px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 0.9rem; font-family: monospace; margin-bottom: 16px; }
+.modal textarea:focus { outline: none; border-color: var(--input-focus); }
+.modal-buttons { display: flex; gap: 10px; }
+.modal-btn { flex: 1; padding: 12px; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+.modal-btn.cancel { background: #f5f5f5; border: 1px solid #ddd; color: #666; }
+.modal-btn.confirm { background: var(--primary); border: none; color: white; transition: background 0.2s; }
+.modal-btn.confirm:hover { background: var(--accent-hover); }
+
+.finder-results { margin-top: 16px; }
+.finder-result-item { padding: 16px; border: 2px solid #e0e0e0; border-radius: 10px; margin-bottom: 10px; }
+.finder-result-item.found { border-color: #43a047; background: #f1f8e9; }
+.finder-result-item.not-found { border-color: #e53935; background: #ffebee; }
+.finder-pn { font-weight: 600; font-size: 1rem; margin-bottom: 8px; }
+.finder-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem; }
+.finder-detail { display: flex; flex-direction: column; }
+.finder-detail-label { color: #666; font-size: 0.75rem; }
+.finder-detail-value { color: #333; font-weight: 500; }
+.location-highlight { background: #fff3e0; padding: 8px 12px; border-radius: 8px; margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+.location-highlight .icon { font-size: 1.5rem; }
+.location-highlight .text { font-size: 1.1rem; font-weight: 600; color: #e65100; }
+.finder-input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 0.9rem; font-family: monospace; min-height: 120px; margin-bottom: 16px; }
+.finder-input:focus { outline: none; border-color: #43a047; }
+.finder-hint { color: #666; font-size: 0.85rem; margin-bottom: 12px; }
+
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.modal-header h2 { margin: 0; font-size: 1.2rem; }
+.modal-close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; padding: 0; line-height: 1; }
+.modal-close-btn:hover { color: #333; }
+.finder-modal { max-height: 90vh; overflow-y: auto; }
+
+.sheet-options { display: flex; flex-direction: column; gap: 12px; }
+.sheet-option { cursor: pointer; }
+.sheet-option input { display: none; }
+.sheet-option-content { display: flex; align-items: center; gap: 12px; padding: 16px; border: 2px solid #e0e0e0; border-radius: 12px; transition: all 0.2s; }
+.sheet-option input:checked + .sheet-option-content { border-color: var(--primary); background: var(--primary-bg); }
+.sheet-option-icon { font-size: 1.5rem; }
+.sheet-option-text { display: flex; flex-direction: column; }
+.sheet-option-text strong { color: #333; }
+.sheet-option-text small { color: #666; font-size: 0.8rem; }
+
+.settings-section { margin-bottom: 20px; }
+.settings-section h3 { color: #333; font-size: 1rem; margin-bottom: 12px; }
+.theme-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.theme-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 12px; background: white; cursor: pointer; transition: all 0.2s; }
+.theme-btn:hover { border-color: #999; }
+.theme-btn.active { border-color: var(--primary); background: var(--primary-bg); }
+.theme-preview { width: 40px; height: 40px; border-radius: 50%; }
+.theme-preview.purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.theme-preview.blue { background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%); }
+.theme-preview.green { background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%); }
+.theme-preview.orange { background: linear-gradient(135deg, #ff9800 0%, #e65100 100%); }
+.theme-preview.dark { background: linear-gradient(135deg, #37474f 0%, #263238 100%); }
+.theme-btn span:last-child { font-size: 0.8rem; color: #666; }
+
+.admin-only-section { border-top: 2px dashed var(--border-color); padding-top: 20px; margin-top: 20px; }
+.admin-only-section h3 { color: var(--warning-text); }
+.location-edit-section { margin-top: 12px; }
+.location-edit-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.location-edit-icon { font-size: 1.2rem; }
+.location-edit-title { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
+.location-search-box { background: #f8f9fa; border-radius: 12px; padding: 12px; border: 1px solid var(--border-color); }
+.location-search-row { display: flex; gap: 8px; }
+.location-edit-input { flex: 1; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: 10px; font-size: 0.95rem; background: white; }
+.location-edit-input:focus { outline: none; border-color: var(--input-focus); }
+.location-qr-btn { padding: 12px 14px; background: var(--warning-bg); color: var(--warning-text); border: 2px solid transparent; border-radius: 10px; font-size: 1.1rem; cursor: pointer; transition: all 0.2s; }
+.location-qr-btn:hover { background: #ffe0b2; }
+.location-search-btn { padding: 12px 16px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1rem; cursor: pointer; transition: all 0.2s; }
+.location-search-btn:hover { background: var(--accent-hover); transform: scale(1.02); }
+.location-qr-reader { display: none; margin-top: 12px; border-radius: 10px; overflow: hidden; }
+.location-edit-result { margin-top: 16px; }
+.location-edit-card { background: white; border-radius: 16px; border: 2px solid var(--primary); overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+.location-edit-card-header { display: flex; align-items: center; gap: 12px; padding: 16px; background: linear-gradient(135deg, var(--primary-bg) 0%, rgba(255,255,255,0) 100%); border-bottom: 1px solid var(--border-color); }
+.location-edit-card-icon { font-size: 2rem; background: white; padding: 8px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+.location-edit-card-info { flex: 1; }
+.location-edit-pn { font-weight: 700; font-size: 1rem; color: var(--text-primary); }
+.location-edit-name { font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px; }
+.location-edit-card-badge { background: var(--primary); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.location-edit-card-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.location-edit-field { display: flex; flex-direction: column; gap: 6px; }
+.location-field-label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
+.location-field-icon { font-size: 1rem; }
+.location-field-input { padding: 12px 14px; border: 2px solid var(--border-color); border-radius: 10px; font-size: 1rem; font-weight: 500; transition: all 0.2s; }
+.location-field-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-bg); }
+.location-save-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 0; padding: 14px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border: none; border-radius: 0 0 14px 14px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.location-save-btn:hover { filter: brightness(1.1); }
+.location-save-btn:active { transform: scale(0.98); }
+.save-btn-icon { font-size: 1.1rem; }
+.location-edit-status { margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-size: 0.9rem; text-align: center; font-weight: 500; }
+.location-edit-status:empty { display: none; }
+.location-edit-status.loading { background: var(--primary-bg); color: var(--primary); animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+.location-edit-status.success { background: var(--success-bg); color: var(--success-text); }
+.location-edit-status.error { background: var(--error-bg); color: var(--error-text); }
     </style>
 </head>
 <body>
     <div class="container">
         <div class="card">
-            <h1>📦 出庫依頼入力</h1>
-            <p class="subtitle">生産チーム出庫依頼シート</p>
+            <!-- Header with icons -->
+            <div class="app-header">
+                <div class="app-title">
+                    <h1>📦 出庫依頼入力</h1>
+                    <p class="subtitle">生産チーム出庫依頼シート</p>
+                </div>
+                <div class="header-icons" id="header-icons" style="display: none;">
+                    <button class="header-icon-btn" onclick="openFinderModal()" title="部品検索">🔍</button>
+                    <button class="header-icon-btn admin-only" id="sheet-selector-btn" onclick="openSheetSelectorModal()" title="シート選択" style="display: none;">📊</button>
+                    <button class="header-icon-btn" onclick="openSettingsModal()" title="設定">⚙️</button>
+                </div>
+            </div>
+
+            <!-- Loading Section -->
+            <div id="loading-section">
+                <div class="spinner"></div>
+                <p>読み込み中...</p>
+            </div>
 
             <!-- Login Section -->
-            <div id="login-section">
+            <div id="login-section" style="display: none;">
                 <p>Googleアカウントでログインしてください</p>
-                <div class="login-buttons">
-                    <button class="login-btn" onclick="handleGoogleLogin()">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                            <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
-                            <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
-                            <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
-                            <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
-                        </svg>
-                        Googleでログイン
-                    </button>
-                </div>
-                <p id="login-error" style="color: #c62828; margin-top: 16px; display: none;"></p>
+                <button class="login-btn" onclick="handleGoogleLogin()">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/>
+                        <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/>
+                        <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/>
+                        <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
+                    </svg>
+                    Googleでログイン
+                </button>
+                <p id="login-error"></p>
             </div>
 
             <!-- Main App Section -->
@@ -763,28 +382,11 @@
                     <button class="logout-btn" onclick="handleLogout()">ログアウト</button>
                 </div>
 
-                <!-- Sheet Selector (Admin Only) -->
-                <div class="sheet-selector" id="sheet-selector" style="display: none;">
-                    <label>⚙️ 管理者モード: 対象スプレッドシート</label>
-                    <select id="sheet-select" onchange="onSheetChange()">
-                        <option value="production">生産チーム出庫依頼シート</option>
-                        <option value="test">テスト用シート</option>
-                    </select>
-                </div>
-
-                <!-- Tab Navigation -->
-                <div class="tabs">
-                    <button class="tab-btn active" onclick="switchTab('batch')">📝 一括入力</button>
-                    <button class="tab-btn finder" onclick="switchTab('finder')">🔍 部品検索</button>
-                </div>
-
-                <!-- Batch Entry Tab -->
-                <div id="batch-tab" class="tab-content active">
+                <div id="batch-content">
                     <div class="current-sheet" id="current-sheet">
                         📅 対象シート: 読み込み中...
                     </div>
 
-                    <!-- Action Buttons -->
                     <div class="action-buttons">
                         <button class="action-btn" id="scan-add-btn" onclick="toggleScanner()">
                             📷 QRスキャン追加
@@ -794,45 +396,24 @@
                         </button>
                     </div>
 
-                    <!-- QR Scanner -->
                     <div id="qr-reader" class="qr-reader-container"></div>
 
-                    <!-- Parts List -->
                     <div class="parts-list" id="parts-list">
                         <div class="parts-list-empty">
                             QRスキャンまたはリスト貼付けで部品を追加してください
                         </div>
                     </div>
 
-                    <!-- Remarks -->
                     <div class="remarks-section">
                         <label>備考欄 (共通)</label>
                         <textarea id="remarks" placeholder="備考があれば入力"></textarea>
                     </div>
 
-                    <!-- Submit Button -->
                     <button class="submit-btn" id="submit-btn" onclick="submitBatch()" disabled>
                         一括登録する (0件)
                     </button>
 
                     <div class="status" id="batch-status"></div>
-                </div>
-
-                <!-- Part Finder Tab -->
-                <div id="finder-tab" class="tab-content">
-                    <p class="finder-hint">部品番号を入力してください（複数の場合は改行で区切る）</p>
-                    
-                    <textarea class="finder-input" id="finder-input" placeholder="GPMP-0540010-0-2
-GPCP-0000360-0-0
-GPCP-0000154-0-0"></textarea>
-
-                    <button class="submit-btn finder-btn" onclick="findParts()">
-                        🔍 部品を検索
-                    </button>
-
-                    <div class="status" id="finder-status"></div>
-
-                    <div class="finder-results" id="finder-results"></div>
                 </div>
             </div>
         </div>
@@ -855,29 +436,213 @@ GPCP-0000154-0-0"></textarea>
         </div>
     </div>
 
+    <!-- Part Finder Modal -->
+    <div class="modal-overlay" id="finder-modal">
+        <div class="modal finder-modal">
+            <div class="modal-header">
+                <h2>🔍 部品検索</h2>
+                <button class="modal-close-btn" onclick="closeFinderModal()">✕</button>
+            </div>
+            <p class="finder-hint">部品番号を入力してください（複数の場合は改行で区切る）</p>
+            <textarea class="finder-input" id="finder-input" placeholder="GPMP-0540010-0-2
+GPCP-0000360-0-0
+GPCP-0000154-0-0"></textarea>
+            <button class="submit-btn finder-btn" onclick="findParts()">
+                🔍 部品を検索
+            </button>
+            <div class="status" id="finder-status"></div>
+            <div class="finder-results" id="finder-results"></div>
+        </div>
+    </div>
+
+    <!-- Sheet Selector Modal (Admin Only) -->
+    <div class="modal-overlay" id="sheet-selector-modal">
+        <div class="modal sheet-selector-modal">
+            <div class="modal-header">
+                <h2>📊 シート選択</h2>
+                <button class="modal-close-btn" onclick="closeSheetSelectorModal()">✕</button>
+            </div>
+            <p style="color: #666; margin-bottom: 16px; font-size: 0.9rem;">
+                データを保存するシートを選択してください
+            </p>
+            <div class="sheet-options">
+                <label class="sheet-option">
+                    <input type="radio" name="sheet" value="production" checked onchange="onSheetChange()">
+                    <span class="sheet-option-content">
+                        <span class="sheet-option-icon">📋</span>
+                        <span class="sheet-option-text">
+                            <strong>生産チーム出庫依頼シート</strong>
+                            <small>本番用シート</small>
+                        </span>
+                    </span>
+                </label>
+                <label class="sheet-option">
+                    <input type="radio" name="sheet" value="test" onchange="onSheetChange()">
+                    <span class="sheet-option-content">
+                        <span class="sheet-option-icon">🧪</span>
+                        <span class="sheet-option-text">
+                            <strong>テスト用シート</strong>
+                            <small>動作確認用</small>
+                        </span>
+                    </span>
+                </label>
+            </div>
+            <button class="modal-btn confirm" onclick="closeSheetSelectorModal()" style="width: 100%; margin-top: 16px;">
+                閉じる
+            </button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal settings-modal">
+            <div class="modal-header">
+                <h2>⚙️ 設定</h2>
+                <button class="modal-close-btn" onclick="closeSettingsModal()">✕</button>
+            </div>
+            
+            <div class="settings-section">
+                <h3>🎨 テーマ</h3>
+                <div class="theme-options">
+                    <button class="theme-btn" data-theme="purple" onclick="setTheme('purple')">
+                        <span class="theme-preview purple"></span>
+                        <span>パープル</span>
+                    </button>
+                    <button class="theme-btn" data-theme="blue" onclick="setTheme('blue')">
+                        <span class="theme-preview blue"></span>
+                        <span>ブルー</span>
+                    </button>
+                    <button class="theme-btn" data-theme="green" onclick="setTheme('green')">
+                        <span class="theme-preview green"></span>
+                        <span>グリーン</span>
+                    </button>
+                    <button class="theme-btn" data-theme="orange" onclick="setTheme('orange')">
+                        <span class="theme-preview orange"></span>
+                        <span>オレンジ</span>
+                    </button>
+                    <button class="theme-btn" data-theme="dark" onclick="setTheme('dark')">
+                        <span class="theme-preview dark"></span>
+                        <span>ダーク</span>
+                    </button>
+                </div>
+            </div>
+            
+            <div class="settings-section admin-only-section" id="admin-location-section" style="display: none;">
+                <h3>🔧 管理者設定</h3>
+                
+                <div class="location-edit-section">
+                    <div class="location-edit-header">
+                        <span class="location-edit-icon">📍</span>
+                        <span class="location-edit-title">部品場所を編集</span>
+                    </div>
+                    
+                    <div class="location-search-box">
+                        <div class="location-search-row">
+                            <input type="text" id="location-edit-pn" placeholder="部品番号 または QRコード..." class="location-edit-input">
+                            <button class="location-qr-btn" onclick="toggleLocationQRScanner()" title="QRスキャン">📷</button>
+                            <button class="location-search-btn" onclick="searchPartForLocationEdit()">🔍</button>
+                        </div>
+                        <div id="location-qr-reader" class="location-qr-reader"></div>
+                    </div>
+                    
+                    <div id="location-edit-result" class="location-edit-result" style="display: none;">
+                        <div class="location-edit-card">
+                            <div class="location-edit-card-header">
+                                <div class="location-edit-card-icon">📦</div>
+                                <div class="location-edit-card-info">
+                                    <div class="location-edit-pn" id="location-edit-found-pn"></div>
+                                    <div class="location-edit-name" id="location-edit-found-name"></div>
+                                </div>
+                                <div class="location-edit-card-badge">編集中</div>
+                            </div>
+                            
+                            <div class="location-edit-card-body">
+                                <div class="location-edit-field">
+                                    <div class="location-field-label">
+                                        <span class="location-field-icon">🏠</span>
+                                        <span>保管場所</span>
+                                    </div>
+                                    <input type="text" id="location-edit-location" placeholder="例: A-3-2" class="location-field-input">
+                                </div>
+                                <div class="location-edit-field">
+                                    <div class="location-field-label">
+                                        <span class="location-field-icon">📌</span>
+                                        <span>仮保管場所</span>
+                                    </div>
+                                    <input type="text" id="location-edit-temp" placeholder="例: B-1-5" class="location-field-input">
+                                </div>
+                            </div>
+                            
+                            <button class="location-save-btn" onclick="saveLocationEdit()">
+                                <span class="save-btn-icon">💾</span>
+                                <span>場所を更新</span>
+                            </button>
+                        </div>
+                        
+                        <div id="location-edit-status" class="location-edit-status"></div>
+                    </div>
+                </div>
+            </div>
+            
+            <button class="modal-btn confirm" onclick="closeSettingsModal()" style="width: 100%; margin-top: 20px;">
+                閉じる
+            </button>
+        </div>
+    </div>
+
+    <!-- Unit Code Modal -->
+    <div class="unit-modal-overlay" id="unit-modal">
+        <div class="unit-modal">
+            <div class="unit-modal-header">
+                <h3>🏭 Unit S/N 検索</h3>
+                <button class="unit-modal-close" onclick="closeUnitModal()">✕</button>
+            </div>
+            
+            <p style="color: #666; font-size: 0.85rem; margin-bottom: 12px;">
+                Ghost Trackerから完全なS/Nを検索します
+            </p>
+            
+            <div class="unit-modal-chips">
+                <button class="unit-modal-chip" data-code="Ghost" onclick="selectUnitChip('Ghost')">👻 Ghost</button>
+                <button class="unit-modal-chip" data-code="MB" onclick="selectUnitChip('MB')">🛞 MB</button>
+                <button class="unit-modal-chip" data-code="Pillar" onclick="selectUnitChip('Pillar')">🏛️ Pillar</button>
+                <button class="unit-modal-chip" data-code="H&B" onclick="selectUnitChip('H&B')">🧠 H&B</button>
+                <button class="unit-modal-chip" data-code="Arm" onclick="selectUnitChip('Arm')">🦾 Arm</button>
+                <button class="unit-modal-chip" data-code="Gripper" onclick="selectUnitChip('Gripper')">🤏 Gripper</button>
+                <button class="unit-modal-chip" data-code="DK" onclick="selectUnitChip('DK')">📦 DK</button>
+                <button class="unit-modal-chip" data-code="L-Mot" onclick="selectUnitChip('L-Mot')">⚙️ L-Mot</button>
+                <button class="unit-modal-chip" data-code="A12" onclick="selectUnitChip('A12')">⚙️ A12</button>
+                <button class="unit-modal-chip" data-code="A35" onclick="selectUnitChip('A35')">⚙️ A35</button>
+                <button class="unit-modal-chip" data-code="A4" onclick="selectUnitChip('A4')">⚙️ A4</button>
+            </div>
+            
+            <div class="unit-modal-number">
+                <label>番号を入力 (例: 34, 105, 426)</label>
+                <input type="number" id="unit-number-input" placeholder="34" oninput="onUnitNumberChange(this.value)">
+            </div>
+            
+            <button class="unit-confirm-btn" id="unit-confirm-btn" onclick="confirmUnitSelection()" disabled>
+                Unitを選択してください
+            </button>
+        </div>
+    </div>
+
     <script>
         // =====================================================
-        // CONFIGURATION
+        // SUPABASE CONFIGURATION (replaces Firebase)
         // =====================================================
-        const CONFIG = {
-            CLIENT_ID: '1088099187141-ut0dn0scqt3h99htf3rg8gsrg2oo1ad8.apps.googleusercontent.com',
-            SCOPES: 'https://www.googleapis.com/auth/spreadsheets https://www.googleapis.com/auth/userinfo.email https://www.googleapis.com/auth/userinfo.profile',
-            
-            // Admin email
-            ADMIN_EMAIL: 'anikettelexistence@gmail.com',
-            
-            // Approved users list
-            APPROVED_USERS: {
-                // Production Team
-                'anikettelexistence@gmail.com': { name: 'Aniket', team: 'production', isAdmin: true },
-                'igarashi@tx-inc.com': { name: 'Igarashi', team: 'production', isAdmin: false },
-                'niidome@tx-inc.com': { name: 'Niidome', team: 'production', isAdmin: false },
-                
-                // Design Team (add later)
-                // 'designer1@tx-inc.com': { name: 'Designer1', team: 'design', isAdmin: false },
-            },
-            
-            // Spreadsheet IDs
+        const SUPABASE_CONFIG = {
+            url: 'https://wylxvmkcrexwfpjpbhyy.supabase.co',
+            anonKey: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak'
+        };
+
+        // Initialize Supabase client
+        const supabase = window.supabase.createClient(SUPABASE_CONFIG.url, SUPABASE_CONFIG.anonKey);
+
+        // =====================================================
+        // GOOGLE SHEETS CONFIGURATION
+        // =====================================================
+        const SHEETS_CONFIG = {
             SPREADSHEETS: {
                 production: {
                     id: '1pGy5OkQd8i4tVlYbcG7afkeDHEdjaZIwwuq6Wqv96jM',
@@ -898,291 +663,566 @@ GPCP-0000154-0-0"></textarea>
             'ECN対応', 'BY構築', '生産ジグ', '確認中', 'その他', '出庫キャンセル'
         ];
 
+        // Unit codes for S/N input with Ghost Tracker sheet mapping
+        const UNIT_CODES = [
+            { code: 'Ghost', icon: '👻', sheetTab: '00_GHOST', snCode: 'GST' },
+            { code: 'MB', icon: '🛞', sheetTab: '05_Mobile Base', snCode: 'MBB' },
+            { code: 'Pillar', icon: '🏛️', sheetTab: '06_Pillar', snCode: 'PLR' },
+            { code: 'H&B', icon: '🧠', sheetTab: '07_Head & Body', snCode: 'HBD' },
+            { code: 'Arm', icon: '🦾', sheetTab: '09_Arm', snCode: 'ARM' },
+            { code: 'Gripper', icon: '🤏', sheetTab: '08_Gripper', snCode: 'GPR' },
+            { code: 'DK', icon: '📦', sheetTab: '10_Deploy Kit', snCode: 'DPK' },
+            { code: 'L-Mot', icon: '⚙️', sheetTab: '01_L-motor', snCode: 'LAC' },
+            { code: 'A12', icon: '⚙️', sheetTab: '02_A12-motor', snCode: 'A12' },
+            { code: 'A35', icon: '⚙️', sheetTab: '03_A35-motor', snCode: 'A35' },
+            { code: 'A4', icon: '⚙️', sheetTab: '04_A4-motor', snCode: 'A4A' }
+        ];
+
+        // Ghost Tracker Sheet ID
+        const GHOST_TRACKER_SHEET_ID = '1mUhNDzucbHpS2y-IYu3A5ML1x5I_opUeNnqqyOtg95M';
+
         // =====================================================
         // STATE
         // =====================================================
+        let currentUser = null;
+        let userProfile = null;
         let accessToken = null;
-        let tokenClient = null;
         let html5QrCode = null;
         let scannerActive = false;
         let snScanner = null;
         let snScannerActive = false;
         let snScannerIndex = -1;
-        let parts = []; // Array of { pn, purpose, sn, qty, location, tempLocation, showLocation }
+        let parts = [];
         let databaseCache = null;
-
-        // User state
-        let currentUser = {
-            name: '',
-            email: '',
-            isAdmin: false,
-            isGuest: false
-        };
-
-        // Current selected sheet
         let currentSheet = 'production';
 
         // =====================================================
-        // INITIALIZATION
+        // INITIALIZATION (Supabase Auth)
         // =====================================================
-        window.onload = function() {
-            initializeGoogleAuth();
+        window.onload = async function() {
+            showLoading();
+            
+            // Listen for auth state changes (Supabase)
+            supabase.auth.onAuthStateChange(async (event, session) => {
+                console.log('Auth event:', event, session?.user?.email);
+                
+                if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION') {
+                    if (session && session.user) {
+                        currentUser = session.user;
+                        
+                        // Capture Google provider_token for Sheets API access
+                        // This is only available right after OAuth login (SIGNED_IN event)
+                        if (session.provider_token) {
+                            accessToken = session.provider_token;
+                            localStorage.setItem('sheets_access_token', accessToken);
+                            console.log('Google access token captured from OAuth');
+                        }
+                        
+                        // Fallback to stored token
+                        if (!accessToken) {
+                            accessToken = localStorage.getItem('sheets_access_token');
+                        }
+                        
+                        await checkUserApproval(session.user);
+                    } else if (event === 'INITIAL_SESSION' && !session) {
+                        // No existing session
+                        currentUser = null;
+                        userProfile = null;
+                        showLogin();
+                    }
+                } else if (event === 'SIGNED_OUT') {
+                    currentUser = null;
+                    userProfile = null;
+                    showLogin();
+                }
+            });
         };
 
-        function initializeGoogleAuth() {
-            tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: CONFIG.CLIENT_ID,
-                scope: CONFIG.SCOPES,
-                callback: (response) => {
-                    if (response.access_token) {
-                        accessToken = response.access_token;
-                        localStorage.setItem('gsheet_access_token', accessToken);
-                        hideLoginError();
-                        fetchUserInfo();
+        function showLoading() {
+            document.getElementById('loading-section').style.display = 'block';
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('app-section').style.display = 'none';
+        }
+
+        function showLogin() {
+            document.getElementById('loading-section').style.display = 'none';
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('app-section').style.display = 'none';
+        }
+
+        function showApp() {
+            document.getElementById('loading-section').style.display = 'none';
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('app-section').style.display = 'block';
+            document.getElementById('header-icons').style.display = 'flex';
+
+            let userDisplay = `👤 ${userProfile.name}`;
+            if (userProfile.isAdmin) {
+                userDisplay += '<span class="user-badge admin">管理者</span>';
+            }
+            userDisplay += `<span class="user-badge team">${userProfile.team}</span>`;
+            document.getElementById('user-display').innerHTML = userDisplay;
+
+            if (userProfile.isAdmin) {
+                document.getElementById('sheet-selector-btn').style.display = 'flex';
+            } else {
+                document.getElementById('sheet-selector-btn').style.display = 'none';
+            }
+
+            updateCurrentSheetDisplay();
+            initGoogleSheetsAPI();
+            loadSavedTheme();
+        }
+
+        // =====================================================
+        // AUTHENTICATION (Supabase Google OAuth)
+        // =====================================================
+        async function handleGoogleLogin() {
+            try {
+                const { data, error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        scopes: 'https://www.googleapis.com/auth/spreadsheets',
+                        redirectTo: window.location.origin + window.location.pathname,
+                        queryParams: {
+                            access_type: 'offline',
+                            prompt: 'consent'
+                        }
                     }
-                },
-            });
-
-            // Check for stored session
-            const storedUser = localStorage.getItem('current_user');
-            const storedToken = localStorage.getItem('gsheet_access_token');
-            
-            if (storedUser && storedToken) {
-                currentUser = JSON.parse(storedUser);
-                accessToken = storedToken;
-                
-                // Verify user is still in approved list
-                if (CONFIG.APPROVED_USERS[currentUser.email]) {
-                    validateToken();
-                } else {
-                    // User removed from approved list
-                    handleLogout();
-                }
-            }
-        }
-
-        async function validateToken() {
-            try {
-                const response = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + accessToken);
-                if (response.ok) {
-                    showApp();
-                } else {
-                    localStorage.removeItem('gsheet_access_token');
-                    localStorage.removeItem('current_user');
-                    accessToken = null;
-                    currentUser = { name: '', email: '', isAdmin: false, isGuest: false };
-                }
-            } catch (error) {
-                localStorage.removeItem('gsheet_access_token');
-                localStorage.removeItem('current_user');
-                accessToken = null;
-            }
-        }
-
-        async function fetchUserInfo() {
-            try {
-                const response = await fetch('https://www.googleapis.com/oauth2/v2/userinfo', {
-                    headers: { 'Authorization': `Bearer ${accessToken}` }
                 });
                 
-                if (!response.ok) {
-                    throw new Error('Failed to fetch user info');
+                if (error) {
+                    console.error('Login error:', error);
+                    showLoginError('ログインに失敗しました: ' + error.message);
                 }
+                // Note: signInWithOAuth redirects the browser, so code after this won't execute
+            } catch (error) {
+                console.error('Login error:', error);
+                showLoginError('ログインに失敗しました: ' + error.message);
+            }
+        }
+
+        async function checkUserApproval(user) {
+            try {
+                // Query 'approved_users' table in Supabase (replaces Firestore)
+                // Table should have columns: email, name, team, isAdmin (boolean)
+                const { data, error } = await supabase
+                    .from('approved_users')
+                    .select('*')
+                    .eq('email', user.email)
+                    .single();
                 
-                const userInfo = await response.json();
-                const email = userInfo.email || '';
-                
-                // Check if user is approved
-                const approvedUser = CONFIG.APPROVED_USERS[email];
-                
-                if (!approvedUser) {
-                    // User not in approved list
-                    showLoginError(`アクセスが拒否されました。\n${email} は許可されていません。\n管理者にお問い合わせください。`);
-                    accessToken = null;
-                    localStorage.removeItem('gsheet_access_token');
+                if (error || !data) {
+                    // User not approved
+                    await supabase.auth.signOut();
+                    showLoginError(`アクセスが拒否されました。\n${user.email} は許可されていません。\n管理者にお問い合わせください。`);
+                    showLogin();
                     return;
                 }
                 
-                currentUser = {
-                    name: approvedUser.name,
-                    email: email,
-                    team: approvedUser.team,
-                    isAdmin: approvedUser.isAdmin,
-                    isGuest: false
+                userProfile = {
+                    email: user.email,
+                    name: data.name,
+                    team: data.team,
+                    isAdmin: data.isAdmin || data.is_admin || false
                 };
                 
-                localStorage.setItem('current_user', JSON.stringify(currentUser));
                 showApp();
-                
             } catch (error) {
-                console.error('Error fetching user info:', error);
-                // Fallback: use token info instead
-                try {
-                    const tokenResponse = await fetch('https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=' + accessToken);
-                    const tokenInfo = await tokenResponse.json();
-                    const email = tokenInfo.email || '';
-                    
-                    // Check if user is approved
-                    const approvedUser = CONFIG.APPROVED_USERS[email];
-                    
-                    if (!approvedUser) {
-                        showLoginError(`アクセスが拒否されました。\n${email} は許可されていません。\n管理者にお問い合わせください。`);
-                        accessToken = null;
-                        localStorage.removeItem('gsheet_access_token');
-                        return;
-                    }
-                    
-                    currentUser = {
-                        name: approvedUser.name,
-                        email: email,
-                        team: approvedUser.team,
-                        isAdmin: approvedUser.isAdmin,
-                        isGuest: false
-                    };
-                    
-                    localStorage.setItem('current_user', JSON.stringify(currentUser));
-                    showApp();
-                    
-                } catch (fallbackError) {
-                    console.error('Fallback also failed:', fallbackError);
-                    showLoginError('ログインに失敗しました。もう一度お試しください。');
-                }
+                console.error('Error checking user approval:', error);
+                showLoginError('ユーザー確認中にエラーが発生しました');
+                showLogin();
             }
         }
-        
+
+        async function handleLogout() {
+            await supabase.auth.signOut();
+            localStorage.removeItem('sheets_access_token');
+            accessToken = null;
+            userProfile = null;
+            parts = [];
+            databaseCache = null;
+            currentSheet = 'production';
+            stopScanner();
+            closeSnScanner();
+        }
+
         function showLoginError(message) {
             const errorEl = document.getElementById('login-error');
             errorEl.textContent = message;
             errorEl.style.display = 'block';
-            errorEl.style.whiteSpace = 'pre-line';
         }
-        
+
         function hideLoginError() {
-            const errorEl = document.getElementById('login-error');
-            errorEl.style.display = 'none';
+            document.getElementById('login-error').style.display = 'none';
         }
 
         // =====================================================
-        // LOGIN HANDLERS
+        // GOOGLE SHEETS API
         // =====================================================
-        function handleGoogleLogin() {
-            tokenClient.requestAccessToken();
-        }
-
-        function showGuestNameInput() {
-            document.getElementById('login-section').style.display = 'none';
-            document.getElementById('guest-name-section').style.display = 'block';
-            document.getElementById('guest-name').focus();
-        }
-
-        function backToLogin() {
-            document.getElementById('guest-name-section').style.display = 'none';
-            document.getElementById('login-section').style.display = 'block';
-            document.getElementById('guest-name').value = '';
-        }
-
-        function validateGuestName() {
-            const name = document.getElementById('guest-name').value.trim();
-            document.getElementById('guest-continue-btn').disabled = name.length === 0;
-        }
-
-        function continueAsGuest() {
-            const name = document.getElementById('guest-name').value.trim();
-            if (!name) return;
-
-            currentUser = {
-                name: name,
-                email: '',
-                isAdmin: false,
-                isGuest: true
-            };
-
-            localStorage.setItem('current_user', JSON.stringify(currentUser));
-            
-            // Show app immediately for guest
-            // Google login will be triggered when they try to submit
-            showApp();
-        }
-
-        function handleLogout() {
-            if (accessToken) {
-                google.accounts.oauth2.revoke(accessToken);
+        function initGoogleSheetsAPI() {
+            if (!accessToken) {
+                console.log('No access token, user may need to re-login for Sheets access');
             }
-            
-            accessToken = null;
-            localStorage.removeItem('gsheet_access_token');
-            localStorage.removeItem('current_user');
-            currentUser = { name: '', email: '', team: '', isAdmin: false, isGuest: false };
-            
-            document.getElementById('login-section').style.display = 'block';
-            document.getElementById('app-section').style.display = 'none';
-            hideLoginError();
-            
-            stopScanner();
-            closeSnScanner();
-            
-            // Reset state
-            parts = [];
-            databaseCache = null;
-            currentSheet = 'production';
         }
 
-        function showApp() {
-            document.getElementById('login-section').style.display = 'none';
-            document.getElementById('app-section').style.display = 'block';
-
-            // Update user display
-            let userDisplay = `👤 ${currentUser.name}`;
-            if (currentUser.isAdmin) {
-                userDisplay += '<span class="user-badge admin">管理者</span>';
-            }
-            userDisplay += `<span class="user-badge team">${currentUser.team}</span>`;
-            document.getElementById('user-display').innerHTML = userDisplay;
-
-            // Show sheet selector for admin only
-            if (currentUser.isAdmin) {
-                document.getElementById('sheet-selector').style.display = 'block';
-            } else {
-                document.getElementById('sheet-selector').style.display = 'none';
+        async function sheetsApiRequest(url, options = {}, isRetry = false) {
+            if (!accessToken) {
+                await refreshAccessToken();
+                if (!accessToken) {
+                    throw new Error('Google Sheets認証が必要です。再ログインしてください。');
+                }
             }
 
-            updateCurrentSheetDisplay();
+            const response = await fetch(url, {
+                ...options,
+                headers: {
+                    'Authorization': `Bearer ${accessToken}`,
+                    'Content-Type': 'application/json',
+                    ...options.headers
+                }
+            });
+
+            if (response.status === 401) {
+                if (!isRetry) {
+                    console.log('Token expired, refreshing...');
+                    await refreshAccessToken();
+                    if (accessToken) {
+                        return sheetsApiRequest(url, options, true);
+                    }
+                }
+                localStorage.removeItem('sheets_access_token');
+                accessToken = null;
+                throw new Error('セッションが切れました。再ログインしてください。');
+            }
+
+            if (!response.ok) {
+                const error = await response.json();
+                throw new Error(error.error?.message || 'API error');
+            }
+
+            return response.json();
+        }
+
+        // Refresh access token via Supabase re-auth
+        async function refreshAccessToken() {
+            try {
+                // Try to refresh the Supabase session
+                const { data, error } = await supabase.auth.refreshSession();
+                if (data?.session?.provider_token) {
+                    accessToken = data.session.provider_token;
+                    localStorage.setItem('sheets_access_token', accessToken);
+                    console.log('Token refreshed via Supabase session');
+                    return true;
+                }
+                
+                // If provider_token is not available in refresh, 
+                // user needs to re-login for a new Google token
+                console.log('Provider token not available in refresh. User may need to re-login.');
+                return false;
+            } catch (error) {
+                console.error('Token refresh failed:', error);
+                return false;
+            }
         }
 
         // =====================================================
-        // SHEET SELECTION (Admin Only)
+        // SHEET SELECTION
         // =====================================================
         function onSheetChange() {
-            currentSheet = document.getElementById('sheet-select').value;
-            databaseCache = null; // Clear cache when switching sheets
-            updateCurrentSheetDisplay();
+            const selectedSheet = document.querySelector('input[name="sheet"]:checked');
+            if (selectedSheet) {
+                currentSheet = selectedSheet.value;
+                databaseCache = null;
+                updateCurrentSheetDisplay();
+            }
         }
 
         function getCurrentSpreadsheetId() {
-            return CONFIG.SPREADSHEETS[currentSheet].id;
+            return SHEETS_CONFIG.SPREADSHEETS[currentSheet].id;
         }
 
         function getCurrentDatabaseSheet() {
-            return CONFIG.SPREADSHEETS[currentSheet].database;
+            return SHEETS_CONFIG.SPREADSHEETS[currentSheet].database;
         }
 
         // =====================================================
-        // TAB NAVIGATION
+        // MODAL FUNCTIONS
         // =====================================================
-        function switchTab(tab) {
-            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
-            document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+        function openFinderModal() {
+            document.getElementById('finder-modal').classList.add('active');
+        }
 
-            if (tab === 'batch') {
-                document.querySelector('.tab-btn:not(.finder)').classList.add('active');
-                document.getElementById('batch-tab').classList.add('active');
+        function closeFinderModal() {
+            document.getElementById('finder-modal').classList.remove('active');
+        }
+
+        function openSheetSelectorModal() {
+            const currentRadio = document.querySelector(`input[name="sheet"][value="${currentSheet}"]`);
+            if (currentRadio) currentRadio.checked = true;
+            document.getElementById('sheet-selector-modal').classList.add('active');
+        }
+
+        function closeSheetSelectorModal() {
+            document.getElementById('sheet-selector-modal').classList.remove('active');
+        }
+
+        function openSettingsModal() {
+            updateThemeButtons();
+            
+            const adminSection = document.getElementById('admin-location-section');
+            if (userProfile && userProfile.isAdmin) {
+                adminSection.style.display = 'block';
             } else {
-                document.querySelector('.tab-btn.finder').classList.add('active');
-                document.getElementById('finder-tab').classList.add('active');
+                adminSection.style.display = 'none';
+            }
+            
+            document.getElementById('location-edit-pn').value = '';
+            document.getElementById('location-edit-result').style.display = 'none';
+            document.getElementById('location-edit-status').textContent = '';
+            stopLocationQRScanner();
+            
+            document.getElementById('settings-modal').classList.add('active');
+        }
+
+        function closeSettingsModal() {
+            stopLocationQRScanner();
+            document.getElementById('settings-modal').classList.remove('active');
+        }
+
+        // =====================================================
+        // ADMIN: LOCATION EDIT FUNCTIONS
+        // =====================================================
+        let locationEditPartData = null;
+        let locationQRScanner = null;
+        let locationQRScannerActive = false;
+
+        function toggleLocationQRScanner() {
+            if (locationQRScannerActive) {
+                stopLocationQRScanner();
+            } else {
+                startLocationQRScanner();
+            }
+        }
+
+        function startLocationQRScanner() {
+            const qrReader = document.getElementById('location-qr-reader');
+            qrReader.style.display = 'block';
+            
+            locationQRScanner = new Html5Qrcode('location-qr-reader');
+            
+            locationQRScanner.start(
+                { facingMode: "environment" },
+                { fps: 10, qrbox: { width: 200, height: 200 } },
+                (decodedText) => {
+                    document.getElementById('location-edit-pn').value = decodedText;
+                    stopLocationQRScanner();
+                    searchPartForLocationEdit();
+                },
+                (errorMessage) => {}
+            ).catch((err) => {
+                console.error('QR Scanner error:', err);
+                showLocationEditStatus('カメラにアクセスできません', 'error');
+            });
+            
+            locationQRScannerActive = true;
+        }
+
+        function stopLocationQRScanner() {
+            if (locationQRScanner && locationQRScannerActive) {
+                locationQRScanner.stop().then(() => {
+                    document.getElementById('location-qr-reader').style.display = 'none';
+                    locationQRScannerActive = false;
+                }).catch(console.log);
+            }
+        }
+
+        async function searchPartForLocationEdit() {
+            let searchValue = document.getElementById('location-edit-pn').value.trim();
+            if (!searchValue) {
+                showLocationEditStatus('部品番号を入力してください', 'error');
+                return;
             }
 
-            stopScanner();
-            closeSnScanner();
+            const pn = extractPartNumberFromQR(searchValue);
+            showLocationEditStatus('検索中...', 'loading');
+
+            try {
+                const partInfo = await lookupPartFromSupabase(pn);
+                
+                if (partInfo) {
+                    locationEditPartData = partInfo;
+                    
+                    document.getElementById('location-edit-found-pn').textContent = partInfo.partNumber;
+                    document.getElementById('location-edit-found-name').textContent = partInfo.name || '(名前なし)';
+                    document.getElementById('location-edit-location').value = partInfo.location || '';
+                    document.getElementById('location-edit-temp').value = partInfo.tempLocation || '';
+                    
+                    document.getElementById('location-edit-result').style.display = 'block';
+                    showLocationEditStatus('', '');
+                } else {
+                    document.getElementById('location-edit-result').style.display = 'none';
+                    showLocationEditStatus('部品が見つかりません: ' + pn, 'error');
+                }
+            } catch (error) {
+                console.error('Search error:', error);
+                showLocationEditStatus('検索エラー: ' + error.message, 'error');
+            }
+        }
+
+        function extractPartNumberFromQR(qrValue) {
+            if (qrValue.includes('-')) {
+                return qrValue;
+            }
+            return qrValue;
+        }
+
+        async function lookupPartFromSupabase(searchValue) {
+            try {
+                // First try exact P/N match
+                let response = await fetch(
+                    `${SUPABASE_CONFIG.url}/rest/v1/master_parts_list_all?pn=eq.${encodeURIComponent(searchValue)}&select=pn,name,location,temp_location,qr_code`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_CONFIG.anonKey,
+                            'Authorization': `Bearer ${SUPABASE_CONFIG.anonKey}`
+                        }
+                    }
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.length > 0) {
+                        const row = data[0];
+                        return {
+                            partNumber: row.pn || '',
+                            name: row.name || '',
+                            location: row.location || '',
+                            tempLocation: row.temp_location || ''
+                        };
+                    }
+                }
+                
+                // If not found by P/N, try QR code column
+                response = await fetch(
+                    `${SUPABASE_CONFIG.url}/rest/v1/master_parts_list_all?qr_code=eq.${encodeURIComponent(searchValue)}&select=pn,name,location,temp_location,qr_code`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_CONFIG.anonKey,
+                            'Authorization': `Bearer ${SUPABASE_CONFIG.anonKey}`
+                        }
+                    }
+                );
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    if (data.length > 0) {
+                        const row = data[0];
+                        return {
+                            partNumber: row.pn || '',
+                            name: row.name || '',
+                            location: row.location || '',
+                            tempLocation: row.temp_location || ''
+                        };
+                    }
+                }
+                
+                return null;
+            } catch (error) {
+                console.error('Supabase lookup error:', error);
+                return null;
+            }
+        }
+
+        async function saveLocationEdit() {
+            if (!locationEditPartData) return;
+
+            const newLocation = document.getElementById('location-edit-location').value.trim();
+            const newTempLocation = document.getElementById('location-edit-temp').value.trim();
+
+            const confirmMsg = `場所を更新しますか?\n\n部品: ${locationEditPartData.partNumber}\n保管場所: ${newLocation || '(空)'}\n仮保管場所: ${newTempLocation || '(空)'}`;
+            if (!confirm(confirmMsg)) return;
+
+            showLocationEditStatus('更新中...', 'loading');
+
+            try {
+                const response = await fetch(
+                    `${SUPABASE_CONFIG.url}/rest/v1/master_parts_list_all?pn=eq.${encodeURIComponent(locationEditPartData.partNumber)}`,
+                    {
+                        method: 'PATCH',
+                        headers: {
+                            'apikey': SUPABASE_CONFIG.anonKey,
+                            'Authorization': `Bearer ${SUPABASE_CONFIG.anonKey}`,
+                            'Content-Type': 'application/json',
+                            'Prefer': 'return=minimal'
+                        },
+                        body: JSON.stringify({
+                            location: newLocation,
+                            temp_location: newTempLocation,
+                            updated_at: new Date().toISOString()
+                        })
+                    }
+                );
+
+                if (response.ok) {
+                    showLocationEditStatus('✅ 場所を更新しました！', 'success');
+                    
+                    if (databaseCache) {
+                        const cached = databaseCache.find(p => p.partNumber === locationEditPartData.partNumber);
+                        if (cached) {
+                            cached.location = newLocation;
+                            cached.tempLocation = newTempLocation;
+                        }
+                    }
+                    
+                    parts.forEach(p => {
+                        if (p.pn === locationEditPartData.partNumber) {
+                            p.location = newLocation;
+                            p.tempLocation = newTempLocation;
+                        }
+                    });
+                    renderPartsList();
+                    
+                    locationEditPartData.location = newLocation;
+                    locationEditPartData.tempLocation = newTempLocation;
+                } else {
+                    const errorText = await response.text();
+                    throw new Error(errorText || 'Update failed');
+                }
+            } catch (error) {
+                console.error('Save error:', error);
+                showLocationEditStatus('❌ 更新エラー: ' + error.message, 'error');
+            }
+        }
+
+        function showLocationEditStatus(message, type) {
+            const statusEl = document.getElementById('location-edit-status');
+            statusEl.textContent = message;
+            statusEl.className = 'location-edit-status';
+            if (type) statusEl.classList.add(type);
+        }
+
+        // =====================================================
+        // THEME FUNCTIONS
+        // =====================================================
+        function setTheme(theme) {
+            document.body.classList.remove('theme-purple', 'theme-blue', 'theme-green', 'theme-orange', 'theme-dark');
+            document.body.classList.add(`theme-${theme}`);
+            localStorage.setItem('app-theme', theme);
+            updateThemeButtons();
+        }
+
+        function loadSavedTheme() {
+            const savedTheme = localStorage.getItem('app-theme') || 'purple';
+            setTheme(savedTheme);
+        }
+
+        function updateThemeButtons() {
+            const currentTheme = localStorage.getItem('app-theme') || 'purple';
+            document.querySelectorAll('.theme-btn').forEach(btn => {
+                btn.classList.remove('active');
+                if (btn.dataset.theme === currentTheme) btn.classList.add('active');
+            });
         }
 
         // =====================================================
@@ -1212,7 +1252,7 @@ GPCP-0000154-0-0"></textarea>
         }
 
         // =====================================================
-        // QR SCANNER (Option A: Stop after each scan)
+        // QR SCANNER
         // =====================================================
         function toggleScanner() {
             if (scannerActive) {
@@ -1233,14 +1273,20 @@ GPCP-0000154-0-0"></textarea>
             html5QrCode.start(
                 { facingMode: "environment" },
                 { fps: 10, qrbox: { width: 250, height: 250 } },
-                (decodedText) => {
-                    // Add scanned part to list
-                    addPart(decodedText, false, null);
+                async (decodedText) => {
+                    stopScanner();
+                    showStatus('batch-status', '部品情報を取得中...', 'loading');
+                    
+                    const partInfo = await lookupPartFromSupabase(decodedText);
+                    const locationData = partInfo ? {
+                        name: partInfo.name,
+                        location: partInfo.location,
+                        tempLocation: partInfo.tempLocation
+                    } : null;
+                    
+                    addPart(decodedText, true, locationData);
                     showStatus('batch-status', `✅ ${decodedText} を追加しました`, 'success');
                     setTimeout(() => hideStatus('batch-status'), 2000);
-                    
-                    // OPTION A: Stop scanner after each scan
-                    stopScanner();
                 },
                 (errorMessage) => {}
             ).catch((err) => {
@@ -1263,7 +1309,7 @@ GPCP-0000154-0-0"></textarea>
         }
 
         // =====================================================
-        // S/N QR SCANNER (for individual parts)
+        // S/N QR SCANNER
         // =====================================================
         function openSnScanner(index) {
             stopScanner();
@@ -1271,7 +1317,6 @@ GPCP-0000154-0-0"></textarea>
 
             const readerId = `sn-qr-reader-${index}`;
             const readerElement = document.getElementById(readerId);
-            
             if (!readerElement) return;
 
             readerElement.style.display = 'block';
@@ -1283,9 +1328,11 @@ GPCP-0000154-0-0"></textarea>
                 { facingMode: "environment" },
                 { fps: 10, qrbox: { width: 200, height: 200 } },
                 (decodedText) => {
-                    document.getElementById(`sn-input-${index}`).value = decodedText;
-                    updatePart(index, 'sn', decodedText);
+                    parts[index].sn = decodedText;
+                    parts[index].snUnit = '';
+                    parts[index].snNumber = '';
                     closeSnScanner();
+                    renderPartsList();
                     showStatus('batch-status', `✅ S/N: ${decodedText} を読み取りました`, 'success');
                     setTimeout(() => hideStatus('batch-status'), 2000);
                 },
@@ -1302,9 +1349,7 @@ GPCP-0000154-0-0"></textarea>
                 snScanner.stop().then(() => {
                     if (snScannerIndex >= 0) {
                         const readerElement = document.getElementById(`sn-qr-reader-${snScannerIndex}`);
-                        if (readerElement) {
-                            readerElement.style.display = 'none';
-                        }
+                        if (readerElement) readerElement.style.display = 'none';
                     }
                     snScannerActive = false;
                     snScannerIndex = -1;
@@ -1324,8 +1369,11 @@ GPCP-0000154-0-0"></textarea>
 
             parts.push({
                 pn: pn,
+                name: locationData ? locationData.name : '',
                 purpose: '',
                 sn: '',
+                snUnit: '',
+                snNumber: '',
                 qty: 1,
                 showLocation: showLocation,
                 location: locationData ? locationData.location : '',
@@ -1358,9 +1406,10 @@ GPCP-0000154-0-0"></textarea>
             container.innerHTML = parts.map((part, index) => `
                 <div class="part-item">
                     <div class="part-header">
-                        <div>
+                        <div class="part-header-left">
                             <span class="part-index">#${index + 1}</span>
                             <span class="part-number">${part.pn}</span>
+                            ${part.name ? `<span class="part-name">${part.name}</span>` : ''}
                         </div>
                         <button class="delete-btn" onclick="removePart(${index})">🗑️</button>
                     </div>
@@ -1378,10 +1427,14 @@ GPCP-0000154-0-0"></textarea>
                             </select>
                         </div>
                         <div class="field-group">
-                            <label>S/N <button class="sn-qr-btn" onclick="openSnScanner(${index})">📷</button></label>
-                            <input type="text" value="${part.sn}" placeholder="シリアル番号" 
-                                   onchange="updatePart(${index}, 'sn', this.value)"
-                                   id="sn-input-${index}">
+                            <label>S/N</label>
+                            <div class="sn-compact-row">
+                                <input type="text" value="${part.sn}" placeholder="S/N" 
+                                       onchange="updatePart(${index}, 'sn', this.value)"
+                                       id="sn-input-${index}" class="sn-text-input">
+                                <button class="sn-btn" onclick="openSnScanner(${index})" title="QRスキャン">📷</button>
+                                <button class="sn-btn unit-btn" onclick="openUnitModal(${index})" title="Unit選択">🏭</button>
+                            </div>
                         </div>
                         <div class="field-group">
                             <label>数量</label>
@@ -1394,10 +1447,168 @@ GPCP-0000154-0-0"></textarea>
             `).join('');
         }
 
+        // =====================================================
+        // UNIT CODE MODAL
+        // =====================================================
+        let currentSnIndex = -1;
+
+        function openUnitModal(index) {
+            currentSnIndex = index;
+            const part = parts[index];
+            
+            document.getElementById('unit-number-input').value = part.snNumber || '';
+            
+            document.querySelectorAll('.unit-modal-chip').forEach(chip => {
+                chip.classList.remove('active');
+            });
+            
+            if (part.snUnit) {
+                const activeChip = document.querySelector(`.unit-modal-chip[data-code="${part.snUnit}"]`);
+                if (activeChip) activeChip.classList.add('active');
+            }
+            
+            updateUnitPreview();
+            document.getElementById('unit-modal').classList.add('active');
+        }
+
+        function closeUnitModal() {
+            document.getElementById('unit-modal').classList.remove('active');
+            currentSnIndex = -1;
+        }
+
+        function selectUnitChip(code) {
+            document.querySelectorAll('.unit-modal-chip').forEach(chip => {
+                chip.classList.remove('active');
+            });
+            document.querySelector(`.unit-modal-chip[data-code="${code}"]`).classList.add('active');
+            
+            if (currentSnIndex >= 0) {
+                parts[currentSnIndex].snUnit = code;
+            }
+            updateUnitPreview();
+        }
+
+        function onUnitNumberChange(value) {
+            if (currentSnIndex >= 0) {
+                parts[currentSnIndex].snNumber = value;
+            }
+            updateUnitPreview();
+        }
+
+        function updateUnitPreview() {
+            const previewBtn = document.getElementById('unit-confirm-btn');
+            if (currentSnIndex >= 0) {
+                const unit = parts[currentSnIndex].snUnit || '';
+                const number = parts[currentSnIndex].snNumber || '';
+                
+                if (unit && number) {
+                    previewBtn.textContent = `🔍 検索: ${unit}-${number}`;
+                    previewBtn.disabled = false;
+                } else if (unit) {
+                    previewBtn.textContent = `番号を入力してください`;
+                    previewBtn.disabled = true;
+                } else {
+                    previewBtn.textContent = `Unitを選択してください`;
+                    previewBtn.disabled = true;
+                }
+            }
+        }
+
+        async function confirmUnitSelection() {
+            if (currentSnIndex >= 0) {
+                const unit = parts[currentSnIndex].snUnit || '';
+                const number = parts[currentSnIndex].snNumber || '';
+                
+                if (unit && number) {
+                    const previewBtn = document.getElementById('unit-confirm-btn');
+                    previewBtn.textContent = '🔍 検索中...';
+                    previewBtn.disabled = true;
+                    
+                    try {
+                        const fullSN = await lookupGhostTrackerSN(unit, number);
+                        
+                        if (fullSN) {
+                            parts[currentSnIndex].sn = fullSN;
+                            showStatus('batch-status', `✅ S/N: ${fullSN} を取得しました`, 'success');
+                            setTimeout(() => hideStatus('batch-status'), 3000);
+                        } else {
+                            const unitConfig = UNIT_CODES.find(u => u.code === unit);
+                            const snCode = unitConfig ? unitConfig.snCode : unit;
+                            parts[currentSnIndex].sn = `${snCode}-${number}`;
+                            showStatus('batch-status', `⚠️ Ghost Trackerに見つかりません。${snCode}-${number} を設定しました`, 'error');
+                            setTimeout(() => hideStatus('batch-status'), 3000);
+                        }
+                    } catch (error) {
+                        console.error('Ghost Tracker lookup error:', error);
+                        const unitConfig = UNIT_CODES.find(u => u.code === unit);
+                        const snCode = unitConfig ? unitConfig.snCode : unit;
+                        parts[currentSnIndex].sn = `${snCode}-${number}`;
+                        showStatus('batch-status', `⚠️ 検索エラー。${snCode}-${number} を設定しました`, 'error');
+                        setTimeout(() => hideStatus('batch-status'), 3000);
+                    }
+                    
+                    renderPartsList();
+                }
+            }
+            closeUnitModal();
+        }
+
+        // Lookup S/N from Ghost Tracker sheet
+        async function lookupGhostTrackerSN(unitCode, number) {
+            const unitConfig = UNIT_CODES.find(u => u.code === unitCode);
+            if (!unitConfig || !unitConfig.sheetTab) return null;
+            
+            try {
+                const url = `https://sheets.googleapis.com/v4/spreadsheets/${GHOST_TRACKER_SHEET_ID}/values/${encodeURIComponent(unitConfig.sheetTab)}!A:Z`;
+                const data = await sheetsApiRequest(url);
+                
+                const rows = data.values || [];
+                if (rows.length < 2) return null;
+                
+                const headers = rows[0];
+                let snColIndex = headers.findIndex(h => /^S\/?N$/i.test((h || '').trim()));
+                if (snColIndex === -1) {
+                    for (let ci = 0; ci < headers.length && ci < 10; ci++) {
+                        for (let ri = 1; ri < Math.min(rows.length, 5); ri++) {
+                            const val = rows[ri][ci] || '';
+                            if (/^GT\d{3}-[A-Z0-9]{2,3}-\d{3,5}$/i.test(val)) {
+                                snColIndex = ci;
+                                break;
+                            }
+                        }
+                        if (snColIndex !== -1) break;
+                    }
+                }
+                
+                if (snColIndex === -1) snColIndex = 0;
+                
+                const paddedNum = number.toString().padStart(5, '0');
+                const snCodeUpper = unitConfig.snCode.toUpperCase();
+                
+                for (let i = 1; i < rows.length; i++) {
+                    const cellValue = (rows[i][snColIndex] || '').trim().toUpperCase();
+                    
+                    const match = cellValue.match(/^(GT\d{3})-([A-Z0-9]{2,3})-(\d{3,5})$/);
+                    if (match) {
+                        const [, prefix, code, num] = match;
+                        const numPadded = num.padStart(5, '0');
+                        
+                        if (code === snCodeUpper && (num === number.toString() || numPadded === paddedNum || parseInt(num) === parseInt(number))) {
+                            return cellValue;
+                        }
+                    }
+                }
+                
+                return null;
+            } catch (error) {
+                console.error('Error looking up Ghost Tracker:', error);
+                throw error;
+            }
+        }
+
         function updateSubmitButton() {
             const btn = document.getElementById('submit-btn');
             const validParts = parts.filter(p => p.purpose);
-            
             btn.textContent = `一括登録する (${validParts.length}件)`;
             btn.disabled = validParts.length === 0;
         }
@@ -1421,9 +1632,7 @@ GPCP-0000154-0-0"></textarea>
                 .map(line => line.trim())
                 .filter(line => line.length > 0);
 
-            if (lines.length === 0) {
-                return;
-            }
+            if (lines.length === 0) return;
 
             closePasteModal();
             showStatus('batch-status', '部品情報を取得中...', 'loading');
@@ -1438,14 +1647,18 @@ GPCP-0000154-0-0"></textarea>
                     if (!parts.some(p => p.pn === pn)) {
                         const found = databaseCache.find(row => row.partNumber === pn);
                         const locationData = found ? {
+                            name: found.name,
                             location: found.location,
                             tempLocation: found.tempLocation
                         } : null;
 
                         parts.push({
                             pn: pn,
+                            name: locationData ? locationData.name : '',
                             purpose: '',
                             sn: '',
+                            snUnit: '',
+                            snNumber: '',
                             qty: 1,
                             showLocation: true,
                             location: locationData ? locationData.location : '',
@@ -1458,7 +1671,6 @@ GPCP-0000154-0-0"></textarea>
                 renderPartsList();
                 updateSubmitButton();
 
-                // Auto-fill the Part Finder tab
                 document.getElementById('finder-input').value = lines.join('\n');
                 await autoSearchFinder(lines);
 
@@ -1466,27 +1678,9 @@ GPCP-0000154-0-0"></textarea>
                     showStatus('batch-status', `✅ ${added}件の部品を追加しました（場所情報付き）`, 'success');
                     setTimeout(() => hideStatus('batch-status'), 3000);
                 }
-
             } catch (error) {
                 console.error('Error:', error);
                 showStatus('batch-status', 'エラー: ' + error.message, 'error');
-            }
-        }
-
-        async function autoSearchFinder(partNumbers) {
-            try {
-                if (!databaseCache) {
-                    databaseCache = await loadDatabase();
-                }
-
-                const results = partNumbers.map(pn => {
-                    const found = databaseCache.find(row => row.partNumber === pn);
-                    return { pn, found: !!found, data: found };
-                });
-
-                renderFinderResults(results);
-            } catch (error) {
-                console.error('Error in auto search:', error);
             }
         }
 
@@ -1519,19 +1713,22 @@ GPCP-0000154-0-0"></textarea>
                 const dateStr = getDateString();
                 const remarks = document.getElementById('remarks').value.trim();
 
-                const rows = validParts.map(part => [
-                    dateStr,
-                    currentUser.name,
-                    part.pn,
-                    '',
-                    '',
-                    part.qty,
-                    part.purpose,
-                    part.sn,
-                    remarks
-                ]);
-
-                await writeMultipleRows(sheetName, nextRow, rows, spreadsheetId);
+                for (let i = 0; i < validParts.length; i++) {
+                    const part = validParts[i];
+                    const rowData = [
+                        dateStr,
+                        userProfile.name,
+                        part.pn || '',
+                        '',
+                        '',
+                        String(part.qty || 1),
+                        part.purpose || '',
+                        part.sn || '',
+                        remarks || ''
+                    ];
+                    
+                    await writeRow(sheetName, nextRow + i, rowData, spreadsheetId);
+                }
 
                 showStatus('batch-status', `✅ ${validParts.length}件の登録が完了しました！`, 'success');
 
@@ -1539,7 +1736,6 @@ GPCP-0000154-0-0"></textarea>
                 renderPartsList();
                 updateSubmitButton();
                 document.getElementById('remarks').value = '';
-
             } catch (error) {
                 console.error('Error:', error);
                 showStatus('batch-status', 'エラー: ' + error.message, 'error');
@@ -1577,50 +1773,57 @@ GPCP-0000154-0-0"></textarea>
 
                 renderFinderResults(results);
                 hideStatus('finder-status');
-
             } catch (error) {
                 console.error('Error:', error);
                 showStatus('finder-status', 'エラー: ' + error.message, 'error');
             }
         }
 
-        async function loadDatabase() {
-            // Always use production database for part lookup
-            const spreadsheetId = CONFIG.SPREADSHEETS.production.id;
-            const databaseSheet = CONFIG.SPREADSHEETS.production.database;
-            
-            const response = await fetch(
-                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(databaseSheet)}!A:Z`,
-                { headers: { 'Authorization': `Bearer ${accessToken}` } }
-            );
+        async function autoSearchFinder(partNumbers) {
+            try {
+                if (!databaseCache) {
+                    databaseCache = await loadDatabase();
+                }
 
-            if (!response.ok) {
-                throw new Error('データベースを読み込めません');
+                const results = partNumbers.map(pn => {
+                    const found = databaseCache.find(row => row.partNumber === pn);
+                    return { pn, found: !!found, data: found };
+                });
+
+                renderFinderResults(results);
+            } catch (error) {
+                console.error('Error in auto search:', error);
             }
+        }
 
-            const data = await response.json();
-            const rows = data.values || [];
-            
-            if (rows.length < 2) return [];
-
-            const headers = rows[0];
-            const colIndex = {
-                partNumber: headers.indexOf('部品番号'),
-                name: headers.indexOf('物品名'),
-                location: headers.indexOf('保管場所'),
-                tempLocation: headers.indexOf('仮保管場所'),
-                quantity: headers.indexOf('数量'),
-                category: headers.indexOf('カテゴリ')
-            };
-
-            return rows.slice(1).map(row => ({
-                partNumber: row[colIndex.partNumber] || '',
-                name: row[colIndex.name] || '',
-                location: row[colIndex.location] || '',
-                tempLocation: row[colIndex.tempLocation] || '',
-                quantity: row[colIndex.quantity] || '',
-                category: row[colIndex.category] || ''
-            })).filter(row => row.partNumber);
+        async function loadDatabase() {
+            try {
+                const response = await fetch(
+                    `${SUPABASE_CONFIG.url}/rest/v1/master_parts_list_all?select=pn,name,location,temp_location`,
+                    {
+                        headers: {
+                            'apikey': SUPABASE_CONFIG.anonKey,
+                            'Authorization': `Bearer ${SUPABASE_CONFIG.anonKey}`
+                        }
+                    }
+                );
+                
+                if (!response.ok) {
+                    throw new Error('Supabase fetch failed');
+                }
+                
+                const data = await response.json();
+                
+                return data.map(row => ({
+                    partNumber: row.pn || '',
+                    name: row.name || '',
+                    location: row.location || '',
+                    tempLocation: row.temp_location || ''
+                })).filter(row => row.partNumber);
+            } catch (error) {
+                console.error('Error loading from Supabase:', error);
+                return [];
+            }
         }
 
         function renderFinderResults(results) {
@@ -1639,7 +1842,7 @@ GPCP-0000154-0-0"></textarea>
                                 </div>
                                 <div class="finder-detail">
                                     <span class="finder-detail-label">数量</span>
-                                    <span class="finder-detail-value">${d.quantity}</span>
+                                    <span class="finder-detail-value">${d.quantity || '-'}</span>
                                 </div>
                             </div>
                             <div class="location-highlight">
@@ -1664,33 +1867,22 @@ GPCP-0000154-0-0"></textarea>
         // GOOGLE SHEETS API HELPERS
         // =====================================================
         async function checkSheetExists(sheetName, spreadsheetId) {
-            const response = await fetch(
-                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`,
-                { headers: { 'Authorization': `Bearer ${accessToken}` } }
+            const data = await sheetsApiRequest(
+                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}?fields=sheets.properties.title`
             );
-
-            if (!response.ok) throw new Error('スプレッドシートにアクセスできません');
-
-            const data = await response.json();
             return (data.sheets || []).some(sheet => sheet.properties.title === sheetName);
         }
 
         async function createNewSheet(sheetName, spreadsheetId) {
-            const addResponse = await fetch(
+            await sheetsApiRequest(
                 `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}:batchUpdate`,
                 {
                     method: 'POST',
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify({
                         requests: [{ addSheet: { properties: { title: sheetName } } }]
                     })
                 }
             );
-
-            if (!addResponse.ok) throw new Error('シートを作成できません');
 
             const headers = [
                 'No.', '日付', '名前', '部品番号かQRの値を入力', '部品番号(自動入力)',
@@ -1698,28 +1890,19 @@ GPCP-0000154-0-0"></textarea>
                 '処理状況', '貸出状況', '保管場所', '仮保管場所', '部署', '出庫メモ'
             ];
 
-            await fetch(
+            await sheetsApiRequest(
                 `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!A1:Q1?valueInputOption=RAW`,
                 {
                     method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify({ values: [headers] })
                 }
             );
         }
 
         async function getNextRowNumber(sheetName, spreadsheetId) {
-            const response = await fetch(
-                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!B:B`,
-                { headers: { 'Authorization': `Bearer ${accessToken}` } }
+            const data = await sheetsApiRequest(
+                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(sheetName)}!B:B`
             );
-
-            if (!response.ok) throw new Error('行数を取得できません');
-
-            const data = await response.json();
             return (data.values || []).length + 1;
         }
 
@@ -1727,22 +1910,25 @@ GPCP-0000154-0-0"></textarea>
             const endRow = startRow + rows.length - 1;
             const range = `${sheetName}!B${startRow}:J${endRow}`;
 
-            const response = await fetch(
+            await sheetsApiRequest(
                 `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
                 {
                     method: 'PUT',
-                    headers: {
-                        'Authorization': `Bearer ${accessToken}`,
-                        'Content-Type': 'application/json'
-                    },
                     body: JSON.stringify({ values: rows })
                 }
             );
+        }
 
-            if (!response.ok) {
-                const error = await response.json();
-                throw new Error(error.error?.message || 'データを追加できません');
-            }
+        async function writeRow(sheetName, rowNumber, rowData, spreadsheetId) {
+            const range = `${sheetName}!B${rowNumber}:J${rowNumber}`;
+
+            await sheetsApiRequest(
+                `https://sheets.googleapis.com/v4/spreadsheets/${spreadsheetId}/values/${encodeURIComponent(range)}?valueInputOption=USER_ENTERED`,
+                {
+                    method: 'PUT',
+                    body: JSON.stringify({ values: [rowData] })
+                }
+            );
         }
 
         // =====================================================
