@@ -127,14 +127,15 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
 .part-index { background: var(--primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 8px; }
 .delete-btn { background: none; border: none; color: #e53935; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; }
 .part-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
-.part-fields.three-col { grid-template-columns: 1fr 70px 1.2fr; }
+.part-fields.three-col { grid-template-columns: 1fr 1.2fr 70px; }
 
 @media (max-width: 480px) {
-    .part-fields.three-col { grid-template-columns: 1fr 70px; gap: 8px; }
-    .part-fields.three-col .field-group.sn-field { grid-column: 1 / -1; }
+    .part-fields.three-col { grid-template-columns: 1fr 1fr; gap: 8px; }
+    .part-fields.three-col .field-group:first-child { grid-column: 1 / -1; }
     .sn-compact-row { gap: 3px; }
     .sn-text-input { min-width: 0; font-size: 0.85rem; padding: 8px 6px; }
     .sn-btn { padding: 8px 8px; font-size: 0.85rem; }
+    .field-group input[type="number"] { font-size: 0.9rem; }
     .part-number { font-size: 0.9rem; }
     .part-name { font-size: 0.7rem; }
 }
@@ -919,13 +920,13 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                     <div class="part-fields three-col">
                         <div class="field-group"><label>目的</label>
                             <select onchange="updatePart(${i},'purpose',this.value)"><option value="">選択</option>${PURPOSE_OPTIONS.map(o=>`<option value="${o}" ${p.purpose===o?'selected':''}>${o}</option>`).join('')}</select></div>
-                        <div class="field-group"><label>数量</label><input type="number" value="${p.qty}" min="1" onchange="updatePart(${i},'qty',this.value)"></div>
-                        <div class="field-group sn-field"><label>S/N</label>
+                        <div class="field-group"><label>S/N</label>
                             <div class="sn-compact-row">
                                 <input type="text" value="${p.sn}" placeholder="S/N" onchange="updatePart(${i},'sn',this.value)" class="sn-text-input">
                                 <button class="sn-btn" onclick="openSnScanner(${i})">📷</button>
                                 <button class="sn-btn unit-btn" onclick="openUnitModal(${i})">🏭</button>
                             </div></div>
+                        <div class="field-group"><label>数量</label><input type="number" value="${p.qty}" min="1" onchange="updatePart(${i},'qty',this.value)"></div>
                     </div>
                     <div id="sn-qr-reader-${i}" class="sn-qr-reader-container"></div>
                 </div>`).join('');
