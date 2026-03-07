@@ -3,401 +3,661 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>ピックリスト生成</title>
-
+    <title>出庫依頼入力</title>
+    
     <!-- Supabase JS SDK -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-
+    
+    <!-- Google API for Sheets -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    
+    <!-- QR Scanner -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
     <style>
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-    --primary: #2563eb; --primary-dark: #1e40af; --primary-light: #60a5fa;
-    --primary-bg: rgba(37, 99, 235, 0.08); --primary-bg-hover: rgba(37, 99, 235, 0.14);
-    --accent: #2563eb; --accent-hover: #1d4ed8;
-    --card-bg: white; --text-primary: #1e293b; --text-secondary: #64748b; --text-muted: #94a3b8;
-    --border-color: #e2e8f0; --input-focus: #2563eb;
-    --success-bg: #f0fdf4; --success-text: #15803d; --success-border: #bbf7d0;
-    --error-bg: #fef2f2; --error-text: #b91c1c; --error-border: #fecaca;
-    --warning-bg: #fffbeb; --warning-text: #b45309; --warning-border: #fde68a;
-    --highlight-missing: #fef9c3;
-    --radius: 10px;
+    --primary: #667eea; --primary-dark: #764ba2; --primary-light: #8b9bf4;
+    --primary-bg: rgba(102, 126, 234, 0.1); --primary-bg-hover: rgba(102, 126, 234, 0.15);
+    --accent: #667eea; --accent-hover: #5a6fd6;
+    --badge-admin-bg: #e3f2fd; --badge-admin-text: #1565c0;
+    --badge-team-bg: #f3e5f5; --badge-team-text: #7b1fa2;
+    --card-bg: white; --text-primary: #333; --text-secondary: #666; --text-muted: #999;
+    --border-color: #e0e0e0; --input-focus: #667eea;
+    --success-bg: #e8f5e9; --success-text: #2e7d32;
+    --error-bg: #ffebee; --error-text: #c62828;
+    --warning-bg: #fff3e0; --warning-text: #e65100;
+}
+
+body.theme-purple {
+    --primary: #667eea; --primary-dark: #764ba2; --primary-light: #8b9bf4;
+    --primary-bg: rgba(102, 126, 234, 0.1); --primary-bg-hover: rgba(102, 126, 234, 0.15);
+    --accent: #667eea; --accent-hover: #5a6fd6;
+    --badge-admin-bg: #ede7f6; --badge-admin-text: #5e35b1;
+    --badge-team-bg: #f3e5f5; --badge-team-text: #7b1fa2;
+    --input-focus: #667eea;
+}
+body.theme-blue {
+    --primary: #2196F3; --primary-dark: #1565C0; --primary-light: #64b5f6;
+    --primary-bg: rgba(33, 150, 243, 0.1); --primary-bg-hover: rgba(33, 150, 243, 0.15);
+    --accent: #2196F3; --accent-hover: #1976d2;
+    --badge-admin-bg: #e3f2fd; --badge-admin-text: #1565c0;
+    --badge-team-bg: #e1f5fe; --badge-team-text: #0277bd;
+    --input-focus: #2196F3;
+}
+body.theme-green {
+    --primary: #43a047; --primary-dark: #2e7d32; --primary-light: #66bb6a;
+    --primary-bg: rgba(67, 160, 71, 0.1); --primary-bg-hover: rgba(67, 160, 71, 0.15);
+    --accent: #43a047; --accent-hover: #388e3c;
+    --badge-admin-bg: #e8f5e9; --badge-admin-text: #2e7d32;
+    --badge-team-bg: #f1f8e9; --badge-team-text: #558b2f;
+    --input-focus: #43a047;
+}
+body.theme-orange {
+    --primary: #ff9800; --primary-dark: #e65100; --primary-light: #ffb74d;
+    --primary-bg: rgba(255, 152, 0, 0.1); --primary-bg-hover: rgba(255, 152, 0, 0.15);
+    --accent: #ff9800; --accent-hover: #f57c00;
+    --badge-admin-bg: #fff3e0; --badge-admin-text: #e65100;
+    --badge-team-bg: #fbe9e7; --badge-team-text: #d84315;
+    --input-focus: #ff9800;
+}
+body.theme-dark {
+    --primary: #546e7a; --primary-dark: #37474f; --primary-light: #78909c;
+    --primary-bg: rgba(84, 110, 122, 0.15); --primary-bg-hover: rgba(84, 110, 122, 0.2);
+    --accent: #78909c; --accent-hover: #607d8b;
+    --badge-admin-bg: #eceff1; --badge-admin-text: #455a64;
+    --badge-team-bg: #e0e0e0; --badge-team-text: #616161;
+    --input-focus: #78909c; --card-bg: #fafafa;
 }
 
 body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
-    background: #f1f5f9; min-height: 100vh; color: var(--text-primary);
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    min-height: 100vh; padding: 20px; transition: background 0.3s ease;
 }
+.container { max-width: 600px; margin: 0 auto; }
+.card { background: var(--card-bg); border-radius: 16px; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+.app-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.app-title h1 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 4px; }
+.app-title .subtitle { color: var(--text-secondary); font-size: 0.85rem; margin: 0; }
+.header-icons { display: flex; gap: 8px; }
+.header-icon-btn { width: 40px; height: 40px; border: none; border-radius: 10px; background: var(--primary-bg); font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.header-icon-btn:hover { background: var(--primary-bg-hover); transform: scale(1.05); }
+h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-size: 1.5rem; }
+.subtitle { text-align: center; color: var(--text-secondary); margin-bottom: 24px; font-size: 0.9rem; }
 
-/* ========== LAYOUT ========== */
-.app-shell { max-width: 900px; margin: 0 auto; padding: 16px; }
+#login-section { text-align: center; padding: 20px; }
+#login-section p { color: #666; margin-bottom: 20px; }
+.login-btn { background: #4285f4; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 1rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; width: 100%; max-width: 280px; justify-content: center; }
+.login-btn:hover { background: #3367d6; }
+#login-error { color: #c62828; margin-top: 16px; display: none; white-space: pre-line; }
 
-.app-bar {
-    background: white; border-radius: var(--radius); padding: 16px 20px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 16px;
-    display: flex; justify-content: space-between; align-items: center;
-}
-.app-bar-left { display: flex; align-items: center; gap: 12px; }
-.app-bar h1 { font-size: 1.15rem; font-weight: 700; color: var(--text-primary); }
-.app-bar .back-btn {
-    background: var(--primary-bg); border: none; border-radius: 8px;
-    padding: 6px 12px; font-size: 0.85rem; cursor: pointer; color: var(--primary);
-    font-weight: 600; transition: all 0.15s; display: none;
-}
-.app-bar .back-btn:hover { background: var(--primary-bg-hover); }
-.app-bar-right { display: flex; align-items: center; gap: 10px; }
-.user-chip {
-    font-size: 0.8rem; color: var(--text-secondary); background: #f8fafc;
-    padding: 4px 10px; border-radius: 20px; border: 1px solid var(--border-color);
-}
-.user-chip .role-tag { font-weight: 600; color: var(--primary); margin-left: 4px; }
-.logout-btn {
-    background: none; border: 1px solid var(--border-color); color: var(--text-secondary);
-    padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; cursor: pointer;
-}
+#loading-section { text-align: center; padding: 40px; }
+.spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.user-info { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--primary-bg); border-radius: 10px; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+.user-info span { color: var(--text-secondary); font-size: 0.9rem; }
+.user-info .user-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+.user-badge.admin { background: var(--badge-admin-bg); color: var(--badge-admin-text); }
+.user-badge.role { background: var(--badge-team-bg); color: var(--badge-team-text); }
+.logout-btn { background: none; border: 1px solid var(--text-muted); color: var(--text-secondary); padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
 .logout-btn:hover { border-color: var(--primary); color: var(--primary); }
 
-.card {
-    background: white; border-radius: var(--radius); padding: 20px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.06); margin-bottom: 16px;
+.current-sheet { background: var(--success-bg); color: var(--success-text); padding: 8px 16px; border-radius: 8px; text-align: center; margin-bottom: 20px; font-weight: 500; }
+.current-sheet.test-mode { background: var(--warning-bg); color: var(--warning-text); }
+
+.action-buttons { display: flex; gap: 10px; margin-bottom: 16px; }
+.action-btn { flex: 1; padding: 12px; border: 2px solid var(--primary); background: white; color: var(--primary); border-radius: 10px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; }
+.action-btn:hover { background: var(--primary); color: white; }
+.action-btn.active { background: var(--primary); color: white; }
+
+.qr-reader-container { width: 100%; border-radius: 10px; overflow: hidden; display: none; margin-bottom: 16px; }
+
+.parts-list { border: 2px solid #e0e0e0; border-radius: 10px; margin-bottom: 16px; max-height: 400px; overflow-y: auto; }
+.parts-list-empty { padding: 40px 20px; text-align: center; color: #999; }
+.part-item { padding: 16px; border-bottom: 1px solid #e0e0e0; }
+.part-item:last-child { border-bottom: none; }
+.part-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.part-number { font-weight: 600; color: #333; font-size: 1rem; }
+.part-header-left { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+.part-name { color: #666; font-size: 0.8rem; font-weight: 500; background: #f0f0f0; padding: 2px 8px; border-radius: 4px; margin-left: 6px; border-left: 3px solid var(--primary); }
+.inline-location { background: var(--warning-bg); color: var(--warning-text); padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; margin-bottom: 12px; }
+.part-index { background: var(--primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 8px; }
+.delete-btn { background: none; border: none; color: #e53935; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; }
+.part-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.part-fields.three-col { grid-template-columns: 1fr 70px 1.2fr; }
+
+@media (max-width: 480px) {
+    .part-fields.three-col { grid-template-columns: 1fr 70px; gap: 8px; }
+    .part-fields.three-col .field-group.sn-field { grid-column: 1 / -1; }
+    .sn-compact-row { gap: 3px; }
+    .sn-text-input { min-width: 0; font-size: 0.85rem; padding: 8px 6px; }
+    .sn-btn { padding: 8px 8px; font-size: 0.85rem; }
+    .part-number { font-size: 0.9rem; }
+    .part-name { font-size: 0.7rem; }
 }
 
-/* ========== AUTH ========== */
-#loading-section { text-align: center; padding: 60px 20px; }
-.spinner { border: 3px solid #e2e8f0; border-top: 3px solid var(--primary); border-radius: 50%; width: 36px; height: 36px; animation: spin 0.8s linear infinite; margin: 0 auto 14px; }
-@keyframes spin { to { transform: rotate(360deg); } }
+.sn-compact-row { display: flex; gap: 4px; }
+.sn-text-input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+.sn-text-input:focus { outline: none; border-color: var(--input-focus); }
+.sn-btn { padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; background: #f5f5f5; cursor: pointer; font-size: 0.9rem; }
+.sn-btn:hover { background: #e0e0e0; }
+.sn-btn.unit-btn { background: #fff3e0; border-color: #ffb74d; }
+.sn-btn.unit-btn:hover { background: #ffe0b2; }
 
-#login-section { text-align: center; padding: 40px 20px; }
-#login-section p { color: var(--text-secondary); margin-bottom: 20px; }
-.login-btn { background: var(--primary); color: white; border: none; padding: 12px 28px; border-radius: 8px; font-size: 1rem; cursor: pointer; font-weight: 600; }
-.login-btn:hover { background: var(--accent-hover); }
-#login-error { color: var(--error-text); margin-top: 14px; display: none; white-space: pre-line; font-size: 0.9rem; }
+.unit-modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+.unit-modal-overlay.active { display: flex; }
+.unit-modal { background: white; border-radius: 16px; padding: 24px; width: 100%; max-width: 400px; position: relative; }
+.unit-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.unit-modal-header h3 { margin: 0; color: #333; }
+.unit-modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; padding: 0; line-height: 1; }
+.unit-modal-close:hover { color: #333; }
+.unit-modal-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.unit-modal-chip { padding: 10px 14px; border: 2px solid #e0e0e0; border-radius: 20px; background: #f9f9f9; color: #333; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+.unit-modal-chip:hover { background: #f0f0f0; border-color: #999; }
+.unit-modal-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+.unit-modal-number { margin-bottom: 20px; }
+.unit-modal-number label { display: block; color: #666; font-size: 0.85rem; margin-bottom: 8px; }
+.unit-modal-number input { width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1.1rem; text-align: center; }
+.unit-modal-number input:focus { outline: none; border-color: var(--input-focus); }
+.unit-confirm-btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.unit-confirm-btn:hover { background: var(--accent-hover); }
+.unit-confirm-btn:disabled { background: #ccc; cursor: not-allowed; }
 
-/* ========== GROUP LIST ========== */
-.section-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.section-header h2 { font-size: 1.05rem; font-weight: 700; }
-.btn {
-    padding: 8px 16px; border-radius: 8px; border: none; font-size: 0.85rem;
-    font-weight: 600; cursor: pointer; transition: all 0.15s; display: inline-flex; align-items: center; gap: 6px;
-}
-.btn-primary { background: var(--primary); color: white; }
-.btn-primary:hover { background: var(--accent-hover); }
-.btn-secondary { background: var(--primary-bg); color: var(--primary); }
-.btn-secondary:hover { background: var(--primary-bg-hover); }
-.btn-danger { background: var(--error-bg); color: var(--error-text); }
-.btn-danger:hover { background: #fecaca; }
-.btn-sm { padding: 5px 10px; font-size: 0.8rem; }
+.field-group { display: flex; flex-direction: column; gap: 4px; }
+.field-group label { font-size: 0.75rem; color: #666; }
+.field-group input, .field-group select { padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+.field-group input:focus, .field-group select:focus { outline: none; border-color: var(--input-focus); }
 
-.group-list { display: flex; flex-direction: column; gap: 10px; }
-.group-card {
-    border: 1px solid var(--border-color); border-radius: var(--radius); padding: 14px 16px;
-    display: flex; justify-content: space-between; align-items: center;
-    transition: border-color 0.15s; cursor: pointer;
-}
-.group-card:hover { border-color: var(--primary); }
-.group-card-info h3 { font-size: 0.95rem; font-weight: 600; margin-bottom: 2px; }
-.group-card-info p { font-size: 0.8rem; color: var(--text-muted); }
-.group-card-actions { display: flex; gap: 6px; }
-.empty-state { text-align: center; padding: 40px 20px; color: var(--text-muted); }
-.empty-state .icon { font-size: 2rem; margin-bottom: 8px; }
+.sn-qr-reader-container { width: 100%; border-radius: 10px; overflow: hidden; display: none; margin-top: 12px; border: 2px solid #f57c00; }
 
-/* ========== GROUP EDITOR ========== */
-.editor-field { margin-bottom: 16px; }
-.editor-field label { display: block; font-size: 0.8rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; }
-.editor-field input, .editor-field textarea {
-    width: 100%; padding: 10px 12px; border: 1.5px solid var(--border-color);
-    border-radius: 8px; font-size: 0.9rem; transition: border-color 0.15s;
-}
-.editor-field input:focus, .editor-field textarea:focus { outline: none; border-color: var(--input-focus); }
+.remarks-section { margin-bottom: 16px; }
+.remarks-section label { display: block; color: #333; font-weight: 500; margin-bottom: 8px; font-size: 0.9rem; }
+.remarks-section textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; resize: vertical; min-height: 60px; }
+.remarks-section textarea:focus { outline: none; border-color: var(--input-focus); }
 
-.item-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
-.item-table th {
-    text-align: left; font-size: 0.75rem; font-weight: 600; color: var(--text-muted);
-    text-transform: uppercase; letter-spacing: 0.03em; padding: 8px 8px; border-bottom: 2px solid var(--border-color);
-}
-.item-table td { padding: 6px 8px; border-bottom: 1px solid #f1f5f9; vertical-align: middle; }
-.item-table input {
-    width: 100%; padding: 7px 8px; border: 1.5px solid var(--border-color);
-    border-radius: 6px; font-size: 0.85rem;
-}
-.item-table input:focus { outline: none; border-color: var(--input-focus); }
-.item-table .pn-input { font-family: 'SF Mono', 'Consolas', 'Monaco', monospace; font-weight: 500; }
-.item-table .qty-input { width: 60px; text-align: center; }
-.item-table .del-cell { width: 36px; text-align: center; }
-.item-table .del-btn { background: none; border: none; color: var(--text-muted); cursor: pointer; font-size: 1rem; padding: 4px; }
-.item-table .del-btn:hover { color: var(--error-text); }
-.item-table .sort-cell { width: 30px; text-align: center; color: var(--text-muted); font-size: 0.8rem; }
+.submit-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+.submit-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); }
+.submit-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+.submit-btn.finder-btn { background: linear-gradient(135deg, var(--success-text) 0%, #1b5e20 100%); }
 
-.editor-actions { display: flex; gap: 10px; flex-wrap: wrap; }
-
-/* ========== GENERATE / PRINT VIEW ========== */
-.generate-bar {
-    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-    margin-bottom: 16px; padding: 14px 16px;
-    background: var(--primary-bg); border-radius: var(--radius);
-}
-.generate-bar label { font-size: 0.85rem; font-weight: 600; color: var(--text-primary); }
-.generate-bar input[type="number"] {
-    width: 70px; padding: 8px 10px; border: 1.5px solid var(--border-color);
-    border-radius: 8px; font-size: 1rem; text-align: center; font-weight: 600;
-}
-.generate-bar input[type="number"]:focus { outline: none; border-color: var(--input-focus); }
-
-.print-header { margin-bottom: 16px; }
-.print-header h2 { font-size: 1.2rem; font-weight: 700; margin-bottom: 4px; }
-.print-header .meta { font-size: 0.85rem; color: var(--text-secondary); display: flex; gap: 16px; flex-wrap: wrap; }
-
-.pick-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-.pick-table th {
-    text-align: left; padding: 8px 10px; background: #f8fafc;
-    border: 1px solid var(--border-color); font-weight: 700; font-size: 0.78rem;
-    text-transform: uppercase; letter-spacing: 0.03em; color: var(--text-secondary);
-}
-.pick-table td { padding: 8px 10px; border: 1px solid var(--border-color); }
-.pick-table .check-cell { width: 36px; text-align: center; }
-.pick-table .check-cell input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; }
-.pick-table .num-cell { width: 36px; text-align: center; color: var(--text-muted); font-weight: 600; }
-.pick-table .pn-cell { font-family: 'SF Mono', 'Consolas', 'Monaco', monospace; font-weight: 500; white-space: nowrap; }
-.pick-table .qty-cell { width: 60px; text-align: center; font-weight: 600; }
-.pick-table .missing {
-    background: var(--highlight-missing); cursor: text;
-}
-.pick-table .missing-input {
-    background: var(--highlight-missing); border: 1px dashed #d4a017;
-    padding: 4px 6px; border-radius: 4px; font-size: 0.85rem; width: 100%;
-}
-.pick-table .comment-cell { color: var(--text-secondary); font-size: 0.8rem; font-style: italic; }
-.pick-table tr.group-separator td {
-    background: var(--primary); color: white; font-weight: 700;
-    font-size: 0.85rem; padding: 6px 10px; letter-spacing: 0.02em;
-}
-
-/* ========== STATUS ========== */
-.status { padding: 10px 14px; border-radius: 8px; margin-top: 12px; text-align: center; font-size: 0.9rem; display: none; }
-.status.success { background: var(--success-bg); color: var(--success-text); border: 1px solid var(--success-border); display: block; }
-.status.error { background: var(--error-bg); color: var(--error-text); border: 1px solid var(--error-border); display: block; }
+.status { padding: 12px 16px; border-radius: 8px; margin-top: 16px; text-align: center; display: none; }
+.status.success { background: var(--success-bg); color: var(--success-text); display: block; }
+.status.error { background: var(--error-bg); color: var(--error-text); display: block; }
 .status.loading { background: var(--primary-bg); color: var(--primary); display: block; }
 
-/* ========== PRINT ========== */
-@media print {
-    body { background: white; }
-    .app-bar, .generate-bar, .no-print, #login-section, #loading-section { display: none !important; }
-    .app-shell { max-width: 100%; padding: 0; }
-    .card { box-shadow: none; padding: 0; border-radius: 0; }
-    .print-header { margin-bottom: 10px; }
-    .print-header h2 { font-size: 14pt; }
-    .print-header .meta { font-size: 9pt; }
-    .pick-table { font-size: 9pt; }
-    .pick-table th { background: #eee !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .pick-table .missing, .pick-table .missing-input { background: #fef9c3 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-    .pick-table .check-cell { width: 24px; }
-    .pick-table .check-cell input[type="checkbox"] { width: 14px; height: 14px; }
-    .pick-table tr.group-separator td { background: #333 !important; color: white !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
-}
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.active { display: flex; }
+.modal { background: white; border-radius: 16px; padding: 24px; width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+.modal h2 { margin-bottom: 16px; color: #333; }
+.modal textarea { width: 100%; height: 200px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 0.9rem; font-family: monospace; margin-bottom: 16px; }
+.modal textarea:focus { outline: none; border-color: var(--input-focus); }
+.modal-buttons { display: flex; gap: 10px; }
+.modal-btn { flex: 1; padding: 12px; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+.modal-btn.cancel { background: #f5f5f5; border: 1px solid #ddd; color: #666; }
+.modal-btn.confirm { background: var(--primary); border: none; color: white; transition: background 0.2s; }
+.modal-btn.confirm:hover { background: var(--accent-hover); }
 
-/* ========== MOBILE ========== */
-@media (max-width: 600px) {
-    .app-shell { padding: 10px; }
-    .app-bar { padding: 12px 14px; flex-wrap: wrap; gap: 8px; }
-    .app-bar h1 { font-size: 1rem; }
-    .card { padding: 14px; }
-    .section-header { flex-direction: column; gap: 10px; align-items: flex-start; }
-    .group-card { flex-direction: column; align-items: flex-start; gap: 10px; }
-    .group-card-actions { width: 100%; }
-    .group-card-actions .btn { flex: 1; justify-content: center; }
-    .generate-bar { flex-direction: column; align-items: flex-start; }
-    .editor-actions { flex-direction: column; }
-    .editor-actions .btn { width: 100%; justify-content: center; }
+.finder-results { margin-top: 16px; }
+.finder-result-item { padding: 16px; border: 2px solid #e0e0e0; border-radius: 10px; margin-bottom: 10px; }
+.finder-result-item.found { border-color: #43a047; background: #f1f8e9; }
+.finder-result-item.not-found { border-color: #e53935; background: #ffebee; }
+.finder-pn { font-weight: 600; font-size: 1rem; margin-bottom: 8px; }
+.finder-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem; }
+.finder-detail { display: flex; flex-direction: column; }
+.finder-detail-label { color: #666; font-size: 0.75rem; }
+.finder-detail-value { color: #333; font-weight: 500; }
+.location-highlight { background: #fff3e0; padding: 8px 12px; border-radius: 8px; margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+.location-highlight .icon { font-size: 1.5rem; }
+.location-highlight .text { font-size: 1.1rem; font-weight: 600; color: #e65100; }
+.finder-input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 0.9rem; font-family: monospace; min-height: 120px; margin-bottom: 16px; }
+.finder-input:focus { outline: none; border-color: #43a047; }
+.finder-hint { color: #666; font-size: 0.85rem; margin-bottom: 12px; }
 
-    .item-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -14px; padding: 0 14px; }
-    .pick-table-wrapper { overflow-x: auto; -webkit-overflow-scrolling: touch; margin: 0 -14px; padding: 0 14px; }
-}
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.modal-header h2 { margin: 0; font-size: 1.2rem; }
+.modal-close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; padding: 0; line-height: 1; }
+.modal-close-btn:hover { color: #333; }
+.finder-modal { max-height: 90vh; overflow-y: auto; }
+
+.sheet-options { display: flex; flex-direction: column; gap: 12px; }
+.sheet-option { cursor: pointer; }
+.sheet-option input { display: none; }
+.sheet-option-content { display: flex; align-items: center; gap: 12px; padding: 16px; border: 2px solid #e0e0e0; border-radius: 12px; transition: all 0.2s; }
+.sheet-option input:checked + .sheet-option-content { border-color: var(--primary); background: var(--primary-bg); }
+.sheet-option-icon { font-size: 1.5rem; }
+.sheet-option-text { display: flex; flex-direction: column; }
+.sheet-option-text strong { color: #333; }
+.sheet-option-text small { color: #666; font-size: 0.8rem; }
+
+.settings-section { margin-bottom: 20px; }
+.settings-section h3 { color: #333; font-size: 1rem; margin-bottom: 12px; }
+.theme-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.theme-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 12px; background: white; cursor: pointer; transition: all 0.2s; }
+.theme-btn:hover { border-color: #999; }
+.theme-btn.active { border-color: var(--primary); background: var(--primary-bg); }
+.theme-preview { width: 40px; height: 40px; border-radius: 50%; }
+.theme-preview.purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.theme-preview.blue { background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%); }
+.theme-preview.green { background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%); }
+.theme-preview.orange { background: linear-gradient(135deg, #ff9800 0%, #e65100 100%); }
+.theme-preview.dark { background: linear-gradient(135deg, #37474f 0%, #263238 100%); }
+.theme-btn span:last-child { font-size: 0.8rem; color: #666; }
+
+.admin-only-section { border-top: 2px dashed var(--border-color); padding-top: 20px; margin-top: 20px; }
+.admin-only-section h3 { color: var(--warning-text); }
+.location-edit-section { margin-top: 12px; }
+.location-edit-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.location-edit-icon { font-size: 1.2rem; }
+.location-edit-title { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
+.location-search-box { background: #f8f9fa; border-radius: 12px; padding: 12px; border: 1px solid var(--border-color); }
+.location-search-row { display: flex; gap: 8px; }
+.location-edit-input { flex: 1; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: 10px; font-size: 0.95rem; background: white; }
+.location-edit-input:focus { outline: none; border-color: var(--input-focus); }
+.location-qr-btn { padding: 12px 14px; background: var(--warning-bg); color: var(--warning-text); border: 2px solid transparent; border-radius: 10px; font-size: 1.1rem; cursor: pointer; transition: all 0.2s; }
+.location-qr-btn:hover { background: #ffe0b2; }
+.location-search-btn { padding: 12px 16px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1rem; cursor: pointer; transition: all 0.2s; }
+.location-search-btn:hover { background: var(--accent-hover); transform: scale(1.02); }
+.location-qr-reader { display: none; margin-top: 12px; border-radius: 10px; overflow: hidden; }
+.location-edit-result { margin-top: 16px; }
+.location-edit-card { background: white; border-radius: 16px; border: 2px solid var(--primary); overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+.location-edit-card-header { display: flex; align-items: center; gap: 12px; padding: 16px; background: linear-gradient(135deg, var(--primary-bg) 0%, rgba(255,255,255,0) 100%); border-bottom: 1px solid var(--border-color); }
+.location-edit-card-icon { font-size: 2rem; background: white; padding: 8px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+.location-edit-card-info { flex: 1; }
+.location-edit-pn { font-weight: 700; font-size: 1rem; color: var(--text-primary); }
+.location-edit-name { font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px; }
+.location-edit-card-badge { background: var(--primary); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.location-edit-card-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.location-edit-field { display: flex; flex-direction: column; gap: 6px; }
+.location-field-label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
+.location-field-icon { font-size: 1rem; }
+.location-field-input { padding: 12px 14px; border: 2px solid var(--border-color); border-radius: 10px; font-size: 1rem; font-weight: 500; transition: all 0.2s; }
+.location-field-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-bg); }
+.location-save-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 0; padding: 14px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border: none; border-radius: 0 0 14px 14px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.location-save-btn:hover { filter: brightness(1.1); }
+.location-save-btn:active { transform: scale(0.98); }
+.save-btn-icon { font-size: 1.1rem; }
+.location-edit-status { margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-size: 0.9rem; text-align: center; font-weight: 500; }
+.location-edit-status:empty { display: none; }
+.location-edit-status.loading { background: var(--primary-bg); color: var(--primary); animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+.location-edit-status.success { background: var(--success-bg); color: var(--success-text); }
+.location-edit-status.error { background: var(--error-bg); color: var(--error-text); }
     </style>
 </head>
 <body>
-    <div class="app-shell">
-        <!-- App Bar -->
-        <div class="app-bar">
-            <div class="app-bar-left">
-                <button class="back-btn" id="back-btn" onclick="navigateBack()">← 戻る</button>
-                <h1 id="page-title">📋 ピックリスト</h1>
+    <div class="container">
+        <div class="card">
+            <div class="app-header">
+                <div class="app-title">
+                    <h1>📦 出庫依頼入力</h1>
+                    <p class="subtitle">生産チーム出庫依頼シート</p>
+                </div>
+                <div class="header-icons" id="header-icons" style="display: none;">
+                    <button class="header-icon-btn" onclick="openFinderModal()" title="部品検索">🔍</button>
+                    <a href="pick_list.html" class="header-icon-btn" title="ピックリスト" style="text-decoration:none;">📋</a>
+                    <button class="header-icon-btn admin-only" id="sheet-selector-btn" onclick="openSheetSelectorModal()" title="シート選択" style="display: none;">📊</button>
+                    <button class="header-icon-btn" onclick="openSettingsModal()" title="設定">⚙️</button>
+                </div>
             </div>
-            <div class="app-bar-right" id="app-bar-right" style="display:none;">
-                <span class="user-chip" id="user-chip"></span>
-                <button class="logout-btn" onclick="handleLogout()">ログアウト</button>
-            </div>
-        </div>
 
-        <!-- Loading -->
-        <div class="card" id="loading-section">
-            <div style="text-align:center;padding:40px;">
+            <div id="loading-section">
                 <div class="spinner"></div>
-                <p style="color:var(--text-muted);">読み込み中...</p>
+                <p>読み込み中...</p>
             </div>
-        </div>
 
-        <!-- Login -->
-        <div class="card" id="login-section" style="display:none;">
-            <div style="text-align:center;padding:30px;">
-                <p style="color:var(--text-secondary);margin-bottom:20px;">Googleアカウントでログインしてください</p>
-                <button class="login-btn" onclick="handleGoogleLogin()">Googleでログイン</button>
+            <div id="login-section" style="display: none;">
+                <p>Googleアカウントでログインしてください</p>
+                <button class="login-btn" onclick="handleGoogleLogin()">
+                    <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                    Googleでログイン
+                </button>
                 <p id="login-error"></p>
             </div>
-        </div>
 
-        <!-- VIEW: Group List -->
-        <div id="view-list" style="display:none;">
-            <div class="card">
-                <div class="section-header">
-                    <h2>グループ一覧</h2>
-                    <button class="btn btn-primary" id="create-group-btn" onclick="openEditor(null)" style="display:none;">＋ 新規作成</button>
+            <div id="app-section" style="display: none;">
+                <div class="user-info">
+                    <span id="user-display"></span>
+                    <button class="logout-btn" onclick="handleLogout()">ログアウト</button>
                 </div>
-                <div id="group-list-container">
-                    <div class="empty-state"><div class="icon">📦</div><p>グループがまだありません</p></div>
-                </div>
-            </div>
-        </div>
-
-        <!-- VIEW: Group Editor (Admin) -->
-        <div id="view-editor" style="display:none;">
-            <div class="card">
-                <div class="section-header no-print">
-                    <h2 id="editor-title">グループ作成</h2>
-                </div>
-                <div class="editor-field">
-                    <label>グループ名</label>
-                    <input type="text" id="editor-group-name" placeholder="例: H&B Assembly Kit">
-                </div>
-                <div class="editor-field">
-                    <label>部品リスト</label>
-                    <div class="item-table-wrapper">
-                    <table class="item-table">
-                        <thead>
-                            <tr>
-                                <th class="sort-cell">#</th>
-                                <th>部品番号 (P/N)</th>
-                                <th style="width:70px;">数量</th>
-                                <th>コメント</th>
-                                <th class="del-cell"></th>
-                            </tr>
-                        </thead>
-                        <tbody id="editor-items-body"></tbody>
-                    </table>
+                <div id="batch-content">
+                    <div class="current-sheet" id="current-sheet">📅 対象シート: 読み込み中...</div>
+                    <div class="action-buttons">
+                        <button class="action-btn" id="scan-add-btn" onclick="toggleScanner()">📷 QRスキャン追加</button>
+                        <button class="action-btn" onclick="openPasteModal()">📋 リスト貼付け</button>
                     </div>
-                    <button class="btn btn-secondary" onclick="addEditorRow()" style="margin-top:8px;">＋ 行を追加</button>
-                </div>
-                <div class="editor-field">
-                    <label>一括貼り付け（部品番号を改行区切りで入力）</label>
-                    <textarea id="editor-paste-area" rows="4" placeholder="GPMP-0540010-0-2&#10;GPCP-0000360-0-0&#10;GPCP-0000154-0-0"></textarea>
-                    <button class="btn btn-secondary" onclick="bulkAddFromPaste()" style="margin-top:6px;">貼り付けから追加</button>
-                </div>
-                <div class="status" id="editor-status"></div>
-                <div class="editor-actions" style="margin-top:16px;">
-                    <button class="btn btn-primary" onclick="saveGroup()">💾 保存する</button>
-                    <button class="btn btn-secondary" onclick="navigateToList()">キャンセル</button>
-                </div>
-            </div>
-        </div>
-
-        <!-- VIEW: Generate / Print -->
-        <div id="view-print" style="display:none;">
-            <div class="generate-bar no-print">
-                <label>数量倍率:</label>
-                <input type="number" id="multiplier-input" value="1" min="1" onchange="regenerateTable()">
-                <button class="btn btn-primary" onclick="window.print()">🖨️ 印刷</button>
-            </div>
-            <div class="card" id="print-card">
-                <div class="print-header" id="print-header"></div>
-                <div class="pick-table-wrapper">
-                    <table class="pick-table" id="pick-table"></table>
+                    <div id="qr-reader" class="qr-reader-container"></div>
+                    <div class="parts-list" id="parts-list">
+                        <div class="parts-list-empty">QRスキャンまたはリスト貼付けで部品を追加してください</div>
+                    </div>
+                    <div class="remarks-section">
+                        <label>備考欄 (共通)</label>
+                        <textarea id="remarks" placeholder="備考があれば入力"></textarea>
+                    </div>
+                    <button class="submit-btn" id="submit-btn" onclick="submitBatch()" disabled>一括登録する (0件)</button>
+                    <div class="status" id="batch-status"></div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- Paste Modal -->
+    <div class="modal-overlay" id="paste-modal">
+        <div class="modal">
+            <h2>📋 部品番号リスト貼付け</h2>
+            <p style="color: #666; margin-bottom: 12px; font-size: 0.9rem;">部品番号を改行で区切って貼り付けてください</p>
+            <textarea id="paste-textarea" placeholder="GPMP-0540010-0-2&#10;GPCP-0000360-0-0&#10;GPCP-0000154-0-0"></textarea>
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="closePasteModal()">キャンセル</button>
+                <button class="modal-btn confirm" onclick="processPastedList()">追加する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Part Finder Modal -->
+    <div class="modal-overlay" id="finder-modal">
+        <div class="modal finder-modal">
+            <div class="modal-header">
+                <h2>🔍 部品検索</h2>
+                <button class="modal-close-btn" onclick="closeFinderModal()">✕</button>
+            </div>
+            <p class="finder-hint">部品番号を入力してください（複数の場合は改行で区切る）</p>
+            <textarea class="finder-input" id="finder-input" placeholder="GPMP-0540010-0-2&#10;GPCP-0000360-0-0"></textarea>
+            <button class="submit-btn finder-btn" onclick="findParts()">🔍 部品を検索</button>
+            <div class="status" id="finder-status"></div>
+            <div class="finder-results" id="finder-results"></div>
+        </div>
+    </div>
+
+    <!-- Sheet Selector Modal (Admin Only) -->
+    <div class="modal-overlay" id="sheet-selector-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📊 シート選択</h2>
+                <button class="modal-close-btn" onclick="closeSheetSelectorModal()">✕</button>
+            </div>
+            <p style="color: #666; margin-bottom: 16px; font-size: 0.9rem;">データを保存するシートを選択してください</p>
+            <div class="sheet-options">
+                <label class="sheet-option">
+                    <input type="radio" name="sheet" value="production" checked onchange="onSheetChange()">
+                    <span class="sheet-option-content"><span class="sheet-option-icon">📋</span><span class="sheet-option-text"><strong>生産チーム出庫依頼シート</strong><small>本番用シート</small></span></span>
+                </label>
+                <label class="sheet-option">
+                    <input type="radio" name="sheet" value="test" onchange="onSheetChange()">
+                    <span class="sheet-option-content"><span class="sheet-option-icon">🧪</span><span class="sheet-option-text"><strong>テスト用シート</strong><small>動作確認用</small></span></span>
+                </label>
+            </div>
+            <button class="modal-btn confirm" onclick="closeSheetSelectorModal()" style="width: 100%; margin-top: 16px;">閉じる</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal settings-modal">
+            <div class="modal-header">
+                <h2>⚙️ 設定</h2>
+                <button class="modal-close-btn" onclick="closeSettingsModal()">✕</button>
+            </div>
+            <div class="settings-section">
+                <h3>🎨 テーマ</h3>
+                <div class="theme-options">
+                    <button class="theme-btn" data-theme="purple" onclick="setTheme('purple')"><span class="theme-preview purple"></span><span>パープル</span></button>
+                    <button class="theme-btn" data-theme="blue" onclick="setTheme('blue')"><span class="theme-preview blue"></span><span>ブルー</span></button>
+                    <button class="theme-btn" data-theme="green" onclick="setTheme('green')"><span class="theme-preview green"></span><span>グリーン</span></button>
+                    <button class="theme-btn" data-theme="orange" onclick="setTheme('orange')"><span class="theme-preview orange"></span><span>オレンジ</span></button>
+                    <button class="theme-btn" data-theme="dark" onclick="setTheme('dark')"><span class="theme-preview dark"></span><span>ダーク</span></button>
+                </div>
+            </div>
+            <div class="settings-section admin-only-section" id="admin-location-section" style="display: none;">
+                <h3>🔧 管理者設定</h3>
+                <div class="location-edit-section">
+                    <div class="location-edit-header"><span class="location-edit-icon">📍</span><span class="location-edit-title">部品場所を編集</span></div>
+                    <div class="location-search-box">
+                        <div class="location-search-row">
+                            <input type="text" id="location-edit-pn" placeholder="部品番号 または QRコード..." class="location-edit-input">
+                            <button class="location-qr-btn" onclick="toggleLocationQRScanner()" title="QRスキャン">📷</button>
+                            <button class="location-search-btn" onclick="searchPartForLocationEdit()">🔍</button>
+                        </div>
+                        <div id="location-qr-reader" class="location-qr-reader"></div>
+                    </div>
+                    <div id="location-edit-result" class="location-edit-result" style="display: none;">
+                        <div class="location-edit-card">
+                            <div class="location-edit-card-header">
+                                <div class="location-edit-card-icon">📦</div>
+                                <div class="location-edit-card-info">
+                                    <div class="location-edit-pn" id="location-edit-found-pn"></div>
+                                    <div class="location-edit-name" id="location-edit-found-name"></div>
+                                </div>
+                                <div class="location-edit-card-badge">編集中</div>
+                            </div>
+                            <div class="location-edit-card-body">
+                                <div class="location-edit-field"><div class="location-field-label"><span class="location-field-icon">🏠</span><span>保管場所</span></div><input type="text" id="location-edit-location" placeholder="例: A-3-2" class="location-field-input"></div>
+                                <div class="location-edit-field"><div class="location-field-label"><span class="location-field-icon">📌</span><span>仮保管場所</span></div><input type="text" id="location-edit-temp" placeholder="例: B-1-5" class="location-field-input"></div>
+                            </div>
+                            <button class="location-save-btn" onclick="saveLocationEdit()"><span class="save-btn-icon">💾</span><span>場所を更新</span></button>
+                        </div>
+                        <div id="location-edit-status" class="location-edit-status"></div>
+                    </div>
+                </div>
+            </div>
+            <button class="modal-btn confirm" onclick="closeSettingsModal()" style="width: 100%; margin-top: 20px;">閉じる</button>
+        </div>
+    </div>
+
+    <!-- Unit Code Modal -->
+    <div class="unit-modal-overlay" id="unit-modal">
+        <div class="unit-modal">
+            <div class="unit-modal-header"><h3>🏭 Unit S/N 検索</h3><button class="unit-modal-close" onclick="closeUnitModal()">✕</button></div>
+            <p style="color: #666; font-size: 0.85rem; margin-bottom: 12px;">Ghost Trackerから完全なS/Nを検索します</p>
+            <div class="unit-modal-chips">
+                <button class="unit-modal-chip" data-code="Ghost" onclick="selectUnitChip('Ghost')">👻 Ghost</button>
+                <button class="unit-modal-chip" data-code="MB" onclick="selectUnitChip('MB')">🛞 MB</button>
+                <button class="unit-modal-chip" data-code="Pillar" onclick="selectUnitChip('Pillar')">🏛️ Pillar</button>
+                <button class="unit-modal-chip" data-code="H&B" onclick="selectUnitChip('H&B')">🧠 H&B</button>
+                <button class="unit-modal-chip" data-code="Arm" onclick="selectUnitChip('Arm')">🦾 Arm</button>
+                <button class="unit-modal-chip" data-code="Gripper" onclick="selectUnitChip('Gripper')">🤏 Gripper</button>
+                <button class="unit-modal-chip" data-code="DK" onclick="selectUnitChip('DK')">📦 DK</button>
+                <button class="unit-modal-chip" data-code="L-Mot" onclick="selectUnitChip('L-Mot')">⚙️ L-Mot</button>
+                <button class="unit-modal-chip" data-code="A12" onclick="selectUnitChip('A12')">⚙️ A12</button>
+                <button class="unit-modal-chip" data-code="A35" onclick="selectUnitChip('A35')">⚙️ A35</button>
+                <button class="unit-modal-chip" data-code="A4" onclick="selectUnitChip('A4')">⚙️ A4</button>
+            </div>
+            <div class="unit-modal-number"><label>番号を入力 (例: 34, 105, 426)</label><input type="number" id="unit-number-input" placeholder="34" oninput="onUnitNumberChange(this.value)"></div>
+            <button class="unit-confirm-btn" id="unit-confirm-btn" onclick="confirmUnitSelection()" disabled>Unitを選択してください</button>
+        </div>
+    </div>
+
     <script>
         // =====================================================
-        // CONFIG
+        // SUPABASE CONFIG
         // =====================================================
         const SUPABASE_URL = 'https://wylxvmkcrexwfpjpbhyy.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak';
 
-        const TABLE_GROUPS = 'part_inventry_app_pick_list_groups';
-        const TABLE_ITEMS  = 'part_inventry_app_pick_list_items';
-        const TABLE_PARTS  = 'master_parts_list_all';
-        const TABLE_ROLES  = 'authentication_mode_user_roles';
-
+        // Safety check — if SDK failed to load, show error
         if (!window.supabase || !window.supabase.createClient) {
-            document.getElementById('loading-section').innerHTML = '<div style="text-align:center;padding:40px;color:#b91c1c;">Supabase SDKの読み込みに失敗しました。ページをリロードしてください。</div>';
-            throw new Error('SDK not loaded');
+            document.getElementById('loading-section').style.display = 'none';
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('login-error').textContent = 'Supabase SDKの読み込みに失敗しました。ページをリロードしてください。';
+            document.getElementById('login-error').style.display = 'block';
+            throw new Error('Supabase SDK not loaded');
         }
+
         const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+        // =====================================================
+        // GOOGLE SHEETS CONFIG
+        // =====================================================
+        const SHEETS_CONFIG = {
+            production: { id: '1pGy5OkQd8i4tVlYbcG7afkeDHEdjaZIwwuq6Wqv96jM', name: '生産チーム出庫依頼シート' },
+            test:       { id: '1hTbs5vFzaEAQ87y078-_O5xoP_ad3joRGkneC-8yNzk', name: 'テスト用シート' }
+        };
+        const GHOST_TRACKER_SHEET_ID = '1mUhNDzucbHpS2y-IYu3A5ML1x5I_opUeNnqqyOtg95M';
+
+        const PURPOSE_OPTIONS = [
+            '通常組立', '不良部品', '仕損発生', 'PICK UP不足', '市場品修理',
+            'ECN対応', 'BY構築', '生産ジグ', '確認中', 'その他', '出庫キャンセル'
+        ];
+        const UNIT_CODES = [
+            { code: 'Ghost', sheetTab: '00_GHOST', snCode: 'GST' },
+            { code: 'MB', sheetTab: '05_Mobile Base', snCode: 'MBB' },
+            { code: 'Pillar', sheetTab: '06_Pillar', snCode: 'PLR' },
+            { code: 'H&B', sheetTab: '07_Head & Body', snCode: 'HBD' },
+            { code: 'Arm', sheetTab: '09_Arm', snCode: 'ARM' },
+            { code: 'Gripper', sheetTab: '08_Gripper', snCode: 'GPR' },
+            { code: 'DK', sheetTab: '10_Deploy Kit', snCode: 'DPK' },
+            { code: 'L-Mot', sheetTab: '01_L-motor', snCode: 'LAC' },
+            { code: 'A12', sheetTab: '02_A12-motor', snCode: 'A12' },
+            { code: 'A35', sheetTab: '03_A35-motor', snCode: 'A35' },
+            { code: 'A4', sheetTab: '04_A4-motor', snCode: 'A4A' }
+        ];
 
         // =====================================================
         // STATE
         // =====================================================
-        let userProfile = null;     // { email, name, role, isAdmin }
-        let groups = [];            // loaded from DB
-        let editorGroupId = null;   // null = new, number = editing
-        let editorItems = [];       // [{ pn, qty, comment }]
-        let printGroupData = null;  // group being printed
-        let printItems = [];        // items for print
-        let partsCache = null;      // master_parts_list_all cache
+        let currentUser = null;
+        let userProfile = null;   // { email, name, role, isAdmin }
+        let accessToken = null;
+        let html5QrCode = null;
+        let scannerActive = false;
+        let snScanner = null;
+        let snScannerActive = false;
+        let snScannerIndex = -1;
+        let parts = [];
+        let databaseCache = null;
+        let currentSheet = 'production';
+        let currentSnIndex = -1;
 
         // =====================================================
-        // AUTH
+        // INIT — Supabase Auth listener
         // =====================================================
         window.onload = function() {
+            showLoading();
+
             sb.auth.onAuthStateChange(async (event, session) => {
+                console.log('Auth:', event, session?.user?.email);
+
                 if (session && session.user &&
                     (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
-                    await checkUserRole(session.user);
+
+                    currentUser = session.user;
+
+                    // Capture Google provider_token (only present right after OAuth redirect)
+                    if (session.provider_token) {
+                        accessToken = session.provider_token;
+                        localStorage.setItem('sheets_access_token', accessToken);
+                    }
+                    if (!accessToken) {
+                        accessToken = localStorage.getItem('sheets_access_token');
+                    }
+
+                    await checkUserApproval(session.user);
+
                 } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
+                    currentUser = null;
                     userProfile = null;
-                    showView('login');
+                    showLogin();
                 }
             });
         };
 
-        async function handleGoogleLogin() {
-            const { error } = await sb.auth.signInWithOAuth({
-                provider: 'google',
-                options: {
-                    redirectTo: window.location.origin + window.location.pathname,
-                    queryParams: { access_type: 'offline', prompt: 'consent' }
-                }
-            });
-            if (error) showLoginError('ログインに失敗しました: ' + error.message);
+        // =====================================================
+        // UI STATES
+        // =====================================================
+        function showLoading() {
+            document.getElementById('loading-section').style.display = 'block';
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('app-section').style.display = 'none';
+        }
+        function showLogin() {
+            document.getElementById('loading-section').style.display = 'none';
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('app-section').style.display = 'none';
+        }
+        function showApp() {
+            document.getElementById('loading-section').style.display = 'none';
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('app-section').style.display = 'block';
+            document.getElementById('header-icons').style.display = 'flex';
+
+            // User display: name badge from table
+            let html = `👤 ${userProfile.name}`;
+            if (userProfile.isAdmin) {
+                html += '<span class="user-badge admin">管理者</span>';
+            }
+            html += `<span class="user-badge role">${userProfile.role}</span>`;
+            document.getElementById('user-display').innerHTML = html;
+
+            // Sheet selector: admin only
+            document.getElementById('sheet-selector-btn').style.display = userProfile.isAdmin ? 'flex' : 'none';
+
+            updateCurrentSheetDisplay();
+            loadSavedTheme();
         }
 
-        async function checkUserRole(user) {
+        // =====================================================
+        // AUTH — Supabase Google OAuth
+        // =====================================================
+        async function handleGoogleLogin() {
             try {
-                const { data, error } = await sb.from(TABLE_ROLES)
+                const { error } = await sb.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        scopes: 'https://www.googleapis.com/auth/spreadsheets',
+                        redirectTo: window.location.origin + window.location.pathname,
+                        queryParams: { access_type: 'offline', prompt: 'consent' }
+                    }
+                });
+                if (error) showLoginError('ログインに失敗しました: ' + error.message);
+            } catch (e) {
+                showLoginError('ログインに失敗しました: ' + e.message);
+            }
+        }
+
+        /**
+         * Check user against authentication_mode_user_roles table
+         * Columns: email, name, role (admin | operator | viewer)
+         */
+        async function checkUserApproval(user) {
+            try {
+                const { data, error } = await sb
+                    .from('authentication_mode_user_roles')
                     .select('name, role')
                     .eq('email', user.email)
                     .single();
 
                 if (error || !data) {
                     await sb.auth.signOut();
-                    showLoginError(`アクセスが拒否されました。\n${user.email} は許可されていません。`);
-                    showView('login');
+                    showLoginError(
+                        `アクセスが拒否されました。\n${user.email} は許可されていません。\n管理者にお問い合わせください。`
+                    );
+                    showLogin();
                     return;
                 }
-                userProfile = { email: user.email, name: data.name || user.email, role: data.role, isAdmin: data.role === 'admin' };
-                document.getElementById('user-chip').innerHTML = `${userProfile.name}<span class="role-tag">${userProfile.role}</span>`;
-                document.getElementById('app-bar-right').style.display = 'flex';
-                document.getElementById('create-group-btn').style.display = userProfile.isAdmin ? 'inline-flex' : 'none';
-                await loadGroups();
-                showView('list');
+
+                userProfile = {
+                    email: user.email,
+                    name: data.name || user.email,
+                    role: data.role,
+                    isAdmin: data.role === 'admin'
+                };
+
+                showApp();
             } catch (e) {
-                showLoginError('ユーザー確認エラー'); showView('login');
+                console.error('User check error:', e);
+                showLoginError('ユーザー確認中にエラーが発生しました');
+                showLogin();
             }
         }
 
         async function handleLogout() {
             await sb.auth.signOut();
-            userProfile = null; groups = [];
-            document.getElementById('app-bar-right').style.display = 'none';
+            localStorage.removeItem('sheets_access_token');
+            accessToken = null; userProfile = null; parts = [];
+            databaseCache = null; currentSheet = 'production';
+            stopScanner(); closeSnScanner();
         }
 
         function showLoginError(msg) {
@@ -406,321 +666,452 @@ body {
         }
 
         // =====================================================
-        // NAVIGATION
+        // GOOGLE SHEETS API
         // =====================================================
-        function showView(view) {
-            document.getElementById('loading-section').style.display = 'none';
-            document.getElementById('login-section').style.display = 'none';
-            document.getElementById('view-list').style.display = 'none';
-            document.getElementById('view-editor').style.display = 'none';
-            document.getElementById('view-print').style.display = 'none';
+        async function sheetsApiRequest(url, options = {}, isRetry = false) {
+            if (!accessToken) {
+                await refreshAccessToken();
+                if (!accessToken) throw new Error('Google Sheets認証が必要です。再ログインしてください。');
+            }
+            const resp = await fetch(url, {
+                ...options,
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json', ...options.headers }
+            });
+            if (resp.status === 401) {
+                if (!isRetry) { await refreshAccessToken(); if (accessToken) return sheetsApiRequest(url, options, true); }
+                localStorage.removeItem('sheets_access_token'); accessToken = null;
+                throw new Error('セッションが切れました。再ログインしてください。');
+            }
+            if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || 'API error'); }
+            return resp.json();
+        }
 
-            const backBtn = document.getElementById('back-btn');
-            const title = document.getElementById('page-title');
+        async function refreshAccessToken() {
+            try {
+                const { data } = await sb.auth.refreshSession();
+                if (data?.session?.provider_token) {
+                    accessToken = data.session.provider_token;
+                    localStorage.setItem('sheets_access_token', accessToken);
+                    return true;
+                }
+                return false;
+            } catch (e) { console.error('Token refresh failed:', e); return false; }
+        }
 
-            switch(view) {
-                case 'loading':
-                    document.getElementById('loading-section').style.display = 'block';
-                    backBtn.style.display = 'none'; title.textContent = '📋 ピックリスト';
-                    break;
-                case 'login':
-                    document.getElementById('login-section').style.display = 'block';
-                    backBtn.style.display = 'none'; title.textContent = '📋 ピックリスト';
-                    break;
-                case 'list':
-                    document.getElementById('view-list').style.display = 'block';
-                    backBtn.style.display = 'none'; title.textContent = '📋 ピックリスト';
-                    break;
-                case 'editor':
-                    document.getElementById('view-editor').style.display = 'block';
-                    backBtn.style.display = 'inline-flex'; title.textContent = editorGroupId ? '✏️ グループ編集' : '＋ 新規グループ';
-                    break;
-                case 'print':
-                    document.getElementById('view-print').style.display = 'block';
-                    backBtn.style.display = 'inline-flex'; title.textContent = '🖨️ ピックリスト印刷';
-                    break;
+        // =====================================================
+        // SHEET SELECTION
+        // =====================================================
+        function onSheetChange() {
+            const sel = document.querySelector('input[name="sheet"]:checked');
+            if (sel) { currentSheet = sel.value; databaseCache = null; updateCurrentSheetDisplay(); }
+        }
+        function getCurrentSpreadsheetId() { return SHEETS_CONFIG[currentSheet].id; }
+
+        // =====================================================
+        // MODALS
+        // =====================================================
+        function openFinderModal() { document.getElementById('finder-modal').classList.add('active'); }
+        function closeFinderModal() { document.getElementById('finder-modal').classList.remove('active'); }
+        function openSheetSelectorModal() {
+            const r = document.querySelector(`input[name="sheet"][value="${currentSheet}"]`);
+            if (r) r.checked = true;
+            document.getElementById('sheet-selector-modal').classList.add('active');
+        }
+        function closeSheetSelectorModal() { document.getElementById('sheet-selector-modal').classList.remove('active'); }
+        function openSettingsModal() {
+            updateThemeButtons();
+            document.getElementById('admin-location-section').style.display = userProfile?.isAdmin ? 'block' : 'none';
+            document.getElementById('location-edit-pn').value = '';
+            document.getElementById('location-edit-result').style.display = 'none';
+            document.getElementById('location-edit-status').textContent = '';
+            stopLocationQRScanner();
+            document.getElementById('settings-modal').classList.add('active');
+        }
+        function closeSettingsModal() { stopLocationQRScanner(); document.getElementById('settings-modal').classList.remove('active'); }
+
+        // =====================================================
+        // ADMIN: LOCATION EDIT
+        // =====================================================
+        let locationEditPartData = null;
+        let locationQRScanner = null;
+        let locationQRScannerActive = false;
+
+        function toggleLocationQRScanner() { locationQRScannerActive ? stopLocationQRScanner() : startLocationQRScanner(); }
+        function startLocationQRScanner() {
+            const el = document.getElementById('location-qr-reader'); el.style.display = 'block';
+            locationQRScanner = new Html5Qrcode('location-qr-reader');
+            locationQRScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 200, height: 200 } },
+                (txt) => { document.getElementById('location-edit-pn').value = txt; stopLocationQRScanner(); searchPartForLocationEdit(); }, () => {}
+            ).catch(() => showLocationEditStatus('カメラにアクセスできません', 'error'));
+            locationQRScannerActive = true;
+        }
+        function stopLocationQRScanner() {
+            if (locationQRScanner && locationQRScannerActive) {
+                locationQRScanner.stop().then(() => { document.getElementById('location-qr-reader').style.display = 'none'; locationQRScannerActive = false; }).catch(console.log);
             }
         }
 
-        function navigateBack() {
-            showView('list');
+        async function searchPartForLocationEdit() {
+            const val = document.getElementById('location-edit-pn').value.trim();
+            if (!val) { showLocationEditStatus('部品番号を入力してください', 'error'); return; }
+            showLocationEditStatus('検索中...', 'loading');
+            try {
+                const info = await lookupPartFromSupabase(val);
+                if (info) {
+                    locationEditPartData = info;
+                    document.getElementById('location-edit-found-pn').textContent = info.partNumber;
+                    document.getElementById('location-edit-found-name').textContent = info.name || '(名前なし)';
+                    document.getElementById('location-edit-location').value = info.location || '';
+                    document.getElementById('location-edit-temp').value = info.tempLocation || '';
+                    document.getElementById('location-edit-result').style.display = 'block';
+                    showLocationEditStatus('', '');
+                } else {
+                    document.getElementById('location-edit-result').style.display = 'none';
+                    showLocationEditStatus('部品が見つかりません: ' + val, 'error');
+                }
+            } catch (e) { showLocationEditStatus('検索エラー: ' + e.message, 'error'); }
         }
-        function navigateToList() {
-            showView('list');
+
+        async function lookupPartFromSupabase(searchValue) {
+            const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
+            try {
+                // Try by P/N first
+                let resp = await fetch(`${SUPABASE_URL}/rest/v1/master_parts_list_all?pn=eq.${encodeURIComponent(searchValue)}&select=pn,name,location,temp_location,qr_code`, { headers });
+                if (resp.ok) { const d = await resp.json(); if (d.length > 0) { const r = d[0]; return { partNumber: r.pn||'', name: r.name||'', location: r.location||'', tempLocation: r.temp_location||'' }; } }
+                // Try by QR code
+                resp = await fetch(`${SUPABASE_URL}/rest/v1/master_parts_list_all?qr_code=eq.${encodeURIComponent(searchValue)}&select=pn,name,location,temp_location,qr_code`, { headers });
+                if (resp.ok) { const d = await resp.json(); if (d.length > 0) { const r = d[0]; return { partNumber: r.pn||'', name: r.name||'', location: r.location||'', tempLocation: r.temp_location||'' }; } }
+                return null;
+            } catch (e) { console.error('Supabase lookup error:', e); return null; }
+        }
+
+        async function saveLocationEdit() {
+            if (!locationEditPartData) return;
+            const loc = document.getElementById('location-edit-location').value.trim();
+            const tmp = document.getElementById('location-edit-temp').value.trim();
+            if (!confirm(`場所を更新しますか?\n\n部品: ${locationEditPartData.partNumber}\n保管場所: ${loc || '(空)'}\n仮保管場所: ${tmp || '(空)'}`)) return;
+            showLocationEditStatus('更新中...', 'loading');
+            try {
+                const resp = await fetch(`${SUPABASE_URL}/rest/v1/master_parts_list_all?pn=eq.${encodeURIComponent(locationEditPartData.partNumber)}`, {
+                    method: 'PATCH', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                    body: JSON.stringify({ location: loc, temp_location: tmp, updated_at: new Date().toISOString() })
+                });
+                if (resp.ok) {
+                    showLocationEditStatus('✅ 場所を更新しました！', 'success');
+                    if (databaseCache) { const c = databaseCache.find(p => p.partNumber === locationEditPartData.partNumber); if (c) { c.location = loc; c.tempLocation = tmp; } }
+                    parts.forEach(p => { if (p.pn === locationEditPartData.partNumber) { p.location = loc; p.tempLocation = tmp; } });
+                    renderPartsList();
+                    locationEditPartData.location = loc; locationEditPartData.tempLocation = tmp;
+                } else { throw new Error(await resp.text() || 'Update failed'); }
+            } catch (e) { showLocationEditStatus('❌ 更新エラー: ' + e.message, 'error'); }
+        }
+
+        function showLocationEditStatus(msg, type) {
+            const s = document.getElementById('location-edit-status');
+            s.textContent = msg; s.className = 'location-edit-status'; if (type) s.classList.add(type);
         }
 
         // =====================================================
-        // GROUP LIST
+        // THEME
         // =====================================================
-        async function loadGroups() {
-            const { data, error } = await sb.from(TABLE_GROUPS)
-                .select('*, items:' + TABLE_ITEMS + '(count)')
-                .order('updated_at', { ascending: false });
-
-            if (error) { console.error(error); groups = []; }
-            else { groups = data || []; }
-            renderGroupList();
+        function setTheme(theme) {
+            document.body.classList.remove('theme-purple','theme-blue','theme-green','theme-orange','theme-dark');
+            document.body.classList.add(`theme-${theme}`);
+            localStorage.setItem('app-theme', theme); updateThemeButtons();
+        }
+        function loadSavedTheme() { setTheme(localStorage.getItem('app-theme') || 'purple'); }
+        function updateThemeButtons() {
+            const t = localStorage.getItem('app-theme') || 'purple';
+            document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === t));
         }
 
-        function renderGroupList() {
-            const c = document.getElementById('group-list-container');
-            if (!groups.length) {
-                c.innerHTML = '<div class="empty-state"><div class="icon">📦</div><p>グループがまだありません</p></div>';
-                return;
+        // =====================================================
+        // DATE / SHEET HELPERS
+        // =====================================================
+        function getCurrentSheetName() { const n = new Date(); return `${n.getFullYear()}/${n.getMonth()+1}`; }
+        function updateCurrentSheetDisplay() {
+            const s = getCurrentSheetName(), d = document.getElementById('current-sheet');
+            if (currentSheet === 'test') { d.className = 'current-sheet test-mode'; d.textContent = `⚠️ テストモード: ${s}`; }
+            else { d.className = 'current-sheet'; d.textContent = `📅 対象シート: ${s}`; }
+        }
+        function getDateString() { const n = new Date(); return `${n.getMonth()+1}/${n.getDate()}`; }
+
+        // =====================================================
+        // QR SCANNER
+        // =====================================================
+        function toggleScanner() { scannerActive ? stopScanner() : startScanner(); }
+        function startScanner() {
+            document.getElementById('qr-reader').style.display = 'block';
+            document.getElementById('scan-add-btn').classList.add('active');
+            document.getElementById('scan-add-btn').textContent = '🔴 スキャン中...';
+            html5QrCode = new Html5Qrcode('qr-reader');
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } },
+                async (txt) => {
+                    stopScanner(); showStatus('batch-status', '部品情報を取得中...', 'loading');
+                    const info = await lookupPartFromSupabase(txt);
+                    const ld = info ? { name: info.name, location: info.location, tempLocation: info.tempLocation } : null;
+                    addPart(txt, true, ld);
+                    showStatus('batch-status', `✅ ${txt} を追加しました`, 'success');
+                    setTimeout(() => hideStatus('batch-status'), 2000);
+                }, () => {}
+            ).catch(err => { showStatus('batch-status', 'カメラエラー: ' + err, 'error'); stopScanner(); });
+            scannerActive = true;
+        }
+        function stopScanner() {
+            if (html5QrCode && scannerActive) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('qr-reader').style.display = 'none';
+                    document.getElementById('scan-add-btn').classList.remove('active');
+                    document.getElementById('scan-add-btn').textContent = '📷 QRスキャン追加';
+                    scannerActive = false;
+                }).catch(console.log);
             }
-            c.innerHTML = groups.map(g => {
-                const count = g.items?.[0]?.count || 0;
-                const date = new Date(g.updated_at).toLocaleDateString('ja-JP');
-                return `
-                <div class="group-card" onclick="openPrintView(${g.id})">
-                    <div class="group-card-info">
-                        <h3>${escHtml(g.group_name)}</h3>
-                        <p>${count}点 ・ 更新: ${date} ・ 作成: ${escHtml(g.created_by)}</p>
+        }
+
+        // S/N QR Scanner
+        function openSnScanner(index) {
+            stopScanner(); closeSnScanner();
+            const el = document.getElementById(`sn-qr-reader-${index}`); if (!el) return;
+            el.style.display = 'block'; snScannerIndex = index;
+            snScanner = new Html5Qrcode(`sn-qr-reader-${index}`);
+            snScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 200, height: 200 } },
+                (txt) => {
+                    parts[index].sn = txt; parts[index].snUnit = ''; parts[index].snNumber = '';
+                    closeSnScanner(); renderPartsList();
+                    showStatus('batch-status', `✅ S/N: ${txt} を読み取りました`, 'success');
+                    setTimeout(() => hideStatus('batch-status'), 2000);
+                }, () => {}
+            ).catch(err => showStatus('batch-status', 'カメラエラー: ' + err, 'error'));
+            snScannerActive = true;
+        }
+        function closeSnScanner() {
+            if (snScanner && snScannerActive) {
+                snScanner.stop().then(() => {
+                    if (snScannerIndex >= 0) { const el = document.getElementById(`sn-qr-reader-${snScannerIndex}`); if (el) el.style.display = 'none'; }
+                    snScannerActive = false; snScannerIndex = -1;
+                }).catch(console.log);
+            }
+        }
+
+        // =====================================================
+        // PARTS LIST
+        // =====================================================
+        function addPart(pn, showLocation = false, locationData = null) {
+            parts.push({ pn, name: locationData?.name||'', purpose: '', sn: '', snUnit: '', snNumber: '', qty: 1, showLocation, location: locationData?.location||'', tempLocation: locationData?.tempLocation||'' });
+            renderPartsList(); updateSubmitButton();
+        }
+        function removePart(i) { parts.splice(i, 1); renderPartsList(); updateSubmitButton(); }
+        function updatePart(i, field, val) { parts[i][field] = val; updateSubmitButton(); }
+
+        function renderPartsList() {
+            const c = document.getElementById('parts-list');
+            if (!parts.length) { c.innerHTML = '<div class="parts-list-empty">QRスキャンまたはリスト貼付けで部品を追加してください</div>'; return; }
+            c.innerHTML = parts.map((p, i) => `
+                <div class="part-item">
+                    <div class="part-header">
+                        <div class="part-header-left">
+                            <span class="part-index">#${i+1}</span>
+                            <span class="part-number">${p.pn}</span>
+                            ${p.name ? `<span class="part-name">${p.name}</span>` : ''}
+                        </div>
+                        <button class="delete-btn" onclick="removePart(${i})">🗑️</button>
                     </div>
-                    <div class="group-card-actions" onclick="event.stopPropagation()">
-                        <button class="btn btn-secondary btn-sm" onclick="openPrintView(${g.id})">🖨️ 生成</button>
-                        ${userProfile.isAdmin ? `
-                        <button class="btn btn-secondary btn-sm" onclick="openEditor(${g.id})">✏️</button>
-                        <button class="btn btn-danger btn-sm" onclick="deleteGroup(${g.id})">🗑️</button>
-                        ` : ''}
+                    ${p.showLocation ? `<div class="inline-location">📍 ${p.location||'場所不明'}${p.tempLocation ? ` (仮: ${p.tempLocation})` : ''}</div>` : ''}
+                    <div class="part-fields three-col">
+                        <div class="field-group"><label>目的</label>
+                            <select onchange="updatePart(${i},'purpose',this.value)"><option value="">選択</option>${PURPOSE_OPTIONS.map(o=>`<option value="${o}" ${p.purpose===o?'selected':''}>${o}</option>`).join('')}</select></div>
+                        <div class="field-group"><label>数量</label><input type="number" value="${p.qty}" min="1" onchange="updatePart(${i},'qty',this.value)"></div>
+                        <div class="field-group sn-field"><label>S/N</label>
+                            <div class="sn-compact-row">
+                                <input type="text" value="${p.sn}" placeholder="S/N" onchange="updatePart(${i},'sn',this.value)" class="sn-text-input">
+                                <button class="sn-btn" onclick="openSnScanner(${i})">📷</button>
+                                <button class="sn-btn unit-btn" onclick="openUnitModal(${i})">🏭</button>
+                            </div></div>
                     </div>
-                </div>`;
+                    <div id="sn-qr-reader-${i}" class="sn-qr-reader-container"></div>
+                </div>`).join('');
+        }
+
+        function updateSubmitButton() {
+            const btn = document.getElementById('submit-btn'), v = parts.filter(p => p.purpose);
+            btn.textContent = `一括登録する (${v.length}件)`; btn.disabled = !v.length;
+        }
+
+        // =====================================================
+        // UNIT CODE MODAL
+        // =====================================================
+        function openUnitModal(i) {
+            currentSnIndex = i;
+            document.getElementById('unit-number-input').value = parts[i].snNumber || '';
+            document.querySelectorAll('.unit-modal-chip').forEach(c => c.classList.remove('active'));
+            if (parts[i].snUnit) { const el = document.querySelector(`.unit-modal-chip[data-code="${parts[i].snUnit}"]`); if (el) el.classList.add('active'); }
+            updateUnitPreview(); document.getElementById('unit-modal').classList.add('active');
+        }
+        function closeUnitModal() { document.getElementById('unit-modal').classList.remove('active'); currentSnIndex = -1; }
+        function selectUnitChip(code) {
+            document.querySelectorAll('.unit-modal-chip').forEach(c => c.classList.remove('active'));
+            document.querySelector(`.unit-modal-chip[data-code="${code}"]`).classList.add('active');
+            if (currentSnIndex >= 0) parts[currentSnIndex].snUnit = code;
+            updateUnitPreview();
+        }
+        function onUnitNumberChange(val) { if (currentSnIndex >= 0) parts[currentSnIndex].snNumber = val; updateUnitPreview(); }
+        function updateUnitPreview() {
+            const btn = document.getElementById('unit-confirm-btn');
+            if (currentSnIndex < 0) return;
+            const u = parts[currentSnIndex].snUnit||'', n = parts[currentSnIndex].snNumber||'';
+            if (u && n) { btn.textContent = `🔍 検索: ${u}-${n}`; btn.disabled = false; }
+            else { btn.textContent = u ? '番号を入力してください' : 'Unitを選択してください'; btn.disabled = true; }
+        }
+
+        async function confirmUnitSelection() {
+            if (currentSnIndex < 0) return;
+            const unit = parts[currentSnIndex].snUnit||'', number = parts[currentSnIndex].snNumber||'';
+            if (unit && number) {
+                const btn = document.getElementById('unit-confirm-btn'); btn.textContent = '🔍 検索中...'; btn.disabled = true;
+                try {
+                    const sn = await lookupGhostTrackerSN(unit, number);
+                    if (sn) { parts[currentSnIndex].sn = sn; showStatus('batch-status', `✅ S/N: ${sn} を取得しました`, 'success'); }
+                    else { const sc = (UNIT_CODES.find(u=>u.code===unit)||{}).snCode||unit; parts[currentSnIndex].sn = `${sc}-${number}`; showStatus('batch-status', `⚠️ Ghost Trackerに見つかりません。${sc}-${number} を設定しました`, 'error'); }
+                } catch (e) {
+                    const sc = (UNIT_CODES.find(u=>u.code===unit)||{}).snCode||unit; parts[currentSnIndex].sn = `${sc}-${number}`;
+                    showStatus('batch-status', `⚠️ 検索エラー。${sc}-${number} を設定しました`, 'error');
+                }
+                setTimeout(() => hideStatus('batch-status'), 3000); renderPartsList();
+            }
+            closeUnitModal();
+        }
+
+        async function lookupGhostTrackerSN(unitCode, number) {
+            const uc = UNIT_CODES.find(u => u.code === unitCode);
+            if (!uc) return null;
+            const data = await sheetsApiRequest(`https://sheets.googleapis.com/v4/spreadsheets/${GHOST_TRACKER_SHEET_ID}/values/${encodeURIComponent(uc.sheetTab)}!A:Z`);
+            const rows = data.values||[]; if (rows.length < 2) return null;
+            let snCol = rows[0].findIndex(h => /^S\/?N$/i.test((h||'').trim()));
+            if (snCol === -1) { outer: for (let ci = 0; ci < Math.min(rows[0].length, 10); ci++) { for (let ri = 1; ri < Math.min(rows.length, 5); ri++) { if (/^GT\d{3}-[A-Z0-9]{2,3}-\d{3,5}$/i.test(rows[ri][ci]||'')) { snCol = ci; break outer; } } } }
+            if (snCol === -1) snCol = 0;
+            const pad = number.toString().padStart(5, '0'), snUp = uc.snCode.toUpperCase();
+            for (let i = 1; i < rows.length; i++) {
+                const cell = (rows[i][snCol]||'').trim().toUpperCase();
+                const m = cell.match(/^(GT\d{3})-([A-Z0-9]{2,3})-(\d{3,5})$/);
+                if (m && m[2] === snUp && (m[3] === number.toString() || m[3].padStart(5,'0') === pad || parseInt(m[3]) === parseInt(number))) return cell;
+            }
+            return null;
+        }
+
+        // =====================================================
+        // PASTE MODAL
+        // =====================================================
+        function openPasteModal() { document.getElementById('paste-modal').classList.add('active'); document.getElementById('paste-textarea').value = ''; document.getElementById('paste-textarea').focus(); }
+        function closePasteModal() { document.getElementById('paste-modal').classList.remove('active'); }
+
+        async function processPastedList() {
+            const lines = document.getElementById('paste-textarea').value.split('\n').map(l=>l.trim()).filter(l=>l);
+            if (!lines.length) return;
+            closePasteModal(); showStatus('batch-status', '部品情報を取得中...', 'loading');
+            try {
+                if (!databaseCache) databaseCache = await loadDatabase();
+                let added = 0;
+                lines.forEach(pn => {
+                        const f = databaseCache.find(r => r.partNumber === pn);
+                        parts.push({ pn, name: f?.name||'', purpose: '', sn: '', snUnit: '', snNumber: '', qty: 1, showLocation: true, location: f?.location||'', tempLocation: f?.tempLocation||'' });
+                        added++;
+                });
+                renderPartsList(); updateSubmitButton();
+                document.getElementById('finder-input').value = lines.join('\n');
+                await autoSearchFinder(lines);
+                if (added) { showStatus('batch-status', `✅ ${added}件の部品を追加しました`, 'success'); setTimeout(() => hideStatus('batch-status'), 3000); }
+            } catch (e) { showStatus('batch-status', 'エラー: ' + e.message, 'error'); }
+        }
+
+        // =====================================================
+        // BATCH SUBMIT
+        // =====================================================
+        async function submitBatch() {
+            const valid = parts.filter(p => p.purpose);
+            if (!valid.length) { showStatus('batch-status', '目的が選択されていない部品があります', 'error'); return; }
+            const btn = document.getElementById('submit-btn'); btn.disabled = true; btn.textContent = '登録中...';
+            showStatus('batch-status', 'データを送信中...', 'loading');
+            try {
+                const sheet = getCurrentSheetName(), sid = getCurrentSpreadsheetId();
+                if (!(await checkSheetExists(sheet, sid))) await createNewSheet(sheet, sid);
+                let row = await getNextRowNumber(sheet, sid);
+                const date = getDateString(), remarks = document.getElementById('remarks').value.trim();
+                for (let i = 0; i < valid.length; i++) {
+                    const p = valid[i];
+                    await writeRow(sheet, row + i, [date, userProfile.name, p.pn||'', '', '', String(p.qty||1), p.purpose||'', p.sn||'', remarks||''], sid);
+                }
+                showStatus('batch-status', `✅ ${valid.length}件の登録が完了しました！`, 'success');
+                parts = []; renderPartsList(); updateSubmitButton(); document.getElementById('remarks').value = '';
+            } catch (e) { showStatus('batch-status', 'エラー: ' + e.message, 'error'); }
+            finally { btn.disabled = false; updateSubmitButton(); }
+        }
+
+        // =====================================================
+        // PART FINDER
+        // =====================================================
+        async function findParts() {
+            const pns = document.getElementById('finder-input').value.split('\n').map(l=>l.trim()).filter(l=>l);
+            if (!pns.length) { showStatus('finder-status', '部品番号を入力してください', 'error'); return; }
+            showStatus('finder-status', '検索中...', 'loading');
+            try {
+                if (!databaseCache) databaseCache = await loadDatabase();
+                renderFinderResults(pns.map(pn => ({ pn, found: !!databaseCache.find(r=>r.partNumber===pn), data: databaseCache.find(r=>r.partNumber===pn) })));
+                hideStatus('finder-status');
+            } catch (e) { showStatus('finder-status', 'エラー: ' + e.message, 'error'); }
+        }
+        async function autoSearchFinder(pns) {
+            try {
+                if (!databaseCache) databaseCache = await loadDatabase();
+                renderFinderResults(pns.map(pn => ({ pn, found: !!databaseCache.find(r=>r.partNumber===pn), data: databaseCache.find(r=>r.partNumber===pn) })));
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadDatabase() {
+            try {
+                const resp = await fetch(`${SUPABASE_URL}/rest/v1/master_parts_list_all?select=pn,name,location,temp_location`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                if (!resp.ok) throw new Error('Supabase fetch failed');
+                return (await resp.json()).map(r => ({ partNumber: r.pn||'', name: r.name||'', location: r.location||'', tempLocation: r.temp_location||'' })).filter(r => r.partNumber);
+            } catch (e) { console.error(e); return []; }
+        }
+
+        function renderFinderResults(results) {
+            document.getElementById('finder-results').innerHTML = results.map(r => {
+                if (r.found) {
+                    const d = r.data;
+                    return `<div class="finder-result-item found"><div class="finder-pn">✅ ${r.pn}</div>
+                        <div class="finder-details"><div class="finder-detail"><span class="finder-detail-label">物品名</span><span class="finder-detail-value">${d.name}</span></div></div>
+                        <div class="location-highlight"><span class="icon">📍</span><span class="text">${d.location}</span>${d.tempLocation?`<span style="color:#666;margin-left:10px;">(仮: ${d.tempLocation})</span>`:''}</div></div>`;
+                }
+                return `<div class="finder-result-item not-found"><div class="finder-pn">❌ ${r.pn}</div><div style="color:#c62828;font-size:0.9rem;">データベースに見つかりません</div></div>`;
             }).join('');
         }
 
-        async function deleteGroup(id) {
-            if (!confirm('このグループを削除しますか？')) return;
-            const { error } = await sb.from(TABLE_GROUPS).delete().eq('id', id);
-            if (error) { alert('削除エラー: ' + error.message); return; }
-            await loadGroups();
+        // =====================================================
+        // GOOGLE SHEETS HELPERS
+        // =====================================================
+        async function checkSheetExists(name, sid) {
+            const d = await sheetsApiRequest(`https://sheets.googleapis.com/v4/spreadsheets/${sid}?fields=sheets.properties.title`);
+            return (d.sheets||[]).some(s => s.properties.title === name);
+        }
+        async function createNewSheet(name, sid) {
+            await sheetsApiRequest(`https://sheets.googleapis.com/v4/spreadsheets/${sid}:batchUpdate`, { method: 'POST', body: JSON.stringify({ requests: [{ addSheet: { properties: { title: name } } }] }) });
+            await sheetsApiRequest(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(name)}!A1:Q1?valueInputOption=RAW`, { method: 'PUT', body: JSON.stringify({ values: [['No.','日付','名前','部品番号かQRの値を入力','部品番号(自動入力)','部品名(自動入力)','数量','目的','SN','備考欄','出庫者','処理状況','貸出状況','保管場所','仮保管場所','部署','出庫メモ']] }) });
+        }
+        async function getNextRowNumber(name, sid) {
+            const d = await sheetsApiRequest(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(name)}!B:B`);
+            return (d.values||[]).length + 1;
+        }
+        async function writeRow(name, row, data, sid) {
+            await sheetsApiRequest(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(name)}!B${row}:J${row}?valueInputOption=USER_ENTERED`, { method: 'PUT', body: JSON.stringify({ values: [data] }) });
         }
 
         // =====================================================
-        // GROUP EDITOR
+        // STATUS
         // =====================================================
-        async function openEditor(id) {
-            editorGroupId = id;
-            editorItems = [];
-            document.getElementById('editor-group-name').value = '';
-            document.getElementById('editor-paste-area').value = '';
-            hideStatus('editor-status');
-
-            if (id) {
-                // Load existing group
-                const { data: group } = await sb.from(TABLE_GROUPS).select('*').eq('id', id).single();
-                if (group) {
-                    document.getElementById('editor-group-name').value = group.group_name;
-                }
-                const { data: items } = await sb.from(TABLE_ITEMS)
-                    .select('*').eq('group_id', id).order('sort_order');
-                if (items) {
-                    editorItems = items.map(i => ({ pn: i.part_number, qty: i.qty, comment: i.comment || '' }));
-                }
-                document.getElementById('editor-title').textContent = 'グループ編集';
-            } else {
-                editorItems = [{ pn: '', qty: 1, comment: '' }];
-                document.getElementById('editor-title').textContent = 'グループ作成';
-            }
-
-            if (!editorItems.length) editorItems.push({ pn: '', qty: 1, comment: '' });
-            renderEditorItems();
-            showView('editor');
-        }
-
-        function renderEditorItems() {
-            const tbody = document.getElementById('editor-items-body');
-            tbody.innerHTML = editorItems.map((item, i) => `
-                <tr>
-                    <td class="sort-cell">${i + 1}</td>
-                    <td><input type="text" class="pn-input" value="${escHtml(item.pn)}" placeholder="GPMP-XXXXXXX-X-X" onchange="editorItems[${i}].pn=this.value.trim()"></td>
-                    <td><input type="number" class="qty-input" value="${item.qty}" min="1" onchange="editorItems[${i}].qty=parseInt(this.value)||1"></td>
-                    <td><input type="text" value="${escHtml(item.comment)}" placeholder="コメント" onchange="editorItems[${i}].comment=this.value"></td>
-                    <td class="del-cell"><button class="del-btn" onclick="removeEditorRow(${i})">✕</button></td>
-                </tr>
-            `).join('');
-        }
-
-        function addEditorRow() {
-            editorItems.push({ pn: '', qty: 1, comment: '' });
-            renderEditorItems();
-            // Focus the new row's P/N input
-            const inputs = document.querySelectorAll('#editor-items-body .pn-input');
-            if (inputs.length) inputs[inputs.length - 1].focus();
-        }
-
-        function removeEditorRow(i) {
-            editorItems.splice(i, 1);
-            if (!editorItems.length) editorItems.push({ pn: '', qty: 1, comment: '' });
-            renderEditorItems();
-        }
-
-        function bulkAddFromPaste() {
-            const text = document.getElementById('editor-paste-area').value;
-            const lines = text.split('\n').map(l => l.trim()).filter(l => l);
-            if (!lines.length) return;
-            // Remove the last empty row if it exists
-            if (editorItems.length === 1 && !editorItems[0].pn) editorItems = [];
-            lines.forEach(pn => { editorItems.push({ pn, qty: 1, comment: '' }); });
-            document.getElementById('editor-paste-area').value = '';
-            renderEditorItems();
-        }
-
-        async function saveGroup() {
-            const name = document.getElementById('editor-group-name').value.trim();
-            if (!name) { showStatusMsg('editor-status', 'グループ名を入力してください', 'error'); return; }
-            const validItems = editorItems.filter(i => i.pn);
-            if (!validItems.length) { showStatusMsg('editor-status', '部品を1つ以上追加してください', 'error'); return; }
-
-            showStatusMsg('editor-status', '保存中...', 'loading');
-
-            try {
-                let groupId = editorGroupId;
-
-                if (groupId) {
-                    // Update
-                    const { error } = await sb.from(TABLE_GROUPS)
-                        .update({ group_name: name, updated_at: new Date().toISOString() })
-                        .eq('id', groupId);
-                    if (error) throw error;
-                    // Delete old items
-                    await sb.from(TABLE_ITEMS).delete().eq('group_id', groupId);
-                } else {
-                    // Create
-                    const { data, error } = await sb.from(TABLE_GROUPS)
-                        .insert({ group_name: name, created_by: userProfile.name })
-                        .select('id')
-                        .single();
-                    if (error) throw error;
-                    groupId = data.id;
-                }
-
-                // Insert items
-                const rows = validItems.map((item, i) => ({
-                    group_id: groupId,
-                    part_number: item.pn,
-                    qty: item.qty || 1,
-                    comment: item.comment || null,
-                    sort_order: i
-                }));
-                const { error: itemErr } = await sb.from(TABLE_ITEMS).insert(rows);
-                if (itemErr) throw itemErr;
-
-                showStatusMsg('editor-status', '✅ 保存しました', 'success');
-                setTimeout(async () => { await loadGroups(); showView('list'); }, 800);
-            } catch (e) {
-                showStatusMsg('editor-status', 'エラー: ' + e.message, 'error');
-            }
-        }
-
-        // =====================================================
-        // PRINT / GENERATE VIEW
-        // =====================================================
-        async function openPrintView(groupId) {
-            showView('print');
-            document.getElementById('print-header').innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-muted);">読み込み中...</div>';
-            document.getElementById('pick-table').innerHTML = '';
-
-            // Load group + items
-            const { data: group } = await sb.from(TABLE_GROUPS).select('*').eq('id', groupId).single();
-            const { data: items } = await sb.from(TABLE_ITEMS).select('*').eq('group_id', groupId).order('sort_order');
-
-            if (!group || !items) {
-                document.getElementById('print-header').innerHTML = '<div style="color:var(--error-text);">グループが見つかりません</div>';
-                return;
-            }
-
-            printGroupData = group;
-            printItems = items;
-
-            // Load parts cache
-            if (!partsCache) {
-                partsCache = {};
-                const { data: parts } = await sb.from(TABLE_PARTS).select('pn, name, location, temp_location');
-                if (parts) { parts.forEach(p => { partsCache[p.pn] = p; }); }
-            }
-
-            document.getElementById('multiplier-input').value = 1;
-            regenerateTable();
-        }
-
-        function regenerateTable() {
-            const multiplier = parseInt(document.getElementById('multiplier-input').value) || 1;
-            const group = printGroupData;
-            const items = printItems;
-            const now = new Date();
-            const dateStr = `${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
-
-            // Header
-            document.getElementById('print-header').innerHTML = `
-                <h2>${escHtml(group.group_name)}</h2>
-                <div class="meta">
-                    <span>📅 ${dateStr}</span>
-                    <span>×${multiplier} 倍率</span>
-                    <span>${items.length}品目</span>
-                    <span>作成: ${escHtml(group.created_by)}</span>
-                </div>
-            `;
-
-            // Table
-            let html = `
-                <thead>
-                    <tr>
-                        <th class="check-cell">☐</th>
-                        <th class="num-cell">#</th>
-                        <th>部品番号</th>
-                        <th>物品名</th>
-                        <th class="qty-cell">数量</th>
-                        <th>保管場所</th>
-                        <th>コメント</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-
-            items.forEach((item, i) => {
-                const part = partsCache[item.part_number];
-                const found = !!part;
-                const name = found ? (part.name || '') : '';
-                const loc = found ? (part.location || '') : '';
-                const tempLoc = found ? (part.temp_location || '') : '';
-                const fullLoc = tempLoc ? `${loc} (仮: ${tempLoc})` : loc;
-                const qty = (item.qty || 1) * multiplier;
-                const nameMissing = !name;
-                const locMissing = !fullLoc;
-
-                html += `<tr>
-                    <td class="check-cell"><input type="checkbox"></td>
-                    <td class="num-cell">${i + 1}</td>
-                    <td class="pn-cell">${escHtml(item.part_number)}</td>
-                    <td class="${nameMissing ? 'missing' : ''}">
-                        ${nameMissing ? `<input type="text" class="missing-input" placeholder="手動入力">` : escHtml(name)}
-                    </td>
-                    <td class="qty-cell">${qty}</td>
-                    <td class="${locMissing ? 'missing' : ''}">
-                        ${locMissing ? `<input type="text" class="missing-input" placeholder="手動入力">` : escHtml(fullLoc)}
-                    </td>
-                    <td class="comment-cell">${escHtml(item.comment || '')}</td>
-                </tr>`;
-            });
-
-            html += '</tbody>';
-            document.getElementById('pick-table').innerHTML = html;
-        }
-
-        // =====================================================
-        // HELPERS
-        // =====================================================
-        function escHtml(str) {
-            if (!str) return '';
-            return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
-        }
-
-        function showStatusMsg(id, msg, type) {
-            const el = document.getElementById(id);
-            el.textContent = msg; el.className = 'status ' + type;
-        }
-        function hideStatus(id) {
-            document.getElementById(id).className = 'status';
-        }
+        function showStatus(id, msg, type) { const s = document.getElementById(id); s.textContent = msg; s.className = 'status ' + type; }
+        function hideStatus(id) { document.getElementById(id).className = 'status'; }
     </script>
 </body>
 </html>
