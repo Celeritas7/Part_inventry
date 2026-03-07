@@ -207,20 +207,33 @@ function suggestSegs(len){
         const rem=tgt-n15*150-n10*100;if(rem>=0&&rem%25===0){const n025=rem/25,tot=n15+n10+n025;if(tot<bc){bc=tot;best={1.5:n15,1:n10,0.25:n025};}}}
     return best||{1.5:0,1:0,0.25:0};
 }
-function evalF(formula,params){
-    try{const s=params.segments||{0.25:0,1:0,1.5:0},ts=s[0.25]+s[1]+s[1.5];
-    let e=formula.replace(/SEGS/g,ts).replace(/S025/g,s[0.25]).replace(/S100/g,s[1]).replace(/S150/g,s[1.5]).replace(/LENGTH/g,params.length||0).replace(/CABLE/g,params.cableLength||0);
-    return Math.round(Function('"use strict";return ('+e+')')());}catch(e){return 0;}
+function evalF(formula,params,lookups){
+    try{
+        // Handle LOOKUP(tableName)
+        const lm=formula.match(/^LOOKUP\((\w+)\)$/);
+        if(lm&&lookups){
+            const tbl=lookups[lm[1]];
+            if(!tbl||!tbl.data)return 0;
+            const keys=(tbl.keys||[]).map(k=>params[k]);
+            const key=keys.join('/');
+            const val=tbl.data[key];
+            return typeof val==='number'?val:(parseFloat(val)||0);
+        }
+        const s=params.segments||{0.25:0,1:0,1.5:0},ts=s[0.25]+s[1]+s[1.5];
+        let e=formula.replace(/SEGS/g,ts).replace(/S025/g,s[0.25]).replace(/S100/g,s[1]).replace(/S150/g,s[1.5]).replace(/LENGTH/g,params.length||0).replace(/CABLE/g,params.cableLength||0);
+        return Math.round(Function('"use strict";return ('+e+')')());
+    }catch(e){return 0;}
 }
 function resolveTemplate(tpl,params){
     const segs=suggestSegs(params.length||0);params.segments=segs;
+    const lookups=tpl.lookups||{};
     const resolved=[];
     (tpl.sections||[]).forEach(sec=>{
         const items=[];
         (sec.items||[]).forEach(item=>{
             let pn=item.pn;let qty=item.qty||0;
             if(item.switchField&&item.switchMap){try{const map=typeof item.switchMap==='string'?JSON.parse(item.switchMap):item.switchMap;const val=params[item.switchField];if(map[val])pn=map[val];}catch(e){}}
-            if(item.formula)qty=evalF(item.formula,params);
+            if(item.formula)qty=evalF(item.formula,params,lookups);
             items.push({pn,qty,comment:item.comment||''});
         });
         resolved.push({name:sec.name,badge:sec.badge,items});
@@ -369,13 +382,53 @@ function renderTplEditor(){
         const orig=templates.find(t=>t.id===currentTplId);
         editTpl=JSON.parse(JSON.stringify(orig));
     }else{
-        editTpl={id:null,folder_id:currentFolderId,name:'',sections:[{name:'Section 1',badge:'manual',items:[{pn:'',formula:'',qty:1,comment:''}]}]};
+        editTpl={id:null,folder_id:currentFolderId,name:'',lookups:{},sections:[{name:'Section 1',badge:'manual',items:[{pn:'',formula:'',qty:1,comment:''}]}]};
     }
+    if(!editTpl.lookups)editTpl.lookups={};
     renderTplContent();
 }
 function renderTplContent(){
     const el=document.getElementById('v-tpl-editor');
     const readOnly=!user.isAdmin;
+
+    // Lookup tables UI
+    const lookups=editTpl.lookups||{};
+    let lookupsHtml='';
+    const lookupNames=Object.keys(lookups);
+    if(lookupNames.length||!readOnly){
+        let tablesHtml=lookupNames.map(name=>{
+            const tbl=lookups[name];
+            const keys=tbl.keys||[];
+            const data=tbl.data||{};
+            const entries=Object.entries(data).sort((a,b)=>a[0].localeCompare(b[0]));
+            let rowsHtml=entries.map(([k,v],i)=>`<tr>
+                <td><code style="font-size:.8rem">${esc(k)}</code></td>
+                <td>${readOnly?`<b>${v}</b>`:`<input type="text" value="${esc(String(v))}" onchange="editTpl.lookups['${name}'].data['${esc(k)}']=isNaN(this.value)?this.value:parseFloat(this.value)" style="width:80px;text-align:center;font-weight:600">`}</td>
+                ${readOnly?'':`<td class="act"><button class="dbtn" onclick="delete editTpl.lookups['${name}'].data['${esc(k)}'];renderTplContent()">✕</button></td>`}
+            </tr>`).join('');
+            return`<div class="rule-card" style="margin-bottom:12px">
+                <div class="rule-header">
+                    <span style="font-weight:700;font-size:.85rem">📊 ${esc(tbl.label||name)}</span>
+                    <span style="font-size:.72rem;color:var(--t3)">キー: ${keys.join(' + ')} → 値</span>
+                    ${readOnly?'':`<button class="dbtn" onclick="delete editTpl.lookups['${name}'];renderTplContent()" style="margin-left:8px">🗑️</button>`}
+                </div>
+                <div class="rule-body">
+                    <div style="max-height:300px;overflow-y:auto">
+                    <table class="stbl"><thead><tr><th>キー</th><th style="width:90px">値</th>${readOnly?'':`<th class="act"></th>`}</tr></thead>
+                    <tbody>${rowsHtml}</tbody></table></div>
+                    ${readOnly?'':`<div style="display:flex;gap:6px;margin-top:8px">
+                        <input type="text" id="lk-key-${name}" placeholder="${keys.join('/')}" style="flex:1;padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:.83rem;font-family:monospace">
+                        <input type="text" id="lk-val-${name}" placeholder="値" style="width:80px;padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:.83rem;text-align:center">
+                        <button class="btn btn-s btn-sm" onclick="addLookupEntry('${name}')">＋</button>
+                    </div>`}
+                    <div class="formula-help" style="margin-top:6px">Formula: <code>LOOKUP(${name})</code></div>
+                </div></div>`;
+        }).join('');
+
+        let addLookupBtn=readOnly?'':`<button class="btn btn-s btn-sm" onclick="addLookupTable()" style="margin-bottom:12px">＋ Lookup テーブル追加</button>`;
+        lookupsHtml=`<h3 style="font-size:.9rem;font-weight:700;margin:20px 0 12px;display:flex;align-items:center;gap:8px">📊 Lookup テーブル <span style="font-size:.72rem;font-weight:500;color:var(--t3)">(長さ・タイプから自動参照)</span></h3>${tablesHtml}${addLookupBtn}`;
+    }
+
     let sectionsHtml=(editTpl.sections||[]).map((sec,si)=>{
         const badge=sec.badge||'manual';const isAuto=badge==='auto';
         let headers=isAuto?'<th>P/N</th><th style="width:50px">Formula</th><th>Comment</th><th>Switch</th><th class="act"></th>':'<th>P/N</th><th style="width:55px">Qty</th><th>Comment</th><th class="act"></th>';
@@ -384,11 +437,32 @@ function renderTplContent(){
             else return`<tr><td><input class="pn-in" value="${esc(item.pn)}" onchange="editTpl.sections[${si}].items[${ii}].pn=this.value.trim()" ${readOnly?'readonly':''}></td><td><input class="qty-in" type="number" value="${item.qty||1}" min="1" onchange="editTpl.sections[${si}].items[${ii}].qty=parseInt(this.value)||1" ${readOnly?'readonly':''}></td><td><input value="${esc(item.comment||'')}" onchange="editTpl.sections[${si}].items[${ii}].comment=this.value" ${readOnly?'readonly':''}></td><td class="act">${readOnly?'':`<button class="dbtn" onclick="editTpl.sections[${si}].items.splice(${ii},1);renderTplContent()">✕</button>`}</td></tr>`;
         }).join('');
         let badgeSelect=readOnly?`<span style="font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:6px;background:${badge==='auto'?'#d1fae5':badge==='fixed'?'#e0e7ff':'#fef3c7'}">${badge.toUpperCase()}</span>`:`<select onchange="editTpl.sections[${si}].badge=this.value;renderTplContent()" style="font-size:.72rem;padding:2px 6px;border:1px solid var(--brd);border-radius:6px;font-weight:600"><option value="auto" ${badge==='auto'?'selected':''}>AUTO</option><option value="fixed" ${badge==='fixed'?'selected':''}>FIXED</option><option value="manual" ${badge==='manual'?'selected':''}>MANUAL</option></select>`;
-        return`<div class="rule-card"><div class="rule-header"><input type="text" value="${esc(sec.name)}" onchange="editTpl.sections[${si}].name=this.value" ${readOnly?'readonly':''}>${badgeSelect}${readOnly?'':`<button class="dbtn" onclick="if(confirm('セクション削除？')){editTpl.sections.splice(${si},1);renderTplContent()}" style="margin-left:8px">🗑️</button>`}</div><div class="rule-body"><table class="stbl"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>${readOnly?'':`<button class="add-row" onclick="editTpl.sections[${si}].items.push({pn:'',formula:'',qty:1,comment:''});renderTplContent()">＋ 行を追加</button>`}${isAuto&&!readOnly?`<div class="formula-help"><b>変数:</b> <code>SEGS</code>=総本数 <code>S025</code>=0.25m <code>S100</code>=1m <code>S150</code>=1.5m <code>LENGTH</code>=総長 <code>CABLE</code>=ケーブル長<br><b>Switch:</b> <code>{"STD":"PN-A","MR":"PN-B"}</code></div>`:''}</div></div>`;
+        return`<div class="rule-card"><div class="rule-header"><input type="text" value="${esc(sec.name)}" onchange="editTpl.sections[${si}].name=this.value" ${readOnly?'readonly':''}>${badgeSelect}${readOnly?'':`<button class="dbtn" onclick="if(confirm('セクション削除？')){editTpl.sections.splice(${si},1);renderTplContent()}" style="margin-left:8px">🗑️</button>`}</div><div class="rule-body"><table class="stbl"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>${readOnly?'':`<button class="add-row" onclick="editTpl.sections[${si}].items.push({pn:'',formula:'',qty:1,comment:''});renderTplContent()">＋ 行を追加</button>`}${isAuto&&!readOnly?`<div class="formula-help"><b>変数:</b> <code>SEGS</code>=総本数 <code>S025</code>=0.25m <code>S100</code>=1m <code>S150</code>=1.5m <code>LENGTH</code>=総長 <code>CABLE</code>=ケーブル長<br><b>Switch:</b> <code>{"STD":"PN-A","MR":"PN-B"}</code><br><b>Lookup:</b> <code>LOOKUP(テーブル名)</code></div>`:''}</div></div>`;
     }).join('');
     let addBtns=readOnly?'':`<div style="display:flex;gap:8px;margin:12px 0" class="no-print"><button class="btn btn-s btn-sm" onclick="editTpl.sections.push({name:'New Section',badge:'auto',items:[]});renderTplContent()">＋ Auto</button><button class="btn btn-s btn-sm" onclick="editTpl.sections.push({name:'New Section',badge:'fixed',items:[]});renderTplContent()">＋ Fixed</button><button class="btn btn-s btn-sm" onclick="editTpl.sections.push({name:'New Section',badge:'manual',items:[]});renderTplContent()">＋ Manual</button></div>`;
     let saveBtns=readOnly?`<div style="margin-top:16px"><button class="btn btn-s" onclick="nav('folder',{folderId:currentFolderId})">← 戻る</button></div>`:`<div class="status" id="tpl-status"></div><div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn btn-p" onclick="saveTpl()">💾 保存</button><button class="btn btn-s" onclick="nav('folder',{folderId:currentFolderId})">キャンセル</button></div>`;
-    el.innerHTML=`<div class="card"><div class="shdr no-print"><h2>${editTpl.id?'✏️ テンプレート編集':'＋ テンプレート作成'}</h2></div><div class="efl"><label>テンプレート名</label><input type="text" id="tpl-name" value="${esc(editTpl.name)}" onchange="editTpl.name=this.value.trim()" ${readOnly?'readonly':''}></div><h3 style="font-size:.9rem;font-weight:700;margin-bottom:12px">セクション定義</h3>${sectionsHtml}${addBtns}${saveBtns}</div>`;
+    el.innerHTML=`<div class="card"><div class="shdr no-print"><h2>${editTpl.id?'✏️ テンプレート編集':'＋ テンプレート作成'}</h2></div><div class="efl"><label>テンプレート名</label><input type="text" id="tpl-name" value="${esc(editTpl.name)}" onchange="editTpl.name=this.value.trim()" ${readOnly?'readonly':''}></div>${lookupsHtml}<h3 style="font-size:.9rem;font-weight:700;margin-bottom:12px">セクション定義</h3>${sectionsHtml}${addBtns}${saveBtns}</div>`;
+}
+
+function addLookupTable(){
+    const name=prompt('Lookup テーブル名 (英数字, 例: cc_links)');
+    if(!name||!/^\w+$/.test(name))return;
+    if(!editTpl.lookups)editTpl.lookups={};
+    const keysStr=prompt('キー項目 (カンマ区切り, 例: length,asmType)','length,asmType');
+    const keys=(keysStr||'length').split(',').map(k=>k.trim());
+    editTpl.lookups[name]={label:name,keys,data:{}};
+    renderTplContent();
+}
+function addLookupEntry(name){
+    const keyInput=document.getElementById('lk-key-'+name);
+    const valInput=document.getElementById('lk-val-'+name);
+    if(!keyInput||!valInput)return;
+    const key=keyInput.value.trim();const valRaw=valInput.value.trim();
+    if(!key||!valRaw)return;
+    const val=isNaN(valRaw)?valRaw:parseFloat(valRaw);
+    editTpl.lookups[name].data[key]=val;
+    keyInput.value='';valInput.value='';
+    renderTplContent();
 }
 
 async function saveTpl(){
@@ -396,12 +470,13 @@ async function saveTpl(){
     if(!editTpl.name){showSt('tpl-status','テンプレート名を入力してください','error');return;}
     showSt('tpl-status','保存中...','loading');
     try{
+        const payload={name:editTpl.name,sections:editTpl.sections,lookups:editTpl.lookups||{},updated_at:new Date().toISOString()};
         if(editTpl.id){
-            const{error}=await sb.from(T.TEMPLATES).update({name:editTpl.name,sections:editTpl.sections,updated_at:new Date().toISOString()}).eq('id',editTpl.id);
+            const{error}=await sb.from(T.TEMPLATES).update(payload).eq('id',editTpl.id);
             if(error)throw error;
-            const idx=templates.findIndex(t=>t.id===editTpl.id);if(idx>=0)templates[idx]={...templates[idx],name:editTpl.name,sections:editTpl.sections};
+            const idx=templates.findIndex(t=>t.id===editTpl.id);if(idx>=0)templates[idx]={...templates[idx],...payload};
         }else{
-            const{data,error}=await sb.from(T.TEMPLATES).insert({folder_id:currentFolderId,name:editTpl.name,sections:editTpl.sections,created_by:user.name}).select('*').single();
+            const{data,error}=await sb.from(T.TEMPLATES).insert({folder_id:currentFolderId,...payload,created_by:user.name}).select('*').single();
             if(error)throw error;templates.push(data);
         }
         showSt('tpl-status','✅ 保存しました','success');
