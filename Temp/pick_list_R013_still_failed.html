@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ピックリスト生成</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--pri:#2563eb;--pri-dk:#1e40af;--pri-bg:rgba(37,99,235,.08);--pri-bg2:rgba(37,99,235,.14);--grn:#059669;--grn-bg:rgba(5,150,105,.08);--card:#fff;--t1:#1e293b;--t2:#64748b;--t3:#94a3b8;--brd:#e2e8f0;--focus:#2563eb;--ok-bg:#f0fdf4;--ok:#15803d;--ok-brd:#bbf7d0;--err-bg:#fef2f2;--err:#b91c1c;--err-brd:#fecaca;--miss:#fef9c3;--r:10px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#f1f5f9;min-height:100vh;color:var(--t1)}
+.shell{max-width:960px;margin:0 auto;padding:16px}
+.bar{background:#fff;border-radius:var(--r);padding:14px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.bar-left{display:flex;align-items:center;gap:10px}
+.bar h1{font-size:1.1rem;font-weight:700}
+.nbtn{background:var(--pri-bg);border:none;border-radius:8px;padding:6px 12px;font-size:.85rem;cursor:pointer;color:var(--pri);font-weight:600;text-decoration:none;display:inline-flex;align-items:center;gap:4px;transition:all .15s}
+.nbtn:hover{background:var(--pri-bg2)}
+.bar-right{display:flex;align-items:center;gap:8px}
+.chip{font-size:.8rem;color:var(--t2);background:#f8fafc;padding:4px 10px;border-radius:20px;border:1px solid var(--brd)}
+.chip .rt{font-weight:600;color:var(--pri);margin-left:4px}
+.lbtn{background:none;border:1px solid var(--brd);color:var(--t2);padding:5px 10px;border-radius:6px;font-size:.75rem;cursor:pointer}
+.lbtn:hover{border-color:var(--pri);color:var(--pri)}
+.bread{display:flex;align-items:center;gap:6px;margin-bottom:16px;font-size:.85rem;color:var(--t2);flex-wrap:wrap}
+.bread a{color:var(--pri);text-decoration:none;cursor:pointer;font-weight:600}.bread a:hover{text-decoration:underline}
+.bread .sep{color:var(--t3)}
+.card{background:#fff;border-radius:var(--r);padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:16px}
+.shdr{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;flex-wrap:wrap;gap:10px}
+.shdr h2{font-size:1.05rem;font-weight:700}
+.btn{padding:8px 16px;border-radius:8px;border:none;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-p{background:var(--pri);color:#fff}.btn-p:hover{background:var(--pri-dk)}
+.btn-g{background:var(--grn);color:#fff}.btn-g:hover{background:#047857}
+.btn-s{background:var(--pri-bg);color:var(--pri)}.btn-s:hover{background:var(--pri-bg2)}
+.btn-d{background:var(--err-bg);color:var(--err)}.btn-d:hover{background:#fecaca}
+.btn-sm{padding:5px 10px;font-size:.8rem}
+.spinner{border:3px solid #e2e8f0;border-top:3px solid var(--pri);border-radius:50%;width:36px;height:36px;animation:spin .8s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#login-section{text-align:center;padding:40px 20px}
+#login-section p{color:var(--t2);margin-bottom:20px}
+.login-btn{background:var(--pri);color:#fff;border:none;padding:12px 28px;border-radius:8px;font-size:1rem;cursor:pointer;font-weight:600}
+.login-btn:hover{background:var(--pri-dk)}
+#login-error{color:var(--err);margin-top:14px;display:none;white-space:pre-line;font-size:.9rem}
+.folder-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:12px}
+.folder-card{border:2px solid var(--brd);border-radius:12px;padding:20px;text-align:center;cursor:pointer;transition:all .15s}
+.folder-card:hover{border-color:var(--pri);transform:translateY(-2px);box-shadow:0 4px 12px rgba(0,0,0,.08)}
+.folder-card .ico{font-size:2.5rem;margin-bottom:8px}
+.folder-card h3{font-size:.95rem;font-weight:700;margin-bottom:4px}
+.folder-card p{font-size:.78rem;color:var(--t3)}
+.li{border:1px solid var(--brd);border-radius:var(--r);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;transition:border-color .15s;cursor:pointer}
+.li:hover{border-color:var(--pri)}
+.li-info h3{font-size:.9rem;font-weight:600;margin-bottom:2px}
+.li-info p{font-size:.78rem;color:var(--t3)}
+.li-info .tag{display:inline-block;font-size:.68rem;padding:2px 8px;border-radius:10px;font-weight:600;margin-right:4px}
+.tag-tpl{background:#d1fae5;color:#065f46}.tag-gen{background:#dbeafe;color:#1e40af}.tag-spec{background:#e0e7ff;color:#3730a3;font-family:monospace}
+.li-acts{display:flex;gap:6px}
+.empty{text-align:center;padding:40px;color:var(--t3)}.empty .ico{font-size:2rem;margin-bottom:8px}
+.quick-box{background:linear-gradient(135deg,#eff6ff,#f0fdf4);border:2px solid #bfdbfe;border-radius:12px;padding:20px;margin-bottom:16px}
+.quick-box h3{font-size:.95rem;font-weight:700;color:var(--pri);margin-bottom:12px}
+.quick-row{display:flex;gap:8px;margin-bottom:10px}
+.quick-row input{flex:1;padding:12px 14px;border:2px solid var(--pri);border-radius:8px;font-size:1rem;font-weight:600;font-family:monospace}
+.quick-row input:focus{outline:none;border-color:var(--pri-dk)}
+.batch-area{width:100%;padding:10px 12px;border:1.5px solid var(--brd);border-radius:8px;font-size:.9rem;font-family:monospace;min-height:80px;resize:vertical}
+.batch-area:focus{outline:none;border-color:var(--focus)}
+.quick-hint{font-size:.78rem;color:var(--t2);margin-top:6px}
+.efl{margin-bottom:16px}.efl label{display:block;font-size:.8rem;font-weight:600;color:var(--t2);margin-bottom:6px}
+.efl input,.efl select,.efl textarea{width:100%;padding:10px 12px;border:1.5px solid var(--brd);border-radius:8px;font-size:.9rem}
+.efl input:focus,.efl select:focus,.efl textarea:focus{outline:none;border-color:var(--focus)}
+.efl-row{display:flex;gap:12px;flex-wrap:wrap}.efl-row .efl{flex:1;min-width:140px}
+.rule-card{border:1.5px solid var(--brd);border-radius:var(--r);margin-bottom:12px;overflow:hidden}
+.rule-header{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#f8fafc;border-bottom:1px solid var(--brd)}
+.rule-header input{border:none;background:transparent;font-size:.85rem;font-weight:700;flex:1;padding:2px 4px}
+.rule-header input:focus{outline:none;background:#fff;border-radius:4px}
+.rule-body{padding:14px}
+.stbl{width:100%;border-collapse:collapse;font-size:.83rem}
+.stbl th{text-align:left;font-size:.72rem;font-weight:600;color:var(--t3);text-transform:uppercase;padding:6px 8px;border-bottom:2px solid var(--brd)}
+.stbl td{padding:5px 8px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.stbl input{padding:5px 7px;border:1.5px solid var(--brd);border-radius:6px;font-size:.83rem;width:100%}
+.stbl input:focus{outline:none;border-color:var(--focus)}
+.stbl .pn-in{font-family:monospace;font-weight:500}
+.stbl .qty-in{width:55px;text-align:center}
+.stbl .form-in{font-family:monospace;font-size:.8rem;background:#eff6ff;color:var(--pri);font-weight:500}
+.stbl .act{width:30px;text-align:center}
+.stbl .dbtn{background:none;border:none;color:var(--t3);cursor:pointer;font-size:.9rem}.stbl .dbtn:hover{color:var(--err)}
+.add-row{padding:6px;width:100%;border:none;background:#fafbfc;color:var(--pri);font-size:.82rem;font-weight:600;cursor:pointer;border-top:1px solid var(--brd)}.add-row:hover{background:var(--pri-bg)}
+.formula-help{font-size:.75rem;color:var(--t2);background:#f8fafc;padding:8px 12px;border-radius:6px;margin-top:8px}
+.formula-help code{background:#e0e7ff;padding:1px 4px;border-radius:3px;font-size:.75rem}
+.gen-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;padding:14px 16px;background:var(--pri-bg);border-radius:var(--r)}
+.gen-bar label{font-size:.85rem;font-weight:600}
+.gen-bar input[type="number"]{width:70px;padding:8px 10px;border:1.5px solid var(--brd);border-radius:8px;font-size:1rem;text-align:center;font-weight:600}
+.gen-bar input:focus{outline:none;border-color:var(--focus)}
+.ph{margin-bottom:16px}.ph h2{font-size:1.15rem;font-weight:700;margin-bottom:4px}
+.ph .meta{font-size:.85rem;color:var(--t2);display:flex;gap:16px;flex-wrap:wrap}
+.pt{width:100%;border-collapse:collapse;font-size:.85rem}
+.pt th{text-align:left;padding:8px 10px;background:#f8fafc;border:1px solid var(--brd);font-weight:700;font-size:.76rem;text-transform:uppercase;color:var(--t2)}
+.pt td{padding:8px 10px;border:1px solid var(--brd)}
+.pt .ck{width:32px;text-align:center}.pt .ck input{width:15px;height:15px;cursor:pointer}
+.pt .nm{width:32px;text-align:center;color:var(--t3);font-weight:600}
+.pt .pnc{font-family:monospace;font-weight:500;white-space:nowrap}
+.pt .qc{width:55px;text-align:center;font-weight:600}
+.pt .miss{background:var(--miss)}
+.pt .miss-in{background:var(--miss);border:1px dashed #d4a017;padding:3px 5px;border-radius:4px;font-size:.83rem;width:100%}
+.pt .cmt{color:var(--t2);font-size:.78rem;font-style:italic}
+.pt tr.sec-row td{background:var(--pri);color:#fff;font-weight:700;font-size:.83rem;padding:5px 10px}
+.status{padding:10px 14px;border-radius:8px;margin-top:12px;text-align:center;font-size:.9rem;display:none}
+.status.success{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-brd);display:block}
+.status.error{background:var(--err-bg);color:var(--err);border:1px solid var(--err-brd);display:block}
+.status.loading{background:var(--pri-bg);color:var(--pri);display:block}
+@media print{body{background:#fff}.bar,.gen-bar,.no-print,.bread{display:none!important}.shell{max-width:100%;padding:0}.card{box-shadow:none;padding:0;border-radius:0}.pt{font-size:9pt}.pt th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pt .miss,.pt .miss-in{background:#fef9c3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pt tr.sec-row td{background:#333!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@media(max-width:600px){.shell{padding:10px}.bar{padding:12px 14px}.card{padding:14px}.shdr{flex-direction:column;align-items:flex-start}.folder-grid{grid-template-columns:1fr 1fr}.li{flex-direction:column;align-items:flex-start;gap:8px}.li-acts{width:100%}.li-acts .btn{flex:1;justify-content:center}.gen-bar{flex-direction:column;align-items:flex-start}.quick-row{flex-direction:column}.efl-row{flex-direction:column}}
+    </style>
+</head>
+<body>
+<div class="shell">
+    <div class="bar">
+        <div class="bar-left">
+            <a href="index.html" class="nbtn">📦 出庫依頼</a>
+            <h1 id="pg-title">📋 ピックリスト</h1>
+        </div>
+        <div class="bar-right" id="bar-right" style="display:none">
+            <span class="chip" id="user-chip"></span>
+            <button class="lbtn" onclick="handleLogout()">ログアウト</button>
+        </div>
+    </div>
+    <div class="bread" id="breadcrumb"></div>
+    <div class="card" id="loading-section"><div style="text-align:center;padding:40px"><div class="spinner"></div><p style="color:var(--t3)">読み込み中...</p></div></div>
+    <div class="card" id="login-section" style="display:none"><div style="text-align:center;padding:30px"><p>Googleアカウントでログインしてください</p><button class="login-btn" onclick="handleGoogleLogin()">Googleでログイン</button><p id="login-error"></p></div></div>
+    <div id="v-folders" style="display:none"></div>
+    <div id="v-folder" style="display:none"></div>
+    <div id="v-tpl-editor" style="display:none"></div>
+    <div id="v-print" style="display:none"></div>
+</div>
+<script>
+// =====================================================
+// CONFIG
+// =====================================================
+const SB_URL='https://wylxvmkcrexwfpjpbhyy.supabase.co';
+const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak';
+const T={FOLDERS:'part_inventry_app_folders',TEMPLATES:'part_inventry_app_templates',GENERATED:'part_inventry_app_generated_lists',PARTS:'master_parts_list_all',ROLES:'authentication_mode_user_roles'};
+
+if(!window.supabase||!window.supabase.createClient){document.getElementById('loading-section').innerHTML='<div style="text-align:center;padding:40px;color:#b91c1c;">SDK読み込み失敗。リロードしてください。</div>';throw new Error('SDK fail');}
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
+
+// =====================================================
+// STATE
+// =====================================================
+let user=null; // {email,name,role,isAdmin}
+let folders=[],templates=[],generatedLists=[],partsCache=null;
+let currentView='loading',currentFolderId=null,currentTplId=null;
+let editTpl=null,printData=null,authReady=false;
+
+// =====================================================
+// AUTH
+// =====================================================
+window.onload=function(){
+    sb.auth.onAuthStateChange(async(ev,session)=>{
+        if(session&&session.user&&(ev==='SIGNED_IN'||ev==='TOKEN_REFRESHED'||ev==='INITIAL_SESSION')){await checkRole(session.user);authReady=true;}
+        else if(ev==='SIGNED_OUT'||(ev==='INITIAL_SESSION'&&!session)){user=null;authReady=true;showAuth('login');}
+    });
+    setTimeout(()=>{if(!authReady)showAuth('login');},4000);
+};
+
+async function handleGoogleLogin(){
+    const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+window.location.pathname,queryParams:{access_type:'offline',prompt:'consent'}}});
+    if(error){const e=document.getElementById('login-error');e.textContent='ログイン失敗: '+error.message;e.style.display='block';}
+}
+async function checkRole(u){
+    try{
+        const{data,error}=await sb.from(T.ROLES).select('name,role').eq('email',u.email).single();
+        if(error||!data){await sb.auth.signOut();const e=document.getElementById('login-error');e.textContent=`アクセス拒否。\n${u.email} は許可されていません。`;e.style.display='block';showAuth('login');return;}
+        user={email:u.email,name:data.name||u.email,role:data.role,isAdmin:data.role==='admin'};
+        document.getElementById('user-chip').innerHTML=`${esc(user.name)}<span class="rt">${user.role}</span>`;
+        document.getElementById('bar-right').style.display='flex';
+        await loadAll();
+        nav('folders');
+    }catch(e){console.error(e);showAuth('login');}
+}
+async function handleLogout(){await sb.auth.signOut();user=null;folders=[];templates=[];generatedLists=[];partsCache=null;document.getElementById('bar-right').style.display='none';}
+function showAuth(v){
+    document.getElementById('loading-section').style.display=v==='loading'?'block':'none';
+    document.getElementById('login-section').style.display=v==='login'?'block':'none';
+    ['v-folders','v-folder','v-tpl-editor','v-print'].forEach(id=>document.getElementById(id).style.display='none');
+}
+
+// =====================================================
+// DATA LOADING
+// =====================================================
+async function loadAll(){
+    const[f,t,g]=await Promise.all([
+        sb.from(T.FOLDERS).select('*').order('sort_order'),
+        sb.from(T.TEMPLATES).select('*').order('created_at'),
+        sb.from(T.GENERATED).select('*').order('created_at',{ascending:false})
+    ]);
+    folders=f.data||[];templates=t.data||[];generatedLists=g.data||[];
+}
+async function loadParts(){
+    if(partsCache)return;
+    partsCache={};
+    const{data}=await sb.from(T.PARTS).select('pn,name,location,temp_location');
+    if(data)data.forEach(p=>{partsCache[p.pn]=p;});
+}
+
+// =====================================================
+// SEGMENT CALC
+// =====================================================
+function suggestSegs(len){
+    const tgt=Math.round(len*100);let best=null,bc=Infinity;
+    for(let n15=Math.floor(tgt/150);n15>=0;n15--)for(let n10=Math.floor((tgt-n15*150)/100);n10>=0;n10--){
+        const rem=tgt-n15*150-n10*100;if(rem>=0&&rem%25===0){const n025=rem/25,tot=n15+n10+n025;if(tot<bc){bc=tot;best={1.5:n15,1:n10,0.25:n025};}}}
+    return best||{1.5:0,1:0,0.25:0};
+}
+function evalF(formula,params,lookups){
+    try{
+        // Resolve ALL LOOKUP(tableName) calls within the formula
+        let f=formula.replace(/LOOKUP\((\w+)\)/g,(match,tblName)=>{
+            if(!lookups||!lookups[tblName]||!lookups[tblName].data)return '0';
+            const tbl=lookups[tblName];
+            const keys=(tbl.keys||[]).map(k=>params[k]);
+            const key=keys.join('/');
+            const val=tbl.data[key];
+            return typeof val==='number'?String(val):String(parseFloat(val)||0);
+        });
+        // Replace segment/length variables
+        const s=params.segments||{0.25:0,1:0,1.5:0},ts=s[0.25]+s[1]+s[1.5];
+        f=f.replace(/SEGS/g,ts).replace(/S025/g,s[0.25]).replace(/S100/g,s[1]).replace(/S150/g,s[1.5]).replace(/LENGTH/g,params.length||0).replace(/CABLE/g,params.cableLength||0);
+        return Math.round(Function('"use strict";return ('+f+')')());
+    }catch(e){return 0;}
+}
+function resolveTemplate(tpl,params){
+    const segs=suggestSegs(params.length||0);params.segments=segs;
+    const lookups=tpl.lookups||{};
+    const resolved=[];
+    (tpl.sections||[]).forEach(sec=>{
+        const items=[];
+        (sec.items||[]).forEach(item=>{
+            let pn=item.pn;let qty=item.qty||0;
+            if(item.switchField&&item.switchMap){try{const map=typeof item.switchMap==='string'?JSON.parse(item.switchMap):item.switchMap;const val=params[item.switchField];if(map[val])pn=map[val];}catch(e){}}
+            if(item.formula)qty=evalF(item.formula,params,lookups);
+            items.push({pn,qty,comment:item.comment||''});
+        });
+        resolved.push({name:sec.name,badge:sec.badge,items});
+    });
+    return{sections:resolved,segments:segs};
+}
+function parseSpec(spec){
+    const p=spec.trim().split('/').map(s=>s.trim());if(p.length<2)return null;
+    const length=parseFloat(p[0]);if(isNaN(length)||length<=0)return null;
+    return{length,asmType:p[1].toUpperCase()==='MR'?'MR':'STD',cableLength:p[2]?parseFloat(p[2].replace(/m$/i,''))||0:0};
+}
+
+// =====================================================
+// NAVIGATION
+// =====================================================
+function nav(view,opts={}){
+    currentView=view;showAuth('hide');
+    document.getElementById('loading-section').style.display='none';
+    document.getElementById('login-section').style.display='none';
+    ['v-folders','v-folder','v-tpl-editor','v-print'].forEach(id=>document.getElementById(id).style.display='none');
+    switch(view){
+        case'folders':currentFolderId=null;renderFolders();break;
+        case'folder':currentFolderId=opts.folderId;renderFolder();break;
+        case'tpl-editor':currentTplId=opts.tplId||null;renderTplEditor();break;
+        case'print':printData=opts.data;renderPrint();break;
+    }
+    renderBread();
+}
+function renderBread(){
+    const el=document.getElementById('breadcrumb');
+    let p=['<a onclick="nav(\'folders\')">🏠 フォルダ</a>'];
+    if(currentFolderId){const f=folders.find(f=>f.id===currentFolderId);if(f)p.push(`<span class="sep">›</span><a onclick="nav('folder',{folderId:${f.id}})">${esc(f.icon+' '+f.name)}</a>`);}
+    if(currentView==='tpl-editor')p.push('<span class="sep">›</span><span>テンプレート編集</span>');
+    if(currentView==='print')p.push('<span class="sep">›</span><span>印刷プレビュー</span>');
+    el.innerHTML=p.join('');
+}
+
+// =====================================================
+// FOLDERS VIEW
+// =====================================================
+function renderFolders(){
+    const el=document.getElementById('v-folders');el.style.display='block';
+    el.innerHTML=`<div class="card"><div class="shdr"><h2>フォルダ一覧</h2></div>
+        <div class="folder-grid">${folders.map(f=>{
+            const tc=templates.filter(t=>t.folder_id===f.id).length;
+            const gc=generatedLists.filter(g=>g.folder_id===f.id).length;
+            return`<div class="folder-card" onclick="nav('folder',{folderId:${f.id}})"><div class="ico">${f.icon||'📁'}</div><h3>${esc(f.name)}</h3><p>${tc} テンプレート ・ ${gc} リスト</p></div>`;
+        }).join('')}${folders.length?'':'<div class="empty"><div class="ico">📁</div><p>フォルダがありません</p></div>'}</div></div>`;
+}
+
+// =====================================================
+// FOLDER CONTENTS
+// =====================================================
+function renderFolder(){
+    const el=document.getElementById('v-folder');el.style.display='block';
+    const f=folders.find(f=>f.id===currentFolderId);
+    if(!f){el.innerHTML='<div class="card empty">フォルダが見つかりません</div>';return;}
+    const tpls=templates.filter(t=>t.folder_id===f.id);
+    const gens=generatedLists.filter(g=>g.folder_id===f.id);
+
+    let quickHtml='';
+    if(tpls.length){
+        quickHtml=`<div class="quick-box no-print"><h3>⚡ クイック生成</h3>
+            <div class="quick-row"><input type="text" id="quick-input" placeholder="3.5/STD/10m" onkeydown="if(event.key==='Enter')quickGen()"><button class="btn btn-g" onclick="quickGen()">生成</button></div>
+            <details style="margin-top:8px"><summary style="font-size:.82rem;color:var(--t2);cursor:pointer">📋 一括生成</summary>
+                <textarea id="batch-input" class="batch-area" placeholder="3.5/STD/10m&#10;3.25/MR/8m" style="margin-top:8px"></textarea>
+                <button class="btn btn-g btn-sm" onclick="batchGen()" style="margin-top:6px">一括生成</button></details>
+            <div class="quick-hint">形式: 長さ/タイプ(STD|MR)/ケーブル長</div><div class="status" id="quick-status"></div></div>`;
+    }
+
+    let tplHtml=tpls.map(t=>{
+        const sc=(t.sections||[]).length,ic=(t.sections||[]).reduce((s,sec)=>s+(sec.items||[]).length,0);
+        return`<div class="li" onclick="nav('tpl-editor',{tplId:${t.id}})"><div class="li-info"><h3>${esc(t.name)}</h3><p><span class="tag tag-tpl">テンプレート</span>${sc}セクション ・ ${ic}アイテム</p></div>
+            <div class="li-acts" onclick="event.stopPropagation()">${user.isAdmin?`<button class="btn btn-s btn-sm" onclick="nav('tpl-editor',{tplId:${t.id}})">✏️ 編集</button><button class="btn btn-d btn-sm" onclick="delTpl(${t.id})">🗑️</button>`:`<button class="btn btn-s btn-sm" onclick="nav('tpl-editor',{tplId:${t.id}})">👁️ 表示</button>`}</div></div>`;
+    }).join('');
+    if(!tpls.length)tplHtml=`<div style="text-align:center;padding:16px;color:var(--t3)">${user.isAdmin?'<button class="btn btn-g btn-sm" onclick="nav(\'tpl-editor\')">＋ テンプレート作成</button>':'テンプレートがありません'}</div>`;
+
+    let genHtml=gens.length?gens.map(g=>{
+        const cnt=(g.sections||[]).reduce((s,sec)=>s+(sec.items||[]).length,0);
+        const created=g.created_at?new Date(g.created_at).toLocaleDateString('ja-JP'):'';
+        return`<div class="li" onclick="openPrint(${g.id})"><div class="li-info"><h3>${esc(g.name)}</h3><p><span class="tag tag-gen">生成済</span>${g.spec?`<span class="tag tag-spec">${esc(g.spec)}</span>`:''}${cnt}点 ・ ${created}</p></div>
+            <div class="li-acts" onclick="event.stopPropagation()"><button class="btn btn-s btn-sm" onclick="openPrint(${g.id})">🖨️</button><button class="btn btn-d btn-sm" onclick="delGen(${g.id})">🗑️</button></div></div>`;
+    }).join(''):'<div style="text-align:center;padding:16px;color:var(--t3);font-size:.85rem">クイック生成で仕様を入力してください</div>';
+
+    el.innerHTML=`${quickHtml}
+        <div class="card"><div class="shdr"><h2>📐 テンプレート</h2>${user.isAdmin?`<button class="btn btn-g btn-sm" onclick="nav('tpl-editor')">＋ 新規</button>`:''}</div>${tplHtml}</div>
+        <div class="card"><div class="shdr"><h2>📄 生成済みリスト</h2></div>${genHtml}</div>`;
+}
+
+async function delTpl(id){if(!confirm('テンプレートを削除しますか？'))return;await sb.from(T.TEMPLATES).delete().eq('id',id);templates=templates.filter(t=>t.id!==id);renderFolder();}
+async function delGen(id){if(!confirm('削除しますか？'))return;await sb.from(T.GENERATED).delete().eq('id',id);generatedLists=generatedLists.filter(g=>g.id!==id);renderFolder();}
+
+// =====================================================
+// QUICK / BATCH GENERATE
+// =====================================================
+async function quickGen(){
+    const input=document.getElementById('quick-input').value.trim();
+    if(!input){showSt('quick-status','仕様を入力してください','error');return;}
+    const tpl=templates.find(t=>t.folder_id===currentFolderId);
+    if(!tpl){showSt('quick-status','テンプレートがありません','error');return;}
+    const params=parseSpec(input);
+    if(!params){showSt('quick-status','形式エラー: 3.5/STD/10m','error');return;}
+    showSt('quick-status','生成中...','loading');
+    const result=resolveTemplate(tpl,params);
+    const name=`${tpl.name.replace('Template','').trim()} ${params.length}m ${params.asmType}`;
+    const{data,error}=await sb.from(T.GENERATED).insert({
+        template_id:tpl.id,folder_id:currentFolderId,name,spec:input,
+        params,segments:result.segments,sections:result.sections,created_by:user.name
+    }).select('*').single();
+    if(error){showSt('quick-status','エラー: '+error.message,'error');return;}
+    generatedLists.unshift(data);
+    document.getElementById('quick-input').value='';
+    showSt('quick-status',`✅ "${name}" を生成しました`,'success');
+    setTimeout(()=>{hideSt('quick-status');renderFolder();},800);
+}
+
+async function batchGen(){
+    const lines=(document.getElementById('batch-input').value||'').split('\n').map(l=>l.trim()).filter(l=>l);
+    if(!lines.length)return;
+    const tpl=templates.find(t=>t.folder_id===currentFolderId);
+    if(!tpl){showSt('quick-status','テンプレートがありません','error');return;}
+    showSt('quick-status','一括生成中...','loading');
+    let ok=0,fail=0;
+    for(const spec of lines){
+        const params=parseSpec(spec);
+        if(!params){fail++;continue;}
+        const result=resolveTemplate(tpl,params);
+        const name=`${tpl.name.replace('Template','').trim()} ${params.length}m ${params.asmType}`;
+        const{data,error}=await sb.from(T.GENERATED).insert({
+            template_id:tpl.id,folder_id:currentFolderId,name,spec,
+            params,segments:result.segments,sections:result.sections,created_by:user.name
+        }).select('*').single();
+        if(error){fail++;}else{generatedLists.unshift(data);ok++;}
+    }
+    document.getElementById('batch-input').value='';
+    showSt('quick-status',fail?`✅ ${ok}件生成、❌ ${fail}件エラー`:`✅ ${ok}件すべて生成`,(fail?'error':'success'));
+    setTimeout(()=>{hideSt('quick-status');renderFolder();},1000);
+}
+
+// =====================================================
+// TEMPLATE EDITOR
+// =====================================================
+function renderTplEditor(){
+    const el=document.getElementById('v-tpl-editor');el.style.display='block';
+    if(currentTplId){
+        const orig=templates.find(t=>t.id===currentTplId);
+        editTpl=JSON.parse(JSON.stringify(orig));
+    }else{
+        editTpl={id:null,folder_id:currentFolderId,name:'',lookups:{},sections:[{name:'Section 1',badge:'manual',items:[{pn:'',formula:'',qty:1,comment:''}]}]};
+    }
+    if(!editTpl.lookups)editTpl.lookups={};
+    renderTplContent();
+}
+function renderTplContent(){
+    const el=document.getElementById('v-tpl-editor');
+    const readOnly=!user.isAdmin;
+
+    // Lookup tables UI
+    const lookups=editTpl.lookups||{};
+    let lookupsHtml='';
+    const lookupNames=Object.keys(lookups);
+    if(lookupNames.length||!readOnly){
+
+        // Group lookups by prefix (sep_025,sep_075 → sep group)
+        const groups={};const standalone=[];
+        lookupNames.forEach(name=>{
+            const m=name.match(/^([a-z]+)_(\d+)$/);
+            if(m){const prefix=m[1];if(!groups[prefix])groups[prefix]=[];groups[prefix].push(name);}
+            else standalone.push(name);
+        });
+
+        let tablesHtml='';
+
+        // Render grouped tables (separator plates etc)
+        Object.entries(groups).forEach(([prefix,names])=>{
+            names.sort();
+            // Get column labels from lookup labels
+            const cols=names.map(n=>{const tbl=lookups[n];const label=(tbl.label||n).replace(/\(qty\)/i,'').trim();return{name:n,label};});
+            // Collect all unique keys
+            const allKeys=new Set();
+            names.forEach(n=>{Object.keys(lookups[n].data||{}).forEach(k=>allKeys.add(k));});
+            const sortedKeys=[...allKeys].sort((a,b)=>{
+                const na=parseFloat(a),nb=parseFloat(b);
+                if(!isNaN(na)&&!isNaN(nb))return na-nb;
+                return a.localeCompare(b);
+            });
+            // Only show non-zero rows? No, show all for editing
+            let rowsHtml=sortedKeys.map(k=>{
+                let totalPlates=0;
+                const cells=cols.map(col=>{
+                    const val=lookups[col.name].data[k]||0;
+                    totalPlates+=val;
+                    if(readOnly)return`<td style="text-align:center;font-weight:${val?'700':'400'};color:${val?'var(--t1)':'#ccc'}">${val}</td>`;
+                    return`<td style="text-align:center"><input type="number" value="${val}" min="0" style="width:50px;text-align:center;font-weight:600;padding:3px;border:1.5px solid var(--brd);border-radius:4px" onchange="editTpl.lookups['${col.name}'].data['${k}']=parseInt(this.value)||0;renderTplContent()"></td>`;
+                }).join('');
+                const screws=totalPlates*2;
+                return`<tr><td><code style="font-size:.82rem;font-weight:600">${esc(k)}</code></td>${cells}<td style="text-align:center;font-weight:700;color:var(--pri)">${totalPlates}</td><td style="text-align:center;font-weight:700;color:var(--grn)">${screws}</td></tr>`;
+            }).join('');
+
+            const groupLabel=prefix==='sep'?'Rail Separator Plates':prefix.toUpperCase();
+            tablesHtml+=`<div class="rule-card" style="margin-bottom:12px">
+                <div class="rule-header"><span style="font-weight:700;font-size:.85rem">📊 ${groupLabel}</span><span style="font-size:.72rem;color:var(--t3);margin-left:8px">Formulas: ${names.map(n=>'LOOKUP('+n+')').join(', ')}</span></div>
+                <div class="rule-body"><div style="overflow-x:auto">
+                    <table class="stbl"><thead><tr><th>Length/Type</th>${cols.map(c=>`<th style="text-align:center">${esc(c.label)}</th>`).join('')}<th style="text-align:center;color:var(--pri)">Total</th><th style="text-align:center;color:var(--grn)">Screws</th></tr></thead>
+                    <tbody>${rowsHtml}</tbody></table></div>
+                    ${readOnly?'':`<div style="display:flex;gap:6px;margin-top:8px;align-items:center">
+                        <input type="text" id="lk-grp-key-${prefix}" placeholder="例: 5.75/MR" style="flex:1;padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:.83rem;font-family:monospace">
+                        <button class="btn btn-s btn-sm" onclick="addGroupRow('${prefix}')">＋ 行を追加</button>
+                    </div>`}
+                </div></div>`;
+        });
+
+        // Render standalone lookups (cc_links, cc_length_mm) as pivot tables
+        standalone.forEach(name=>{
+            const tbl=lookups[name];
+            const keys=tbl.keys||[];
+            const data=tbl.data||{};
+            const hasTwoKeys=keys.length>=2;
+
+            if(hasTwoKeys){
+                // Pivot: rows = first key (length), cols = second key values (STD, MR)
+                const rowKeys=new Set();const colKeys=new Set();
+                Object.keys(data).forEach(k=>{const p=k.split('/');rowKeys.add(p[0]);if(p[1])colKeys.add(p[1]);});
+                const sortedRows=[...rowKeys].sort((a,b)=>parseFloat(a)-parseFloat(b));
+                const sortedCols=[...colKeys].sort();
+
+                let rowsHtml=sortedRows.map(rk=>{
+                    const cells=sortedCols.map(ck=>{
+                        const key=rk+'/'+ck;const val=data[key];
+                        if(readOnly)return`<td style="text-align:center;font-weight:600">${val!==undefined?val:'-'}</td>`;
+                        return`<td style="text-align:center"><input type="number" value="${val||0}" style="width:70px;text-align:center;font-weight:600;padding:3px;border:1.5px solid var(--brd);border-radius:4px" onchange="editTpl.lookups['${name}'].data['${rk+'/'+ck}']=parseFloat(this.value)||0"></td>`;
+                    }).join('');
+                    return`<tr><td><code style="font-size:.82rem;font-weight:600">${esc(rk)}m</code></td>${cells}</tr>`;
+                }).join('');
+
+                tablesHtml+=`<div class="rule-card" style="margin-bottom:12px">
+                    <div class="rule-header">
+                        <span style="font-weight:700;font-size:.85rem">📊 ${esc(tbl.label||name)}</span>
+                        <span style="font-size:.72rem;color:var(--t3);margin-left:8px">Formula: LOOKUP(${name})</span>
+                        ${readOnly?'':`<button class="dbtn" onclick="delete editTpl.lookups['${name}'];renderTplContent()" style="margin-left:8px">🗑️</button>`}
+                    </div>
+                    <div class="rule-body"><div style="overflow-x:auto">
+                        <table class="stbl"><thead><tr><th>Length</th>${sortedCols.map(c=>`<th style="text-align:center">${esc(c)}</th>`).join('')}</tr></thead>
+                        <tbody>${rowsHtml}</tbody></table></div>
+                        ${readOnly?'':`<div style="display:flex;gap:6px;margin-top:8px">
+                            <input type="text" id="lk-key-${name}" placeholder="${keys.join('/')}" style="flex:1;padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:.83rem;font-family:monospace">
+                            <input type="text" id="lk-val-${name}" placeholder="値" style="width:80px;padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:.83rem;text-align:center">
+                            <button class="btn btn-s btn-sm" onclick="addLookupEntry('${name}')">＋</button>
+                        </div>`}
+                    </div></div>`;
+            } else {
+                // Simple key→value list
+                const entries=Object.entries(data).sort((a,b)=>a[0].localeCompare(b[0]));
+                let rowsHtml=entries.map(([k,v])=>`<tr>
+                    <td><code style="font-size:.8rem">${esc(k)}</code></td>
+                    <td>${readOnly?`<b>${v}</b>`:`<input type="text" value="${esc(String(v))}" onchange="editTpl.lookups['${name}'].data['${esc(k)}']=isNaN(this.value)?this.value:parseFloat(this.value)" style="width:80px;text-align:center;font-weight:600">`}</td>
+                </tr>`).join('');
+                tablesHtml+=`<div class="rule-card" style="margin-bottom:12px">
+                    <div class="rule-header"><span style="font-weight:700;font-size:.85rem">📊 ${esc(tbl.label||name)}</span>
+                        ${readOnly?'':`<button class="dbtn" onclick="delete editTpl.lookups['${name}'];renderTplContent()" style="margin-left:8px">🗑️</button>`}</div>
+                    <div class="rule-body"><table class="stbl"><thead><tr><th>キー</th><th style="width:90px">値</th></tr></thead><tbody>${rowsHtml}</tbody></table>
+                        <div class="formula-help" style="margin-top:6px">Formula: <code>LOOKUP(${name})</code></div>
+                    </div></div>`;
+            }
+        });
+
+        let addLookupBtn=readOnly?'':`<button class="btn btn-s btn-sm" onclick="addLookupTable()" style="margin-bottom:12px">＋ Lookup テーブル追加</button>`;
+        lookupsHtml=`<h3 style="font-size:.9rem;font-weight:700;margin:20px 0 12px;display:flex;align-items:center;gap:8px">📊 Lookup テーブル <span style="font-size:.72rem;font-weight:500;color:var(--t3)">(長さ・タイプから自動参照)</span></h3>${tablesHtml}${addLookupBtn}`;
+    }
+
+    let sectionsHtml=(editTpl.sections||[]).map((sec,si)=>{
+        const badge=sec.badge||'manual';const isAuto=badge==='auto';
+        let headers=isAuto?'<th>P/N</th><th style="width:50px">Formula</th><th>Comment</th><th>Switch</th><th class="act"></th>':'<th>P/N</th><th style="width:55px">Qty</th><th>Comment</th><th class="act"></th>';
+        let rows=(sec.items||[]).map((item,ii)=>{
+            if(isAuto)return`<tr><td><input class="pn-in" value="${esc(item.pn)}" onchange="editTpl.sections[${si}].items[${ii}].pn=this.value.trim()" ${readOnly?'readonly':''}></td><td><input class="form-in" value="${esc(item.formula||'')}" onchange="editTpl.sections[${si}].items[${ii}].formula=this.value" ${readOnly?'readonly':''}></td><td><input value="${esc(item.comment||'')}" onchange="editTpl.sections[${si}].items[${ii}].comment=this.value" ${readOnly?'readonly':''}></td><td><input value="${esc(typeof item.switchMap==='object'?JSON.stringify(item.switchMap):item.switchMap||'')}" onchange="editTpl.sections[${si}].items[${ii}].switchMap=this.value;editTpl.sections[${si}].items[${ii}].switchField=this.value?'asmType':''" style="font-size:.75rem;font-family:monospace" ${readOnly?'readonly':''}></td><td class="act">${readOnly?'':`<button class="dbtn" onclick="editTpl.sections[${si}].items.splice(${ii},1);renderTplContent()">✕</button>`}</td></tr>`;
+            else return`<tr><td><input class="pn-in" value="${esc(item.pn)}" onchange="editTpl.sections[${si}].items[${ii}].pn=this.value.trim()" ${readOnly?'readonly':''}></td><td><input class="qty-in" type="number" value="${item.qty||1}" min="1" onchange="editTpl.sections[${si}].items[${ii}].qty=parseInt(this.value)||1" ${readOnly?'readonly':''}></td><td><input value="${esc(item.comment||'')}" onchange="editTpl.sections[${si}].items[${ii}].comment=this.value" ${readOnly?'readonly':''}></td><td class="act">${readOnly?'':`<button class="dbtn" onclick="editTpl.sections[${si}].items.splice(${ii},1);renderTplContent()">✕</button>`}</td></tr>`;
+        }).join('');
+        let badgeSelect=readOnly?`<span style="font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:6px;background:${badge==='auto'?'#d1fae5':badge==='fixed'?'#e0e7ff':'#fef3c7'}">${badge.toUpperCase()}</span>`:`<select onchange="editTpl.sections[${si}].badge=this.value;renderTplContent()" style="font-size:.72rem;padding:2px 6px;border:1px solid var(--brd);border-radius:6px;font-weight:600"><option value="auto" ${badge==='auto'?'selected':''}>AUTO</option><option value="fixed" ${badge==='fixed'?'selected':''}>FIXED</option><option value="manual" ${badge==='manual'?'selected':''}>MANUAL</option></select>`;
+        return`<div class="rule-card"><div class="rule-header"><input type="text" value="${esc(sec.name)}" onchange="editTpl.sections[${si}].name=this.value" ${readOnly?'readonly':''}>${badgeSelect}${readOnly?'':`<button class="dbtn" onclick="if(confirm('セクション削除？')){editTpl.sections.splice(${si},1);renderTplContent()}" style="margin-left:8px">🗑️</button>`}</div><div class="rule-body"><table class="stbl"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>${readOnly?'':`<button class="add-row" onclick="editTpl.sections[${si}].items.push({pn:'',formula:'',qty:1,comment:''});renderTplContent()">＋ 行を追加</button>`}${isAuto&&!readOnly?`<div class="formula-help"><b>変数:</b> <code>SEGS</code>=総本数 <code>S025</code>=0.25m <code>S100</code>=1m <code>S150</code>=1.5m <code>LENGTH</code>=総長 <code>CABLE</code>=ケーブル長<br><b>Switch:</b> <code>{"STD":"PN-A","MR":"PN-B"}</code><br><b>Lookup:</b> <code>LOOKUP(テーブル名)</code></div>`:''}</div></div>`;
+    }).join('');
+    let addBtns=readOnly?'':`<div style="display:flex;gap:8px;margin:12px 0" class="no-print"><button class="btn btn-s btn-sm" onclick="editTpl.sections.push({name:'New Section',badge:'auto',items:[]});renderTplContent()">＋ Auto</button><button class="btn btn-s btn-sm" onclick="editTpl.sections.push({name:'New Section',badge:'fixed',items:[]});renderTplContent()">＋ Fixed</button><button class="btn btn-s btn-sm" onclick="editTpl.sections.push({name:'New Section',badge:'manual',items:[]});renderTplContent()">＋ Manual</button></div>`;
+    let saveBtns=readOnly?`<div style="margin-top:16px"><button class="btn btn-s" onclick="nav('folder',{folderId:currentFolderId})">← 戻る</button></div>`:`<div class="status" id="tpl-status"></div><div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn btn-p" onclick="saveTpl()">💾 保存</button><button class="btn btn-s" onclick="nav('folder',{folderId:currentFolderId})">キャンセル</button></div>`;
+    el.innerHTML=`<div class="card"><div class="shdr no-print"><h2>${editTpl.id?'✏️ テンプレート編集':'＋ テンプレート作成'}</h2></div><div class="efl"><label>テンプレート名</label><input type="text" id="tpl-name" value="${esc(editTpl.name)}" onchange="editTpl.name=this.value.trim()" ${readOnly?'readonly':''}></div>${lookupsHtml}<h3 style="font-size:.9rem;font-weight:700;margin-bottom:12px">セクション定義</h3>${sectionsHtml}${addBtns}${saveBtns}</div>`;
+}
+
+function addLookupTable(){
+    const name=prompt('Lookup テーブル名 (英数字, 例: cc_links)');
+    if(!name||!/^\w+$/.test(name))return;
+    if(!editTpl.lookups)editTpl.lookups={};
+    const keysStr=prompt('キー項目 (カンマ区切り, 例: length,asmType)','length,asmType');
+    const keys=(keysStr||'length').split(',').map(k=>k.trim());
+    editTpl.lookups[name]={label:name,keys,data:{}};
+    renderTplContent();
+}
+function addLookupEntry(name){
+    const keyInput=document.getElementById('lk-key-'+name);
+    const valInput=document.getElementById('lk-val-'+name);
+    if(!keyInput||!valInput)return;
+    const key=keyInput.value.trim();const valRaw=valInput.value.trim();
+    if(!key||!valRaw)return;
+    const val=isNaN(valRaw)?valRaw:parseFloat(valRaw);
+    editTpl.lookups[name].data[key]=val;
+    keyInput.value='';valInput.value='';
+    renderTplContent();
+}
+function addGroupRow(prefix){
+    const keyInput=document.getElementById('lk-grp-key-'+prefix);
+    if(!keyInput)return;
+    const key=keyInput.value.trim();
+    if(!key)return;
+    // Add key with 0 value to all tables in the group
+    Object.keys(editTpl.lookups).forEach(name=>{
+        if(name.startsWith(prefix+'_')){
+            editTpl.lookups[name].data[key]=0;
+        }
+    });
+    keyInput.value='';
+    renderTplContent();
+}
+
+async function saveTpl(){
+    editTpl.name=document.getElementById('tpl-name').value.trim();
+    if(!editTpl.name){showSt('tpl-status','テンプレート名を入力してください','error');return;}
+    showSt('tpl-status','保存中...','loading');
+    try{
+        const payload={name:editTpl.name,sections:editTpl.sections,lookups:editTpl.lookups||{},updated_at:new Date().toISOString()};
+        if(editTpl.id){
+            const{error}=await sb.from(T.TEMPLATES).update(payload).eq('id',editTpl.id);
+            if(error)throw error;
+            const idx=templates.findIndex(t=>t.id===editTpl.id);if(idx>=0)templates[idx]={...templates[idx],...payload};
+        }else{
+            const{data,error}=await sb.from(T.TEMPLATES).insert({folder_id:currentFolderId,...payload,created_by:user.name}).select('*').single();
+            if(error)throw error;templates.push(data);
+        }
+        showSt('tpl-status','✅ 保存しました','success');
+        setTimeout(()=>nav('folder',{folderId:currentFolderId}),600);
+    }catch(e){showSt('tpl-status','エラー: '+e.message,'error');}
+}
+
+// =====================================================
+// PRINT VIEW
+// =====================================================
+async function openPrint(genId){
+    const g=generatedLists.find(g=>g.id===genId);
+    if(!g)return;
+    await loadParts();
+    nav('print',{data:g});
+}
+function renderPrint(){
+    const el=document.getElementById('v-print');el.style.display='block';regenPrint();}
+function regenPrint(){
+    const g=printData;if(!g)return;
+    const el=document.getElementById('v-print');
+    const mul=parseInt((document.getElementById('mul-input')||{}).value)||1;
+    const now=new Date(),ds=`${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
+    const totalItems=(g.sections||[]).reduce((s,sec)=>s+(sec.items||[]).length,0);
+    let meta=`<span>📅 ${ds}</span><span>×${mul} 倍率</span><span>${totalItems}品目</span>`;
+    if(g.spec)meta+=`<span>仕様: <b>${esc(g.spec)}</b></span>`;
+    if(g.params){meta+=`<span>Rail: ${g.params.length}m</span><span>Type: ${g.params.asmType}</span>`;if(g.params.cableLength)meta+=`<span>Cable: ${g.params.cableLength}m</span>`;}
+    if(g.segments){const s=g.segments;meta+=`<span>構成: 1.5m×${s['1.5']||0}+1m×${s['1']||0}+0.25m×${s['0.25']||0}</span>`;}
+    let h=`<thead><tr><th class="ck">☐</th><th class="nm">#</th><th>部品番号</th><th>物品名</th><th class="qc">数量</th><th>保管場所</th><th>コメント</th></tr></thead><tbody>`;
+    let n=1;
+    (g.sections||[]).forEach(sec=>{
+        h+=`<tr class="sec-row"><td colspan="7">${esc(sec.name)}</td></tr>`;
+        (sec.items||[]).forEach(item=>{
+            if(!item.pn)return;
+            const p=partsCache?partsCache[item.pn]:null;const nm=p?.name||'';const loc=p?.location||'';const tmp=p?.temp_location||'';
+            const fullLoc=tmp?`${loc} (仮: ${tmp})`:loc;
+            const qty=(item.qty||1)*mul;
+            h+=`<tr><td class="ck"><input type="checkbox"></td><td class="nm">${n++}</td><td class="pnc">${esc(item.pn)}</td><td class="${!nm?'miss':''}">${!nm?'<input type="text" class="miss-in" placeholder="手動入力">':esc(nm)}</td><td class="qc">${qty}</td><td class="${!fullLoc?'miss':''}">${!fullLoc?'<input type="text" class="miss-in" placeholder="手動入力">':esc(fullLoc)}</td><td class="cmt">${esc(item.comment||'')}</td></tr>`;
+        });
+    });
+    h+='</tbody>';
+    el.innerHTML=`<div class="gen-bar no-print"><label>数量倍率:</label><input type="number" id="mul-input" value="${mul}" min="1" onchange="regenPrint()"><button class="btn btn-p" onclick="window.print()">🖨️ 印刷</button><button class="btn btn-s" onclick="nav('folder',{folderId:currentFolderId})">← 戻る</button></div><div class="card"><div class="ph"><h2>${esc(g.name)}</h2><div class="meta">${meta}</div></div><table class="pt">${h}</table></div>`;
+}
+
+// =====================================================
+// HELPERS
+// =====================================================
+function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function showSt(id,m,t){const e=document.getElementById(id);if(!e)return;e.textContent=m;e.className='status '+t;}
+function hideSt(id){const e=document.getElementById(id);if(e)e.className='status';}
+</script>
+</body>
+</html>
