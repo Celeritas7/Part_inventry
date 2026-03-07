@@ -1,0 +1,326 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ピックリスト生成</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--primary:#2563eb;--primary-dark:#1e40af;--primary-light:#60a5fa;--primary-bg:rgba(37,99,235,.08);--primary-bg-hover:rgba(37,99,235,.14);--accent:#2563eb;--accent-hover:#1d4ed8;--card-bg:#fff;--text-primary:#1e293b;--text-secondary:#64748b;--text-muted:#94a3b8;--border-color:#e2e8f0;--input-focus:#2563eb;--success-bg:#f0fdf4;--success-text:#15803d;--success-border:#bbf7d0;--error-bg:#fef2f2;--error-text:#b91c1c;--error-border:#fecaca;--warning-bg:#fffbeb;--warning-text:#b45309;--highlight-missing:#fef9c3;--radius:10px}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,'Helvetica Neue',Arial,sans-serif;background:#f1f5f9;min-height:100vh;color:var(--text-primary)}
+.app-shell{max-width:900px;margin:0 auto;padding:16px}
+.app-bar{background:#fff;border-radius:var(--radius);padding:16px 20px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.app-bar-left{display:flex;align-items:center;gap:10px}
+.app-bar h1{font-size:1.15rem;font-weight:700}
+.nav-btn{background:var(--primary-bg);border:none;border-radius:8px;padding:6px 12px;font-size:.85rem;cursor:pointer;color:var(--primary);font-weight:600;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:4px}
+.nav-btn:hover{background:var(--primary-bg-hover)}
+.app-bar-right{display:flex;align-items:center;gap:10px}
+.user-chip{font-size:.8rem;color:var(--text-secondary);background:#f8fafc;padding:4px 10px;border-radius:20px;border:1px solid var(--border-color)}
+.user-chip .role-tag{font-weight:600;color:var(--primary);margin-left:4px}
+.logout-btn{background:none;border:1px solid var(--border-color);color:var(--text-secondary);padding:5px 10px;border-radius:6px;font-size:.75rem;cursor:pointer}
+.logout-btn:hover{border-color:var(--primary);color:var(--primary)}
+.card{background:#fff;border-radius:var(--radius);padding:20px;box-shadow:0 1px 3px rgba(0,0,0,.06);margin-bottom:16px}
+#loading-section{text-align:center;padding:60px 20px}
+.spinner{border:3px solid #e2e8f0;border-top:3px solid var(--primary);border-radius:50%;width:36px;height:36px;animation:spin .8s linear infinite;margin:0 auto 14px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#login-section{text-align:center;padding:40px 20px}
+#login-section p{color:var(--text-secondary);margin-bottom:20px}
+.login-btn{background:var(--primary);color:#fff;border:none;padding:12px 28px;border-radius:8px;font-size:1rem;cursor:pointer;font-weight:600}
+.login-btn:hover{background:var(--accent-hover)}
+#login-error{color:var(--error-text);margin-top:14px;display:none;white-space:pre-line;font-size:.9rem}
+.section-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px}
+.section-header h2{font-size:1.05rem;font-weight:700}
+.btn{padding:8px 16px;border-radius:8px;border:none;font-size:.85rem;font-weight:600;cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:6px}
+.btn-primary{background:var(--primary);color:#fff}
+.btn-primary:hover{background:var(--accent-hover)}
+.btn-secondary{background:var(--primary-bg);color:var(--primary)}
+.btn-secondary:hover{background:var(--primary-bg-hover)}
+.btn-danger{background:var(--error-bg);color:var(--error-text)}
+.btn-danger:hover{background:#fecaca}
+.btn-sm{padding:5px 10px;font-size:.8rem}
+.group-card{border:1px solid var(--border-color);border-radius:var(--radius);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;transition:border-color .15s;cursor:pointer;margin-bottom:10px}
+.group-card:hover{border-color:var(--primary)}
+.group-card-info h3{font-size:.95rem;font-weight:600;margin-bottom:2px}
+.group-card-info p{font-size:.8rem;color:var(--text-muted)}
+.group-card-actions{display:flex;gap:6px}
+.empty-state{text-align:center;padding:40px 20px;color:var(--text-muted)}
+.empty-state .icon{font-size:2rem;margin-bottom:8px}
+.editor-field{margin-bottom:16px}
+.editor-field label{display:block;font-size:.8rem;font-weight:600;color:var(--text-secondary);margin-bottom:6px}
+.editor-field input,.editor-field textarea{width:100%;padding:10px 12px;border:1.5px solid var(--border-color);border-radius:8px;font-size:.9rem;transition:border-color .15s}
+.editor-field input:focus,.editor-field textarea:focus{outline:none;border-color:var(--input-focus)}
+.item-table{width:100%;border-collapse:collapse;margin-bottom:12px}
+.item-table th{text-align:left;font-size:.75rem;font-weight:600;color:var(--text-muted);text-transform:uppercase;letter-spacing:.03em;padding:8px;border-bottom:2px solid var(--border-color)}
+.item-table td{padding:6px 8px;border-bottom:1px solid #f1f5f9;vertical-align:middle}
+.item-table input{width:100%;padding:7px 8px;border:1.5px solid var(--border-color);border-radius:6px;font-size:.85rem}
+.item-table input:focus{outline:none;border-color:var(--input-focus)}
+.item-table .pn-input{font-family:'SF Mono',Consolas,Monaco,monospace;font-weight:500}
+.item-table .qty-input{width:60px;text-align:center}
+.item-table .del-cell{width:36px;text-align:center}
+.item-table .del-btn{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:1rem;padding:4px}
+.item-table .del-btn:hover{color:var(--error-text)}
+.item-table .sort-cell{width:30px;text-align:center;color:var(--text-muted);font-size:.8rem}
+.editor-actions{display:flex;gap:10px;flex-wrap:wrap}
+.generate-bar{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:16px;padding:14px 16px;background:var(--primary-bg);border-radius:var(--radius)}
+.generate-bar label{font-size:.85rem;font-weight:600;color:var(--text-primary)}
+.generate-bar input[type="number"]{width:70px;padding:8px 10px;border:1.5px solid var(--border-color);border-radius:8px;font-size:1rem;text-align:center;font-weight:600}
+.generate-bar input[type="number"]:focus{outline:none;border-color:var(--input-focus)}
+.print-header{margin-bottom:16px}
+.print-header h2{font-size:1.2rem;font-weight:700;margin-bottom:4px}
+.print-header .meta{font-size:.85rem;color:var(--text-secondary);display:flex;gap:16px;flex-wrap:wrap}
+.pick-table{width:100%;border-collapse:collapse;font-size:.85rem}
+.pick-table th{text-align:left;padding:8px 10px;background:#f8fafc;border:1px solid var(--border-color);font-weight:700;font-size:.78rem;text-transform:uppercase;letter-spacing:.03em;color:var(--text-secondary)}
+.pick-table td{padding:8px 10px;border:1px solid var(--border-color)}
+.pick-table .check-cell{width:36px;text-align:center}
+.pick-table .check-cell input[type="checkbox"]{width:16px;height:16px;cursor:pointer}
+.pick-table .num-cell{width:36px;text-align:center;color:var(--text-muted);font-weight:600}
+.pick-table .pn-cell{font-family:'SF Mono',Consolas,Monaco,monospace;font-weight:500;white-space:nowrap}
+.pick-table .qty-cell{width:60px;text-align:center;font-weight:600}
+.pick-table .missing{background:var(--highlight-missing)}
+.pick-table .missing-input{background:var(--highlight-missing);border:1px dashed #d4a017;padding:4px 6px;border-radius:4px;font-size:.85rem;width:100%}
+.pick-table .comment-cell{color:var(--text-secondary);font-size:.8rem;font-style:italic}
+.status{padding:10px 14px;border-radius:8px;margin-top:12px;text-align:center;font-size:.9rem;display:none}
+.status.success{background:var(--success-bg);color:var(--success-text);border:1px solid var(--success-border);display:block}
+.status.error{background:var(--error-bg);color:var(--error-text);border:1px solid var(--error-border);display:block}
+.status.loading{background:var(--primary-bg);color:var(--primary);display:block}
+@media print{body{background:#fff}.app-bar,.generate-bar,.no-print{display:none!important}.app-shell{max-width:100%;padding:0}.card{box-shadow:none;padding:0;border-radius:0}.print-header h2{font-size:14pt}.print-header .meta{font-size:9pt}.pick-table{font-size:9pt}.pick-table th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pick-table .missing,.pick-table .missing-input{background:#fef9c3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@media(max-width:600px){.app-shell{padding:10px}.app-bar{padding:12px 14px}.app-bar h1{font-size:1rem}.card{padding:14px}.section-header{flex-direction:column;gap:10px;align-items:flex-start}.group-card{flex-direction:column;align-items:flex-start;gap:10px}.group-card-actions{width:100%}.group-card-actions .btn{flex:1;justify-content:center}.generate-bar{flex-direction:column;align-items:flex-start}.editor-actions{flex-direction:column}.editor-actions .btn{width:100%;justify-content:center}.item-table-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -14px;padding:0 14px}.pick-table-wrapper{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -14px;padding:0 14px}}
+    </style>
+</head>
+<body>
+    <div class="app-shell">
+        <div class="app-bar">
+            <div class="app-bar-left">
+                <a href="index.html" class="nav-btn" id="home-link">📦 出庫依頼</a>
+                <button class="nav-btn" id="back-btn" onclick="navigateBack()" style="display:none">← 戻る</button>
+                <h1 id="page-title">📋 ピックリスト</h1>
+            </div>
+            <div class="app-bar-right" id="app-bar-right" style="display:none">
+                <span class="user-chip" id="user-chip"></span>
+                <button class="logout-btn" onclick="handleLogout()">ログアウト</button>
+            </div>
+        </div>
+
+        <div class="card" id="loading-section">
+            <div style="text-align:center;padding:40px"><div class="spinner"></div><p style="color:var(--text-muted)">読み込み中...</p></div>
+        </div>
+
+        <div class="card" id="login-section" style="display:none">
+            <div style="text-align:center;padding:30px">
+                <p>Googleアカウントでログインしてください</p>
+                <button class="login-btn" onclick="handleGoogleLogin()">Googleでログイン</button>
+                <p id="login-error"></p>
+            </div>
+        </div>
+
+        <div id="view-list" style="display:none">
+            <div class="card">
+                <div class="section-header">
+                    <h2>グループ一覧</h2>
+                    <button class="btn btn-primary" id="create-group-btn" onclick="openEditor(null)" style="display:none">＋ 新規作成</button>
+                </div>
+                <div id="group-list-container"><div class="empty-state"><div class="icon">📦</div><p>グループがまだありません</p></div></div>
+            </div>
+        </div>
+
+        <div id="view-editor" style="display:none">
+            <div class="card">
+                <div class="section-header no-print"><h2 id="editor-title">グループ作成</h2></div>
+                <div class="editor-field"><label>グループ名</label><input type="text" id="editor-group-name" placeholder="例: H&B Assembly Kit"></div>
+                <div class="editor-field">
+                    <label>部品リスト</label>
+                    <div class="item-table-wrapper">
+                    <table class="item-table"><thead><tr><th class="sort-cell">#</th><th>部品番号 (P/N)</th><th style="width:70px">数量</th><th>コメント</th><th class="del-cell"></th></tr></thead><tbody id="editor-items-body"></tbody></table>
+                    </div>
+                    <button class="btn btn-secondary" onclick="addEditorRow()" style="margin-top:8px">＋ 行を追加</button>
+                </div>
+                <div class="editor-field">
+                    <label>一括貼り付け（部品番号を改行区切り）</label>
+                    <textarea id="editor-paste-area" rows="4" placeholder="GPMP-0540010-0-2&#10;GPCP-0000360-0-0"></textarea>
+                    <button class="btn btn-secondary" onclick="bulkAddFromPaste()" style="margin-top:6px">貼り付けから追加</button>
+                </div>
+                <div class="status" id="editor-status"></div>
+                <div class="editor-actions" style="margin-top:16px">
+                    <button class="btn btn-primary" onclick="saveGroup()">💾 保存する</button>
+                    <button class="btn btn-secondary" onclick="navigateToList()">キャンセル</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-print" style="display:none">
+            <div class="generate-bar no-print">
+                <label>数量倍率:</label>
+                <input type="number" id="multiplier-input" value="1" min="1" onchange="regenerateTable()">
+                <button class="btn btn-primary" onclick="window.print()">🖨️ 印刷</button>
+                <button class="btn btn-secondary" onclick="navigateToList()">← 一覧に戻る</button>
+            </div>
+            <div class="card" id="print-card">
+                <div class="print-header" id="print-header"></div>
+                <div class="pick-table-wrapper"><table class="pick-table" id="pick-table"></table></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const SUPABASE_URL='https://wylxvmkcrexwfpjpbhyy.supabase.co';
+        const SUPABASE_ANON_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak';
+        const T_GROUPS='part_inventry_app_pick_list_groups';
+        const T_ITEMS='part_inventry_app_pick_list_items';
+        const T_PARTS='master_parts_list_all';
+        const T_ROLES='authentication_mode_user_roles';
+
+        if(!window.supabase||!window.supabase.createClient){document.getElementById('loading-section').innerHTML='<div style="text-align:center;padding:40px;color:#b91c1c;">SDK読み込み失敗。リロードしてください。</div>';throw new Error('SDK fail');}
+        const sb=window.supabase.createClient(SUPABASE_URL,SUPABASE_ANON_KEY);
+
+        let userProfile=null,groups=[],editorGroupId=null,editorItems=[],printGroupData=null,printItems=[],partsCache=null,authReady=false;
+
+        // AUTH
+        window.onload=function(){
+            sb.auth.onAuthStateChange(async(event,session)=>{
+                if(session&&session.user&&(event==='SIGNED_IN'||event==='TOKEN_REFRESHED'||event==='INITIAL_SESSION')){await checkUserRole(session.user);authReady=true;}
+                else if(event==='SIGNED_OUT'||(event==='INITIAL_SESSION'&&!session)){userProfile=null;authReady=true;showView('login');}
+            });
+            setTimeout(()=>{if(!authReady)showView('login');},4000);
+        };
+
+        async function handleGoogleLogin(){
+            const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+window.location.pathname,queryParams:{access_type:'offline',prompt:'consent'}}});
+            if(error)showLoginError('ログイン失敗: '+error.message);
+        }
+
+        async function checkUserRole(user){
+            try{
+                const{data,error}=await sb.from(T_ROLES).select('name, role').eq('email',user.email).single();
+                if(error||!data){await sb.auth.signOut();showLoginError(`アクセス拒否。\n${user.email} は許可されていません。`);showView('login');return;}
+                userProfile={email:user.email,name:data.name||user.email,role:data.role,isAdmin:data.role==='admin'};
+                document.getElementById('user-chip').innerHTML=`${esc(userProfile.name)}<span class="role-tag">${userProfile.role}</span>`;
+                document.getElementById('app-bar-right').style.display='flex';
+                document.getElementById('create-group-btn').style.display=userProfile.isAdmin?'inline-flex':'none';
+                await loadGroups();showView('list');
+            }catch(e){console.error(e);showLoginError('ユーザー確認エラー');showView('login');}
+        }
+
+        async function handleLogout(){await sb.auth.signOut();userProfile=null;groups=[];partsCache=null;document.getElementById('app-bar-right').style.display='none';}
+        function showLoginError(m){const e=document.getElementById('login-error');e.textContent=m;e.style.display='block';}
+
+        // NAVIGATION
+        function showView(v){
+            ['loading-section','login-section','view-list','view-editor','view-print'].forEach(id=>document.getElementById(id).style.display='none');
+            const bb=document.getElementById('back-btn'),hl=document.getElementById('home-link'),t=document.getElementById('page-title');
+            bb.style.display='none';hl.style.display='inline-flex';
+            switch(v){
+                case'loading':document.getElementById('loading-section').style.display='block';t.textContent='📋 ピックリスト';break;
+                case'login':document.getElementById('login-section').style.display='block';t.textContent='📋 ピックリスト';break;
+                case'list':document.getElementById('view-list').style.display='block';t.textContent='📋 ピックリスト';break;
+                case'editor':document.getElementById('view-editor').style.display='block';bb.style.display='inline-flex';hl.style.display='none';t.textContent=editorGroupId?'✏️ グループ編集':'＋ 新規グループ';break;
+                case'print':document.getElementById('view-print').style.display='block';hl.style.display='none';t.textContent='🖨️ ピックリスト印刷';break;
+            }
+        }
+        function navigateBack(){showView('list');}
+        function navigateToList(){showView('list');}
+
+        // GROUPS
+        async function loadGroups(){
+            const{data,error}=await sb.from(T_GROUPS).select(`*, items:${T_ITEMS}(count)`).order('updated_at',{ascending:false});
+            if(error){console.error(error);groups=[];}else groups=data||[];
+            renderGroupList();
+        }
+
+        function renderGroupList(){
+            const c=document.getElementById('group-list-container');
+            if(!groups.length){c.innerHTML='<div class="empty-state"><div class="icon">📦</div><p>グループがまだありません</p></div>';return;}
+            c.innerHTML=groups.map(g=>{
+                const cnt=g.items?.[0]?.count||0,date=new Date(g.updated_at).toLocaleDateString('ja-JP');
+                return`<div class="group-card" onclick="openPrintView(${g.id})"><div class="group-card-info"><h3>${esc(g.group_name)}</h3><p>${cnt}点 ・ 更新: ${date} ・ 作成: ${esc(g.created_by)}</p></div><div class="group-card-actions" onclick="event.stopPropagation()"><button class="btn btn-secondary btn-sm" onclick="openPrintView(${g.id})">🖨️ 生成</button>${userProfile.isAdmin?`<button class="btn btn-secondary btn-sm" onclick="openEditor(${g.id})">✏️</button><button class="btn btn-danger btn-sm" onclick="deleteGroup(${g.id})">🗑️</button>`:''}</div></div>`;
+            }).join('');
+        }
+
+        async function deleteGroup(id){if(!confirm('このグループを削除しますか？'))return;await sb.from(T_GROUPS).delete().eq('id',id);await loadGroups();}
+
+        // EDITOR
+        async function openEditor(id){
+            editorGroupId=id;editorItems=[];
+            document.getElementById('editor-group-name').value='';
+            document.getElementById('editor-paste-area').value='';
+            hideStatus('editor-status');
+            if(id){
+                const{data:g}=await sb.from(T_GROUPS).select('*').eq('id',id).single();
+                if(g)document.getElementById('editor-group-name').value=g.group_name;
+                const{data:items}=await sb.from(T_ITEMS).select('*').eq('group_id',id).order('sort_order');
+                if(items)editorItems=items.map(i=>({pn:i.part_number,qty:i.qty,comment:i.comment||''}));
+                document.getElementById('editor-title').textContent='グループ編集';
+            }else{editorItems=[{pn:'',qty:1,comment:''}];document.getElementById('editor-title').textContent='グループ作成';}
+            if(!editorItems.length)editorItems.push({pn:'',qty:1,comment:''});
+            renderEditorItems();showView('editor');
+        }
+
+        function renderEditorItems(){
+            document.getElementById('editor-items-body').innerHTML=editorItems.map((item,i)=>`<tr><td class="sort-cell">${i+1}</td><td><input type="text" class="pn-input" value="${esc(item.pn)}" placeholder="GPMP-XXXXXXX-X-X" onchange="editorItems[${i}].pn=this.value.trim()"></td><td><input type="number" class="qty-input" value="${item.qty}" min="1" onchange="editorItems[${i}].qty=parseInt(this.value)||1"></td><td><input type="text" value="${esc(item.comment)}" placeholder="コメント" onchange="editorItems[${i}].comment=this.value"></td><td class="del-cell"><button class="del-btn" onclick="removeEditorRow(${i})">✕</button></td></tr>`).join('');
+        }
+
+        function addEditorRow(){editorItems.push({pn:'',qty:1,comment:''});renderEditorItems();const ii=document.querySelectorAll('#editor-items-body .pn-input');if(ii.length)ii[ii.length-1].focus();}
+        function removeEditorRow(i){editorItems.splice(i,1);if(!editorItems.length)editorItems.push({pn:'',qty:1,comment:''});renderEditorItems();}
+
+        function bulkAddFromPaste(){
+            const lines=document.getElementById('editor-paste-area').value.split('\n').map(l=>l.trim()).filter(l=>l);
+            if(!lines.length)return;
+            if(editorItems.length===1&&!editorItems[0].pn)editorItems=[];
+            lines.forEach(pn=>editorItems.push({pn,qty:1,comment:''}));
+            document.getElementById('editor-paste-area').value='';renderEditorItems();
+        }
+
+        async function saveGroup(){
+            const name=document.getElementById('editor-group-name').value.trim();
+            if(!name){showStatusMsg('editor-status','グループ名を入力してください','error');return;}
+            const valid=editorItems.filter(i=>i.pn);
+            if(!valid.length){showStatusMsg('editor-status','部品を1つ以上追加してください','error');return;}
+            showStatusMsg('editor-status','保存中...','loading');
+            try{
+                let gid=editorGroupId;
+                if(gid){
+                    const{error}=await sb.from(T_GROUPS).update({group_name:name,updated_at:new Date().toISOString()}).eq('id',gid);if(error)throw error;
+                    await sb.from(T_ITEMS).delete().eq('group_id',gid);
+                }else{
+                    const{data,error}=await sb.from(T_GROUPS).insert({group_name:name,created_by:userProfile.name}).select('id').single();if(error)throw error;gid=data.id;
+                }
+                const rows=valid.map((item,i)=>({group_id:gid,part_number:item.pn,qty:item.qty||1,comment:item.comment||null,sort_order:i}));
+                const{error:ie}=await sb.from(T_ITEMS).insert(rows);if(ie)throw ie;
+                showStatusMsg('editor-status','✅ 保存しました','success');
+                setTimeout(async()=>{await loadGroups();showView('list');},800);
+            }catch(e){showStatusMsg('editor-status','エラー: '+e.message,'error');}
+        }
+
+        // PRINT
+        async function openPrintView(gid){
+            showView('print');
+            document.getElementById('print-header').innerHTML='<div style="text-align:center;padding:20px;color:var(--text-muted)">読み込み中...</div>';
+            document.getElementById('pick-table').innerHTML='';
+            const{data:group}=await sb.from(T_GROUPS).select('*').eq('id',gid).single();
+            const{data:items}=await sb.from(T_ITEMS).select('*').eq('group_id',gid).order('sort_order');
+            if(!group||!items){document.getElementById('print-header').innerHTML='<div style="color:var(--error-text)">グループが見つかりません</div>';return;}
+            printGroupData=group;printItems=items;
+            if(!partsCache){partsCache={};const{data:parts}=await sb.from(T_PARTS).select('pn, name, location, temp_location');if(parts)parts.forEach(p=>{partsCache[p.pn]=p;});}
+            document.getElementById('multiplier-input').value=1;regenerateTable();
+        }
+
+        function regenerateTable(){
+            const mul=parseInt(document.getElementById('multiplier-input').value)||1;
+            const g=printGroupData,items=printItems,now=new Date();
+            const ds=`${now.getFullYear()}/${now.getMonth()+1}/${now.getDate()}`;
+            document.getElementById('print-header').innerHTML=`<h2>${esc(g.group_name)}</h2><div class="meta"><span>📅 ${ds}</span><span>×${mul} 倍率</span><span>${items.length}品目</span><span>作成: ${esc(g.created_by)}</span></div>`;
+            let h=`<thead><tr><th class="check-cell">☐</th><th class="num-cell">#</th><th>部品番号</th><th>物品名</th><th class="qty-cell">数量</th><th>保管場所</th><th>コメント</th></tr></thead><tbody>`;
+            items.forEach((item,i)=>{
+                const p=partsCache[item.part_number],nm=p?.name||'',loc=p?.location||'',tmp=p?.temp_location||'',full=tmp?`${loc} (仮: ${tmp})`:loc,qty=(item.qty||1)*mul,nmM=!nm,lcM=!full;
+                h+=`<tr><td class="check-cell"><input type="checkbox"></td><td class="num-cell">${i+1}</td><td class="pn-cell">${esc(item.part_number)}</td><td class="${nmM?'missing':''}">${nmM?'<input type="text" class="missing-input" placeholder="手動入力">':esc(nm)}</td><td class="qty-cell">${qty}</td><td class="${lcM?'missing':''}">${lcM?'<input type="text" class="missing-input" placeholder="手動入力">':esc(full)}</td><td class="comment-cell">${esc(item.comment||'')}</td></tr>`;
+            });
+            h+='</tbody>';document.getElementById('pick-table').innerHTML=h;
+        }
+
+        // HELPERS
+        function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+        function showStatusMsg(id,m,t){const e=document.getElementById(id);e.textContent=m;e.className='status '+t;}
+        function hideStatus(id){document.getElementById(id).className='status';}
+    </script>
+</body>
+</html>
