@@ -129,17 +129,6 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
 .part-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .part-fields.three-col { grid-template-columns: 1fr 1.2fr 70px; }
 
-@media (max-width: 480px) {
-    .part-fields.three-col { grid-template-columns: 1fr 1fr; gap: 8px; }
-    .part-fields.three-col .field-group:first-child { grid-column: 1 / -1; }
-    .sn-compact-row { gap: 3px; }
-    .sn-text-input { min-width: 0; font-size: 0.85rem; padding: 8px 6px; }
-    .sn-btn { padding: 8px 8px; font-size: 0.85rem; }
-    .field-group input[type="number"] { font-size: 0.9rem; }
-    .part-number { font-size: 0.9rem; }
-    .part-name { font-size: 0.7rem; }
-}
-
 .sn-compact-row { display: flex; gap: 4px; }
 .sn-text-input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
 .sn-text-input:focus { outline: none; border-color: var(--input-focus); }
@@ -897,6 +886,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         // PARTS LIST
         // =====================================================
         function addPart(pn, showLocation = false, locationData = null) {
+            if (parts.some(p => p.pn === pn)) { showStatus('batch-status', `⚠️ ${pn} は既にリストにあります`, 'error'); setTimeout(() => hideStatus('batch-status'), 2000); return; }
             parts.push({ pn, name: locationData?.name||'', purpose: '', sn: '', snUnit: '', snNumber: '', qty: 1, showLocation, location: locationData?.location||'', tempLocation: locationData?.tempLocation||'' });
             renderPartsList(); updateSubmitButton();
         }
@@ -1012,9 +1002,11 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                 if (!databaseCache) databaseCache = await loadDatabase();
                 let added = 0;
                 lines.forEach(pn => {
+                    if (!parts.some(p => p.pn === pn)) {
                         const f = databaseCache.find(r => r.partNumber === pn);
                         parts.push({ pn, name: f?.name||'', purpose: '', sn: '', snUnit: '', snNumber: '', qty: 1, showLocation: true, location: f?.location||'', tempLocation: f?.tempLocation||'' });
                         added++;
+                    }
                 });
                 renderPartsList(); updateSubmitButton();
                 document.getElementById('finder-input').value = lines.join('\n');
