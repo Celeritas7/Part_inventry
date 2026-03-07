@@ -209,19 +209,19 @@ function suggestSegs(len){
 }
 function evalF(formula,params,lookups){
     try{
-        // Resolve ALL LOOKUP(tableName) calls within the formula
-        let f=formula.replace(/LOOKUP\((\w+)\)/g,(match,tblName)=>{
-            if(!lookups||!lookups[tblName]||!lookups[tblName].data)return '0';
-            const tbl=lookups[tblName];
+        // Handle LOOKUP(tableName)
+        const lm=formula.match(/^LOOKUP\((\w+)\)$/);
+        if(lm&&lookups){
+            const tbl=lookups[lm[1]];
+            if(!tbl||!tbl.data)return 0;
             const keys=(tbl.keys||[]).map(k=>params[k]);
             const key=keys.join('/');
             const val=tbl.data[key];
-            return typeof val==='number'?String(val):String(parseFloat(val)||0);
-        });
-        // Replace segment/length variables
+            return typeof val==='number'?val:(parseFloat(val)||0);
+        }
         const s=params.segments||{0.25:0,1:0,1.5:0},ts=s[0.25]+s[1]+s[1.5];
-        f=f.replace(/SEGS/g,ts).replace(/S025/g,s[0.25]).replace(/S100/g,s[1]).replace(/S150/g,s[1.5]).replace(/LENGTH/g,params.length||0).replace(/CABLE/g,params.cableLength||0);
-        return Math.round(Function('"use strict";return ('+f+')')());
+        let e=formula.replace(/SEGS/g,ts).replace(/S025/g,s[0.25]).replace(/S100/g,s[1]).replace(/S150/g,s[1.5]).replace(/LENGTH/g,params.length||0).replace(/CABLE/g,params.cableLength||0);
+        return Math.round(Function('"use strict";return ('+e+')')());
     }catch(e){return 0;}
 }
 function resolveTemplate(tpl,params){
