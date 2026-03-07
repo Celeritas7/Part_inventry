@@ -6,7 +6,7 @@
     <title>出庫依頼入力</title>
     
     <!-- Supabase JS SDK -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <!-- Google API for Sheets -->
     <script src="https://apis.google.com/js/api.js"></script>
@@ -93,7 +93,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
 .login-btn:hover { background: #3367d6; }
 #login-error { color: #c62828; margin-top: 16px; display: none; white-space: pre-line; }
 
-#loading-section { text-align: center; padding: 40px; }
+#loading-section { text-align: center; padding: 40px; display: none; }
 .spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px; }
 @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
@@ -465,16 +465,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         const SUPABASE_URL = 'https://wylxvmkcrexwfpjpbhyy.supabase.co';
         const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak';
 
-        // Safety check — if SDK failed to load, show error
-        if (!window.supabase || !window.supabase.createClient) {
-            document.getElementById('loading-section').style.display = 'none';
-            document.getElementById('login-section').style.display = 'block';
-            document.getElementById('login-error').textContent = 'Supabase SDKの読み込みに失敗しました。ページをリロードしてください。';
-            document.getElementById('login-error').style.display = 'block';
-            throw new Error('Supabase SDK not loaded');
-        }
-
-        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
         // =====================================================
         // GOOGLE SHEETS CONFIG
@@ -525,7 +516,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         window.onload = function() {
             showLoading();
 
-            sb.auth.onAuthStateChange(async (event, session) => {
+            supabase.auth.onAuthStateChange(async (event, session) => {
                 console.log('Auth:', event, session?.user?.email);
 
                 if (session && session.user &&
@@ -591,7 +582,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         // =====================================================
         async function handleGoogleLogin() {
             try {
-                const { error } = await sb.auth.signInWithOAuth({
+                const { error } = await supabase.auth.signInWithOAuth({
                     provider: 'google',
                     options: {
                         scopes: 'https://www.googleapis.com/auth/spreadsheets',
@@ -611,14 +602,14 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
          */
         async function checkUserApproval(user) {
             try {
-                const { data, error } = await sb
+                const { data, error } = await supabase
                     .from('authentication_mode_user_roles')
                     .select('name, role')
                     .eq('email', user.email)
                     .single();
 
                 if (error || !data) {
-                    await sb.auth.signOut();
+                    await supabase.auth.signOut();
                     showLoginError(
                         `アクセスが拒否されました。\n${user.email} は許可されていません。\n管理者にお問い合わせください。`
                     );
@@ -642,7 +633,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         }
 
         async function handleLogout() {
-            await sb.auth.signOut();
+            await supabase.auth.signOut();
             localStorage.removeItem('sheets_access_token');
             accessToken = null; userProfile = null; parts = [];
             databaseCache = null; currentSheet = 'production';
@@ -677,7 +668,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
 
         async function refreshAccessToken() {
             try {
-                const { data } = await sb.auth.refreshSession();
+                const { data } = await supabase.auth.refreshSession();
                 if (data?.session?.provider_token) {
                     accessToken = data.session.provider_token;
                     localStorage.setItem('sheets_access_token', accessToken);
