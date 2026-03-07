@@ -234,9 +234,12 @@ function resolveTemplate(tpl,params){
             let pn=item.pn;let qty=item.qty||0;
             if(item.switchField&&item.switchMap){try{const map=typeof item.switchMap==='string'?JSON.parse(item.switchMap):item.switchMap;const val=params[item.switchField];if(map[val])pn=map[val];}catch(e){}}
             if(item.formula)qty=evalF(item.formula,params,lookups);
+            // Skip zero-qty items in AUTO sections (unused parts)
+            if(sec.badge==='auto'&&qty===0)return;
             items.push({pn,qty,comment:item.comment||''});
         });
-        resolved.push({name:sec.name,badge:sec.badge,items});
+        // Skip entire section if empty after filtering
+        if(items.length)resolved.push({name:sec.name,badge:sec.badge,items});
     });
     return{sections:resolved,segments:segs};
 }
