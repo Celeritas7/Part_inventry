@@ -181,6 +181,8 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
 .sn-btn { padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; background: #f5f5f5; cursor: pointer; font-size: 0.9rem; }
 .sn-btn:hover { background: #e0e0e0; }
 .sn-btn.unit-btn { background: #fff3e0; border-color: #ffb74d; }
+.qty-highlight { border: 2px solid #e53935 !important; background: #ffebee !important; animation: qty-pulse 1s ease-in-out 3; }
+@keyframes qty-pulse { 0%,100%{background:#ffebee} 50%{background:#ffcdd2} }
 .sn-btn.unit-btn:hover { background: #ffe0b2; }
 
 .unit-modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
@@ -1235,6 +1237,13 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         async function submitBatch() {
             const valid = parts.filter(p => p.purpose);
             if (!valid.length) { showStatus('batch-status', '目的が選択されていない部品があります', 'error'); return; }
+            // Check for empty qty
+            const emptyQty = parts.filter(p => !p.qty || p.qty === '' || parseInt(p.qty) <= 0);
+            if (emptyQty.length) {
+                showStatus('batch-status', `⚠️ 数量が未入力の部品が${emptyQty.length}件あります`, 'error');
+                highlightEmptyQty();
+                return;
+            }
             const btn = document.getElementById('submit-btn'); btn.disabled = true; btn.textContent = '登録中...';
             showStatus('batch-status', 'データを送信中...', 'loading');
             try {
@@ -1250,6 +1259,19 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                 parts = []; renderPartsList(); updateSubmitButton();
             } catch (e) { showStatus('batch-status', 'エラー: ' + e.message, 'error'); }
             finally { btn.disabled = false; updateSubmitButton(); }
+        }
+
+        function highlightEmptyQty() {
+            document.querySelectorAll('.qty-highlight').forEach(el => el.classList.remove('qty-highlight'));
+            parts.forEach((p, i) => {
+                if (!p.qty || p.qty === '' || parseInt(p.qty) <= 0) {
+                    const item = document.querySelectorAll('.part-item')[i];
+                    if (item) {
+                        const qtyInput = item.querySelector('input[type="number"]');
+                        if (qtyInput) { qtyInput.classList.add('qty-highlight'); qtyInput.focus(); }
+                    }
+                }
+            });
         }
 
         // =====================================================
