@@ -355,12 +355,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
             </div>
 
             <div id="app-section" style="display: none;">
-                <div class="user-info">
-                    <span id="user-display"></span>
-                    <button class="logout-btn" onclick="handleLogout()">ログアウト</button>
-                </div>
                 <div id="batch-content">
-                    <div class="current-sheet" id="current-sheet">📅 対象シート: 読み込み中...</div>
 
                     <!-- Bulk Settings Panel -->
                     <div class="bulk-panel" id="bulk-panel">
@@ -493,6 +488,49 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                 <h2>⚙️ 設定</h2>
                 <button class="modal-close-btn" onclick="closeSettingsModal()">✕</button>
             </div>
+            <!-- User Info -->
+            <div class="settings-section">
+                <h3>👤 ユーザー情報</h3>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5">
+                    <span style="font-size:.88rem;color:var(--text-primary)">ユーザー</span>
+                    <span style="font-size:.85rem;color:var(--primary);font-weight:600" id="s-user-name"></span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5">
+                    <span style="font-size:.88rem;color:var(--text-primary)">権限</span>
+                    <span style="font-size:.85rem;color:var(--primary);font-weight:600" id="s-user-role"></span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">
+                    <span style="font-size:.88rem;color:var(--text-primary)">ログアウト</span>
+                    <button onclick="handleLogout()" style="padding:6px 14px;border-radius:6px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;background:var(--error-bg);color:var(--error-text)">ログアウト</button>
+                </div>
+            </div>
+            <!-- Sheet Settings -->
+            <div class="settings-section">
+                <h3>📊 シート設定</h3>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5">
+                    <span style="font-size:.88rem;color:var(--text-primary)">対象シート</span>
+                    <span style="font-size:.85rem;color:var(--primary);font-weight:600" id="s-sheet-name"></span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0" id="s-sheet-mode-row">
+                    <span style="font-size:.88rem;color:var(--text-primary)">シートモード<br><small style="font-size:.72rem;color:var(--text-muted)">本番/テスト切替 (管理者のみ)</small></span>
+                    <select id="s-sheet-mode" onchange="onSheetModeChange()" style="padding:6px 10px;border:1.5px solid var(--border-color);border-radius:6px;font-size:.85rem">
+                        <option value="production">本番</option>
+                        <option value="test">テスト</option>
+                    </select>
+                </div>
+            </div>
+            <!-- Language -->
+            <div class="settings-section">
+                <h3>🌐 言語</h3>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">
+                    <span style="font-size:.88rem;color:var(--text-primary)">表示言語</span>
+                    <div style="display:flex;border:1.5px solid var(--border-color);border-radius:8px;overflow:hidden">
+                        <button id="lang-btn-ja" onclick="setLang('ja')" style="padding:6px 14px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;background:var(--primary);color:#fff">日本語</button>
+                        <button id="lang-btn-en" onclick="setLang('en')" style="padding:6px 14px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;background:#fff;color:var(--text-secondary)">English</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Theme -->
             <div class="settings-section">
                 <h3>🎨 テーマ</h3>
                 <div class="theme-options">
@@ -705,15 +743,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
             document.getElementById('app-section').style.display = 'block';
             document.getElementById('header-icons').style.display = 'flex';
 
-            // User display: name badge from table
-            let html = `👤 ${userProfile.name}`;
-            if (userProfile.isAdmin) {
-                html += '<span class="user-badge admin">管理者</span>';
-            }
-            html += `<span class="user-badge role">${userProfile.role}</span>`;
-            document.getElementById('user-display').innerHTML = html;
-
-            // Sheet selector: admin only
+            // Sheet selector button: admin only
             document.getElementById('sheet-selector-btn').style.display = userProfile.isAdmin ? 'flex' : 'none';
 
             updateCurrentSheetDisplay();
@@ -845,6 +875,21 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         function closeSheetSelectorModal() { document.getElementById('sheet-selector-modal').classList.remove('active'); }
         function openSettingsModal() {
             updateThemeButtons();
+            // User info
+            if (userProfile) {
+                document.getElementById('s-user-name').textContent = userProfile.name;
+                document.getElementById('s-user-role').textContent = userProfile.isAdmin ? '管理者' : userProfile.role;
+            }
+            // Sheet info
+            document.getElementById('s-sheet-name').textContent = getCurrentSheetName();
+            document.getElementById('s-sheet-mode').value = currentSheet;
+            document.getElementById('s-sheet-mode-row').style.display = userProfile?.isAdmin ? 'flex' : 'none';
+            // Language buttons
+            document.getElementById('lang-btn-ja').style.background = currentLang === 'ja' ? 'var(--primary)' : '#fff';
+            document.getElementById('lang-btn-ja').style.color = currentLang === 'ja' ? '#fff' : 'var(--text-secondary)';
+            document.getElementById('lang-btn-en').style.background = currentLang === 'en' ? 'var(--primary)' : '#fff';
+            document.getElementById('lang-btn-en').style.color = currentLang === 'en' ? '#fff' : 'var(--text-secondary)';
+            // Admin sections
             document.getElementById('admin-location-section').style.display = userProfile?.isAdmin ? 'block' : 'none';
             document.getElementById('location-edit-pn').value = '';
             document.getElementById('location-edit-result').style.display = 'none';
@@ -853,6 +898,23 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
             document.getElementById('settings-modal').classList.add('active');
         }
         function closeSettingsModal() { stopLocationQRScanner(); document.getElementById('settings-modal').classList.remove('active'); }
+
+        function onSheetModeChange() {
+            currentSheet = document.getElementById('s-sheet-mode').value;
+            databaseCache = null;
+            document.getElementById('s-sheet-name').textContent = getCurrentSheetName();
+        }
+
+        function setLang(lang) {
+            currentLang = lang;
+            localStorage.setItem('app-lang', lang);
+            applyLang();
+            // Update settings modal buttons
+            document.getElementById('lang-btn-ja').style.background = lang === 'ja' ? 'var(--primary)' : '#fff';
+            document.getElementById('lang-btn-ja').style.color = lang === 'ja' ? '#fff' : 'var(--text-secondary)';
+            document.getElementById('lang-btn-en').style.background = lang === 'en' ? 'var(--primary)' : '#fff';
+            document.getElementById('lang-btn-en').style.color = lang === 'en' ? '#fff' : 'var(--text-secondary)';
+        }
 
         // =====================================================
         // ADMIN: LOCATION EDIT
@@ -955,9 +1017,9 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         // =====================================================
         function getCurrentSheetName() { const n = new Date(); return `${n.getFullYear()}/${n.getMonth()+1}`; }
         function updateCurrentSheetDisplay() {
-            const s = getCurrentSheetName(), d = document.getElementById('current-sheet');
-            if (currentSheet === 'test') { d.className = 'current-sheet test-mode'; d.textContent = `⚠️ テストモード: ${s}`; }
-            else { d.className = 'current-sheet'; d.textContent = `📅 対象シート: ${s}`; }
+            // Sheet display moved to settings modal
+            const sn = document.getElementById('s-sheet-name');
+            if (sn) sn.textContent = getCurrentSheetName();
         }
         function getDateString() { const n = new Date(); return `${n.getMonth()+1}/${n.getDate()}`; }
 
@@ -1023,7 +1085,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         // =====================================================
         function addPart(pn, showLocation = false, locationData = null) {
             const bulk = isBulkAutoApply() ? getBulkValues() : { purpose: '', sn: '', comment: '' };
-            parts.push({ pn, name: locationData?.name||'', purpose: bulk.purpose||'', sn: bulk.sn||'', comment: bulk.comment||'', snUnit: '', snNumber: '', qty: 1, showLocation, location: locationData?.location||'', tempLocation: locationData?.tempLocation||'' });
+            parts.push({ pn, name: locationData?.name||'', purpose: bulk.purpose||'', sn: bulk.sn||'', comment: bulk.comment||'', snUnit: '', snNumber: '', qty: '', showLocation, location: locationData?.location||'', tempLocation: locationData?.tempLocation||'' });
             renderPartsList(); updateSubmitButton();
         }
         function removePart(i) { parts.splice(i, 1); renderPartsList(); updateSubmitButton(); }
@@ -1143,10 +1205,10 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                 let added = 0;
                 lines.forEach(line => {
                         // Auto-detect separator: tab, comma, or trailing space+number
-                        let pn, qty = 1;
-                        if (line.includes('\t')) { const p = line.split('\t'); pn = p[0].trim(); qty = parseInt(p[1]) || 1; }
-                        else if (line.includes(',')) { const p = line.split(','); pn = p[0].trim(); qty = parseInt(p[1]) || 1; }
-                        else if (/\s+\d+$/.test(line)) { const m = line.match(/^(.+?)\s+(\d+)$/); pn = m[1].trim(); qty = parseInt(m[2]) || 1; }
+                        let pn, qty = '';
+                        if (line.includes('\t')) { const p = line.split('\t'); pn = p[0].trim(); qty = parseInt(p[1]) || ''; }
+                        else if (line.includes(',')) { const p = line.split(','); pn = p[0].trim(); qty = parseInt(p[1]) || ''; }
+                        else if (/\s+\d+$/.test(line)) { const m = line.match(/^(.+?)\s+(\d+)$/); pn = m[1].trim(); qty = parseInt(m[2]) || ''; }
                         else { pn = line; }
                         if (!pn) return;
                         const f = databaseCache.find(r => r.partNumber === pn);
