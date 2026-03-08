@@ -409,7 +409,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                             <div class="bulk-actions">
                                 <button class="bulk-btn bulk-btn-empty" onclick="applyBulkMode('empty')">空欄のみ適用</button>
                                 <button class="bulk-btn bulk-btn-apply" onclick="applyBulkMode('all')">全行に適用</button>
-                                <button class="bulk-btn bulk-btn-clear" onclick="clearBulk()">クリア</button>
+                                <button class="bulk-btn" onclick="clearAllValues()" style="background:var(--error-bg);color:var(--error-text)">全入力クリア</button>
                             </div>
                             <div class="bulk-status" id="bulk-status"></div>
                         </div>
@@ -1415,6 +1415,14 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
             setTimeout(() => hideStatus('batch-status'), 2000);
         }
 
+        function clearAllValues() {
+            if (!parts.length) { showBulkStatus('部品がありません'); return; }
+            if (!confirm('全行の目的・S/N・コメントをクリアしますか？\n(P/Nと数量はそのまま残ります)')) return;
+            parts.forEach(p => { p.purpose = ''; p.sn = ''; p.comment = ''; });
+            renderPartsList(); updateSubmitButton();
+            showBulkStatus('✅ 全行の入力値をクリアしました');
+        }
+
         function showBulkStatus(msg) {
             const el = document.getElementById('bulk-status');
             el.textContent = msg;
@@ -1503,8 +1511,8 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         // LANGUAGE TOGGLE
         // =====================================================
         const I18N = {
-            ja: { app_title:'出庫依頼入力', subtitle:'生産チーム出庫依頼シート', bulk_title:'一括設定', purpose:'目的', comment_label:'コメント', auto_apply:'新しい部品に自動適用', apply_empty:'空欄のみ適用', apply_all:'全行に適用', clear_btn:'クリア', qr_scan:'QRスキャン追加', paste_list:'リスト貼付け', clear_list:'🗑️ リストをすべてクリア', empty_list:'QRスキャンまたはリスト貼付けで部品を追加してください', submit:'一括登録する', qty:'数量' },
-            en: { app_title:'Parts Requisition', subtitle:'Production Team Parts Request', bulk_title:'Bulk Settings', purpose:'Purpose', comment_label:'Comment', auto_apply:'Auto-apply to new parts', apply_empty:'Apply to empty', apply_all:'Apply to all', clear_btn:'Clear', qr_scan:'QR Scan Add', paste_list:'Paste List', clear_list:'🗑️ Clear all parts', empty_list:'Add parts via QR scan or paste list', submit:'Submit batch', qty:'Qty' }
+            ja: { app_title:'出庫依頼入力', subtitle:'生産チーム出庫依頼シート', bulk_title:'一括設定', purpose:'目的', comment_label:'コメント', auto_apply:'新しい部品に自動適用', apply_empty:'空欄のみ適用', apply_all:'全行に適用', clear_values:'全入力クリア', qr_scan:'QRスキャン追加', paste_list:'リスト貼付け', clear_list:'🗑️ リストをすべてクリア', empty_list:'QRスキャンまたはリスト貼付けで部品を追加してください', submit:'一括登録する', qty:'数量' },
+            en: { app_title:'Parts Requisition', subtitle:'Production Team Parts Request', bulk_title:'Bulk Settings', purpose:'Purpose', comment_label:'Comment', auto_apply:'Auto-apply to new parts', apply_empty:'Apply to empty', apply_all:'Apply to all', clear_values:'Clear all values', qr_scan:'QR Scan Add', paste_list:'Paste List', clear_list:'🗑️ Clear all parts', empty_list:'Add parts via QR scan or paste list', submit:'Submit batch', qty:'Qty' }
         };
         let currentLang = localStorage.getItem('app-lang') || 'ja';
 
@@ -1530,7 +1538,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
             // Buttons
             document.querySelectorAll('[onclick="applyBulkMode(\'empty\')"]').forEach(b => b.textContent = L.apply_empty);
             document.querySelectorAll('[onclick="applyBulkMode(\'all\')"]').forEach(b => b.textContent = L.apply_all);
-            document.querySelectorAll('[onclick="clearBulk()"]').forEach(b => b.textContent = L.clear_btn);
+            document.querySelectorAll('[onclick="clearAllValues()"]').forEach(b => b.textContent = L.clear_values);
             // Action buttons
             const scanBtn = document.getElementById('scan-add-btn');
             if (scanBtn && !scanBtn.classList.contains('active')) scanBtn.textContent = '📷 ' + L.qr_scan;
