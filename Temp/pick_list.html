@@ -100,12 +100,35 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .pt .miss-in{background:var(--miss);border:1px dashed #d4a017;padding:3px 5px;border-radius:4px;font-size:.83rem;width:100%}
 .pt .cmt{color:var(--t2);font-size:.78rem;font-style:italic}
 .pt tr.sec-row td{background:var(--pri);color:#fff;font-weight:700;font-size:.83rem;padding:5px 10px}
+.pt tr.sel-row{background:rgba(37,99,235,.06)}.pt tr.sel-row td{border-color:rgba(37,99,235,.2)}
+.pt .ck input{accent-color:var(--pri)}
+.sel-all-bar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f8fafc;border:1px solid var(--brd);border-radius:8px;margin-bottom:12px}
+.sel-all-bar label{font-size:.82rem;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:6px}
+.sel-all-bar input{width:17px;height:17px;accent-color:var(--pri);cursor:pointer}
+.sel-count-label{font-size:.82rem;color:var(--pri);font-weight:600}
+.req-panel{background:linear-gradient(135deg,#eff6ff,#f0fdf4);border:2px solid #bfdbfe;border-radius:12px;padding:16px;margin-bottom:16px;display:none}
+.req-panel.active{display:block}
+.req-panel h3{font-size:.9rem;font-weight:700;color:var(--pri);margin-bottom:12px;display:flex;align-items:center;gap:6px}
+.req-badge{background:var(--pri);color:#fff;padding:2px 8px;border-radius:12px;font-size:.78rem}
+.req-row{display:flex;gap:10px;margin-bottom:10px;flex-wrap:wrap}
+.req-field{flex:1;min-width:140px}
+.req-field label{display:block;font-size:.72rem;font-weight:600;color:var(--t2);margin-bottom:4px}
+.req-field select,.req-field input{width:100%;padding:8px 10px;border:1.5px solid var(--brd);border-radius:6px;font-size:.88rem}
+.req-field select:focus,.req-field input:focus{outline:none;border-color:var(--pri)}
+.req-inline{display:flex;gap:4px}
+.req-inline input{flex:1;min-width:0}
+.req-preview{margin-top:10px;border:1px solid var(--brd);border-radius:8px;overflow:hidden;max-height:180px;overflow-y:auto}
+.rp-tbl{width:100%;border-collapse:collapse;font-size:.82rem}
+.rp-tbl th{text-align:left;padding:5px 8px;background:#f8fafc;border-bottom:1px solid var(--brd);font-size:.72rem;font-weight:600;color:var(--t3);text-transform:uppercase}
+.rp-tbl td{padding:5px 8px;border-bottom:1px solid #f5f5f5}
+.rp-tbl .pn{font-family:monospace;font-weight:500}
+.req-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
 .status{padding:10px 14px;border-radius:8px;margin-top:12px;text-align:center;font-size:.9rem;display:none}
 .status.success{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-brd);display:block}
 .status.error{background:var(--err-bg);color:var(--err);border:1px solid var(--err-brd);display:block}
 .status.loading{background:var(--pri-bg);color:var(--pri);display:block}
-@media print{body{background:#fff}.bar,.gen-bar,.no-print,.bread{display:none!important}.shell{max-width:100%;padding:0}.card{box-shadow:none;padding:0;border-radius:0}.pt{font-size:9pt}.pt th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pt .miss,.pt .miss-in{background:#fef9c3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pt tr.sec-row td{background:#333!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
-@media(max-width:600px){.shell{padding:10px}.bar{padding:12px 14px}.card{padding:14px}.shdr{flex-direction:column;align-items:flex-start}.folder-grid{grid-template-columns:1fr 1fr}.li{flex-direction:column;align-items:flex-start;gap:8px}.li-acts{width:100%}.li-acts .btn{flex:1;justify-content:center}.gen-bar{flex-direction:column;align-items:flex-start}.quick-row{flex-direction:column}.efl-row{flex-direction:column}}
+@media print{body{background:#fff}.bar,.gen-bar,.no-print,.bread,.req-panel,.sel-all-bar{display:none!important}.shell{max-width:100%;padding:0}.card{box-shadow:none;padding:0;border-radius:0}.pt{font-size:9pt}.pt th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pt .miss,.pt .miss-in{background:#fef9c3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pt tr.sec-row td{background:#333!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
+@media(max-width:600px){.shell{padding:10px}.bar{padding:12px 14px}.card{padding:14px}.shdr{flex-direction:column;align-items:flex-start}.folder-grid{grid-template-columns:1fr 1fr}.li{flex-direction:column;align-items:flex-start;gap:8px}.li-acts{width:100%}.li-acts .btn{flex:1;justify-content:center}.gen-bar{flex-direction:column;align-items:flex-start}.quick-row{flex-direction:column}.efl-row{flex-direction:column}.req-row{flex-direction:column}.req-actions{flex-direction:column}.req-actions .btn{width:100%;justify-content:center}}
     </style>
 </head>
 <body>
@@ -146,13 +169,19 @@ let user=null; // {email,name,role,isAdmin}
 let folders=[],templates=[],generatedLists=[],partsCache=null;
 let currentView='loading',currentFolderId=null,currentTplId=null;
 let editTpl=null,printData=null,authReady=false;
+let sheetsToken=null;
+let reqSelection=[]; // indices of selected print items
 
 // =====================================================
 // AUTH
 // =====================================================
 window.onload=function(){
     sb.auth.onAuthStateChange(async(ev,session)=>{
-        if(session&&session.user&&(ev==='SIGNED_IN'||ev==='TOKEN_REFRESHED'||ev==='INITIAL_SESSION')){await checkRole(session.user);authReady=true;}
+        if(session&&session.user&&(ev==='SIGNED_IN'||ev==='TOKEN_REFRESHED'||ev==='INITIAL_SESSION')){
+            if(session.provider_token){sheetsToken=session.provider_token;localStorage.setItem('sheets_access_token',session.provider_token);}
+            if(!sheetsToken)sheetsToken=localStorage.getItem('sheets_access_token');
+            await checkRole(session.user);authReady=true;
+        }
         else if(ev==='SIGNED_OUT'||(ev==='INITIAL_SESSION'&&!session)){user=null;authReady=true;showAuth('login');}
     });
     setTimeout(()=>{if(!authReady)showAuth('login');},4000);
@@ -586,7 +615,7 @@ async function openPrint(genId){
     nav('print',{data:g});
 }
 function renderPrint(){
-    const el=document.getElementById('v-print');el.style.display='block';regenPrint();}
+    const el=document.getElementById('v-print');el.style.display='block';reqSelection=[];regenPrint();}
 function regenPrint(){
     const g=printData;if(!g)return;
     const el=document.getElementById('v-print');
@@ -597,20 +626,143 @@ function regenPrint(){
     if(g.spec)meta+=`<span>仕様: <b>${esc(g.spec)}</b></span>`;
     if(g.params){meta+=`<span>Rail: ${g.params.length}m</span><span>Type: ${g.params.asmType}</span>`;if(g.params.cableLength)meta+=`<span>Cable: ${g.params.cableLength}m</span>`;}
     if(g.segments){const s=g.segments;meta+=`<span>構成: 1.5m×${s['1.5']||0}+1m×${s['1']||0}+0.25m×${s['0.25']||0}</span>`;}
-    let h=`<thead><tr><th class="ck">☐</th><th class="nm">#</th><th>部品番号</th><th>物品名</th><th class="qc">数量</th><th>保管場所</th><th>コメント</th></tr></thead><tbody>`;
-    let n=1;
+
+    // Build flat items list for selection
+    let flatItems=[];
     (g.sections||[]).forEach(sec=>{
-        h+=`<tr class="sec-row"><td colspan="7">${esc(sec.name)}</td></tr>`;
         (sec.items||[]).forEach(item=>{
             if(!item.pn)return;
-            const p=partsCache?partsCache[item.pn]:null;const nm=p?.name||'';const loc=p?.location||'';const tmp=p?.temp_location||'';
-            const fullLoc=tmp?`${loc} (仮: ${tmp})`:loc;
-            const qty=(item.qty||1)*mul;
-            h+=`<tr><td class="ck"><input type="checkbox"></td><td class="nm">${n++}</td><td class="pnc">${esc(item.pn)}</td><td class="${!nm?'miss':''}">${!nm?'<input type="text" class="miss-in" placeholder="手動入力">':esc(nm)}</td><td class="qc">${qty}</td><td class="${!fullLoc?'miss':''}">${!fullLoc?'<input type="text" class="miss-in" placeholder="手動入力">':esc(fullLoc)}</td><td class="cmt">${esc(item.comment||'')}</td></tr>`;
+            const p=partsCache?partsCache[item.pn]:null;
+            flatItems.push({pn:item.pn,name:p?.name||'',location:p?.location||'',tempLocation:p?.temp_location||'',qty:(item.qty||1)*mul,comment:item.comment||'',section:sec.name});
         });
     });
+    // Store for selection reference
+    window._printItems=flatItems;
+
+    const selCount=reqSelection.length;
+    let selBar=`<div class="sel-all-bar no-print"><label><input type="checkbox" id="req-select-all" onchange="reqToggleAll()" ${selCount===flatItems.length&&flatItems.length?'checked':''}> すべて選択</label><span class="sel-count-label">${selCount} 件選択</span></div>`;
+
+    let h=`<thead><tr><th class="ck no-print">☐</th><th class="nm">#</th><th>部品番号</th><th>物品名</th><th class="qc">数量</th><th>保管場所</th><th>コメント</th></tr></thead><tbody>`;
+    let n=0;let currentSection='';
+    flatItems.forEach((item,i)=>{
+        if(item.section!==currentSection){currentSection=item.section;h+=`<tr class="sec-row"><td colspan="7">${esc(currentSection)}</td></tr>`;}
+        n++;const sel=reqSelection.includes(i);
+        const fullLoc=item.tempLocation?`${item.location} (仮: ${item.tempLocation})`:item.location;
+        h+=`<tr class="${sel?'sel-row':''}" onclick="reqToggle(${i})" style="cursor:pointer"><td class="ck no-print"><input type="checkbox" ${sel?'checked':''} onclick="event.stopPropagation();reqToggle(${i})"></td><td class="nm">${n}</td><td class="pnc">${esc(item.pn)}</td><td class="${!item.name?'miss':''}">${!item.name?'<input type="text" class="miss-in" placeholder="手動入力" onclick="event.stopPropagation()">':esc(item.name)}</td><td class="qc">${item.qty}</td><td class="${!fullLoc?'miss':''}">${!fullLoc?'<input type="text" class="miss-in" placeholder="手動入力" onclick="event.stopPropagation()">':esc(fullLoc)}</td><td class="cmt">${esc(item.comment)}</td></tr>`;
+    });
     h+='</tbody>';
-    el.innerHTML=`<div class="gen-bar no-print"><label>数量倍率:</label><input type="number" id="mul-input" value="${mul}" min="1" onchange="regenPrint()"><button class="btn btn-p" onclick="window.print()">🖨️ 印刷</button><button class="btn btn-s" onclick="nav('folder',{folderId:currentFolderId})">← 戻る</button></div><div class="card"><div class="ph"><h2>${esc(g.name)}</h2><div class="meta">${meta}</div></div><table class="pt">${h}</table></div>`;
+
+    // Requisition panel
+    let reqPanel=`<div class="req-panel ${selCount?'active':''}" id="req-panel">
+        <h3>📦 出庫依頼 <span class="req-badge">${selCount}</span> 件選択中</h3>
+        <div class="req-row">
+            <div class="req-field"><label>目的</label>
+                <select id="req-purpose"><option value="">-- 選択 --</option>
+                <option value="通常組立">通常組立</option><option value="不良部品">不良部品</option><option value="仕損発生">仕損発生</option>
+                <option value="PICK UP不足" selected>PICK UP不足</option><option value="市場品修理">市場品修理</option><option value="ECN対応">ECN対応</option>
+                <option value="BY構築">BY構築</option><option value="生産ジグ">生産ジグ</option><option value="確認中">確認中</option>
+                <option value="その他">その他</option><option value="出庫キャンセル">出庫キャンセル</option></select></div>
+            <div class="req-field"><label>S/N</label>
+                <div class="req-inline"><input type="text" id="req-sn" placeholder="GST-00034"></div></div>
+        </div>
+        <div class="req-field" style="margin-bottom:10px"><label>コメント</label><input type="text" id="req-comment" placeholder="コメント"></div>
+        <div class="req-preview" id="req-preview"></div>
+        <div class="req-actions">
+            <button class="btn btn-g" onclick="reqSubmit()">📦 出庫依頼を送信</button>
+            <button class="btn btn-s" onclick="reqClearSel()">選択解除</button>
+        </div>
+        <div class="status" id="req-status"></div>
+    </div>`;
+
+    el.innerHTML=`${reqPanel}<div class="gen-bar no-print"><label>数量倍率:</label><input type="number" id="mul-input" value="${mul}" min="1" onchange="regenPrint()"><button class="btn btn-p" onclick="window.print()">🖨️ 印刷</button><button class="btn btn-s" onclick="nav('folder',{folderId:currentFolderId})">← 戻る</button></div><div class="card"><div class="ph"><h2>${esc(g.name)}</h2><div class="meta">${meta}</div></div>${selBar}<table class="pt" id="pt">${h}</table></div>`;
+
+    // Update preview if items selected
+    if(selCount)reqUpdatePreview();
+}
+
+// =====================================================
+// REQUISITION — Selection & Submission
+// =====================================================
+function reqToggle(i){
+    const idx=reqSelection.indexOf(i);
+    if(idx>=0)reqSelection.splice(idx,1);else reqSelection.push(i);
+    reqSelection.sort((a,b)=>a-b);
+    regenPrint();
+}
+function reqToggleAll(){
+    const items=window._printItems||[];
+    if(reqSelection.length===items.length){reqSelection=[];}
+    else{reqSelection=items.map((_,i)=>i);}
+    regenPrint();
+}
+function reqClearSel(){reqSelection=[];regenPrint();}
+
+function reqUpdatePreview(){
+    const el=document.getElementById('req-preview');if(!el)return;
+    const items=window._printItems||[];
+    const selected=reqSelection.map(i=>items[i]).filter(Boolean);
+    if(!selected.length){el.innerHTML='';return;}
+    let h=`<table class="rp-tbl"><thead><tr><th>#</th><th>部品番号</th><th>物品名</th><th style="text-align:center">数量</th></tr></thead><tbody>`;
+    selected.forEach((item,i)=>{
+        h+=`<tr><td>${i+1}</td><td class="pn">${esc(item.pn)}</td><td>${esc(item.name)}</td><td style="text-align:center;font-weight:600">${item.qty}</td></tr>`;
+    });
+    h+='</tbody></table>';
+    el.innerHTML=h;
+}
+
+// Google Sheets API helpers for requisition
+const REQ_SHEET_ID='1pGy5OkQd8i4tVlYbcG7afkeDHEdjaZIwwuq6Wqv96jM';
+function getReqSheetName(){const n=new Date();return`${n.getFullYear()}/${n.getMonth()+1}`;}
+
+async function reqSheetsApi(url,options={}){
+    if(!sheetsToken)sheetsToken=localStorage.getItem('sheets_access_token');
+    if(!sheetsToken)throw new Error('Sheets認証切れ。メインアプリで再ログインしてください。');
+    const r=await fetch(url,{...options,headers:{'Authorization':'Bearer '+sheetsToken,'Content-Type':'application/json',...(options.headers||{})}});
+    if(!r.ok){const t=await r.text();throw new Error(`Sheets API error ${r.status}: ${t}`);}
+    return r.json();
+}
+
+async function reqCheckSheet(name){
+    const d=await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}?fields=sheets.properties.title`);
+    return d.sheets.some(s=>s.properties.title===name);
+}
+async function reqCreateSheet(name){
+    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}:batchUpdate`,{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:name}}}]})});
+    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}/values/${encodeURIComponent(name)}!A1:Q1?valueInputOption=RAW`,{method:'PUT',body:JSON.stringify({values:[['No.','日付','名前','部品番号かQRの値を入力','部品番号(自動入力)','部品名(自動入力)','数量','目的','SN','備考欄','出庫者','処理状況','貸出状況','保管場所','仮保管場所','部署','出庫メモ']]})});
+}
+async function reqGetNextRow(name){
+    const d=await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}/values/${encodeURIComponent(name)}!B:B`);
+    return(d.values?d.values.length:0)+1;
+}
+async function reqWriteRow(name,row,data){
+    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}/values/${encodeURIComponent(name)}!A${row}:Q${row}?valueInputOption=USER_ENTERED`,{method:'PUT',body:JSON.stringify({values:[data]})});
+}
+
+async function reqSubmit(){
+    const items=window._printItems||[];
+    const selected=reqSelection.map(i=>items[i]).filter(Boolean);
+    if(!selected.length){showSt('req-status','部品を選択してください','error');return;}
+    const purpose=document.getElementById('req-purpose').value;
+    if(!purpose){showSt('req-status','目的を選択してください','error');return;}
+    const sn=document.getElementById('req-sn').value.trim();
+    const comment=document.getElementById('req-comment').value.trim();
+
+    showSt('req-status','送信中...','loading');
+    try{
+        const sheet=getReqSheetName();
+        if(!(await reqCheckSheet(sheet)))await reqCreateSheet(sheet);
+        let row=await reqGetNextRow(sheet);
+        const date=`${new Date().getMonth()+1}/${new Date().getDate()}`;
+        for(let i=0;i<selected.length;i++){
+            const p=selected[i];
+            await reqWriteRow(sheet,row+i,[date,user.name,p.pn||'','','',String(p.qty||1),purpose,sn||'',comment||'']);
+        }
+        showSt('req-status',`✅ ${selected.length}件の出庫依頼を送信しました`,'success');
+        setTimeout(()=>{reqSelection=[];regenPrint();},2000);
+    }catch(e){
+        console.error(e);
+        showSt('req-status','エラー: '+e.message,'error');
+    }
 }
 
 // =====================================================
