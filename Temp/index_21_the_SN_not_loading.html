@@ -1350,46 +1350,14 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                 btn.textContent = 'Unitを選択してください'; btn.disabled = true;
             }
         }
-        async function confirmBulkUnit() {
+        function confirmBulkUnit() {
             if (!bulkUnitCode || !bulkUnitNumber) return;
-            const btn = document.getElementById('bulk-unit-confirm');
             const uc = UNIT_CODES.find(u => u.code === bulkUnitCode);
-            const fallbackSN = uc ? `${uc.snCode}-${bulkUnitNumber.padStart(5, '0')}` : `${bulkUnitCode}-${bulkUnitNumber}`;
-
-            // Check if we have an access token first
-            if (!accessToken) {
-                document.getElementById('bulk-sn').value = fallbackSN;
-                updateBulkSummary();
-                closeBulkUnitModal();
-                showBulkStatus(`⚠️ Sheets認証切れ。${fallbackSN} を設定。再ログインで検索可能`);
-                return;
-            }
-
-            btn.textContent = '🔍 検索中...'; btn.disabled = true;
-            try {
-                const fullSN = await lookupGhostTrackerSN(bulkUnitCode, bulkUnitNumber);
-                if (fullSN) {
-                    document.getElementById('bulk-sn').value = fullSN;
-                    updateBulkSummary();
-                    closeBulkUnitModal();
-                    showBulkStatus(`✅ S/N: ${fullSN} を取得しました`);
-                } else {
-                    document.getElementById('bulk-sn').value = fallbackSN;
-                    updateBulkSummary();
-                    closeBulkUnitModal();
-                    showBulkStatus(`⚠️ Ghost Trackerに見つかりません。${fallbackSN} を設定しました`);
-                }
-            } catch (e) {
-                console.error('Bulk unit lookup error:', e);
-                document.getElementById('bulk-sn').value = fallbackSN;
-                updateBulkSummary();
-                closeBulkUnitModal();
-                if (e.message && e.message.includes('再ログイン')) {
-                    showBulkStatus(`⚠️ セッション切れ。${fallbackSN} を設定。再ログインしてください`);
-                } else {
-                    showBulkStatus(`⚠️ 検索エラー。${fallbackSN} を設定しました`);
-                }
-            }
+            const sn = uc ? `${uc.snCode}-${bulkUnitNumber.padStart(5, '0')}` : `${bulkUnitCode}-${bulkUnitNumber}`;
+            document.getElementById('bulk-sn').value = sn;
+            updateBulkSummary();
+            closeBulkUnitModal();
+            showBulkStatus(`✅ S/N: ${sn} を設定しました`);
         }
     </script>
 </body>
