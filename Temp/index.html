@@ -137,41 +137,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
     .sn-btn { padding: 8px 8px; font-size: 0.85rem; }
     .part-number { font-size: 0.9rem; }
     .part-name { font-size: 0.7rem; }
-    .bulk-row-inline { flex-direction: column; gap: 8px; }
-    .bulk-actions { flex-direction: column; }
-    .bulk-actions .bulk-btn { width: 100%; justify-content: center; }
 }
-
-/* Bulk Settings Panel */
-.bulk-panel { background: linear-gradient(135deg, rgba(102,126,234,.06), rgba(118,75,162,.06)); border: 1.5px solid rgba(102,126,234,.25); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
-.bulk-panel.collapsed { padding: 10px 14px; }
-.bulk-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
-.bulk-header h3 { font-size: .85rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 6px; }
-.bulk-header .toggle-icon { transition: transform .3s; font-size: .8rem; }
-.bulk-header .toggle-icon.collapsed { transform: rotate(-90deg); }
-.bulk-body { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
-.bulk-body.hidden { display: none; }
-.bulk-row-inline { display: flex; gap: 10px; }
-.bulk-field label { display: block; font-size: .72rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
-.bulk-field select, .bulk-field input { padding: 8px 10px; border: 1.5px solid var(--border-color); border-radius: 6px; font-size: .88rem; }
-.bulk-field select:focus, .bulk-field input:focus { outline: none; border-color: var(--input-focus); }
-.bulk-toggle { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--text-secondary); }
-.bulk-toggle input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary); }
-.bulk-toggle label { cursor: pointer; user-select: none; }
-.bulk-btn { padding: 7px 12px; border-radius: 6px; border: none; font-size: .8rem; font-weight: 600; cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: 4px; }
-.bulk-btn-apply { background: var(--primary); color: white; }
-.bulk-btn-apply:hover { background: var(--accent-hover); }
-.bulk-btn-sq { padding: 8px 10px; font-size: .76rem; border-radius: 6px; white-space: nowrap; }
-.bulk-btn-empty { background: var(--primary-bg); color: var(--primary); }
-.bulk-btn-empty:hover { background: var(--primary-bg-hover); }
-.bulk-btn-clear { background: #f5f5f5; color: var(--text-secondary); border: 1px solid var(--border-color); }
-.bulk-btn-clear:hover { background: #eee; }
-.bulk-actions { display: flex; gap: 8px; flex-wrap: wrap; }
-.bulk-divider { border-top: 1px dashed var(--border-color); margin: 4px 0; }
-.bulk-status { font-size: .78rem; color: var(--primary); font-weight: 500; min-height: 18px; }
-.bulk-summary-text { font-size: .75rem; color: var(--text-secondary); }
-.clear-all-btn { width: 100%; padding: 10px; border: 2px dashed #e53935; background: rgba(229,57,53,.04); color: #e53935; border-radius: 10px; font-size: .85rem; font-weight: 600; cursor: pointer; margin-bottom: 16px; transition: all .2s; }
-.clear-all-btn:hover { background: rgba(229,57,53,.1); }
 
 .sn-compact-row { display: flex; gap: 4px; }
 .sn-text-input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
@@ -358,63 +324,10 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                 </div>
                 <div id="batch-content">
                     <div class="current-sheet" id="current-sheet">📅 対象シート: 読み込み中...</div>
-
-                    <!-- Bulk Settings Panel -->
-                    <div class="bulk-panel" id="bulk-panel">
-                        <div class="bulk-header" onclick="toggleBulkPanel()">
-                            <h3><span>📋</span> 一括設定 <span class="toggle-icon" id="toggle-icon">▼</span></h3>
-                            <span class="bulk-summary-text" id="bulk-summary"></span>
-                        </div>
-                        <div class="bulk-body" id="bulk-body">
-                            <div class="bulk-row-inline">
-                                <div class="bulk-field" style="flex:1;min-width:0">
-                                    <label>目的</label>
-                                    <div style="display:flex;gap:4px">
-                                        <select id="bulk-purpose" onchange="updateBulkSummary()" style="flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--border-color);border-radius:6px;font-size:.88rem">
-                                            <option value="">-- 未設定 --</option>
-                                            <option value="通常組立">通常組立</option>
-                                            <option value="不良部品">不良部品</option>
-                                            <option value="仕損発生">仕損発生</option>
-                                            <option value="PICK UP不足">PICK UP不足</option>
-                                            <option value="市場品修理">市場品修理</option>
-                                            <option value="ECN対応">ECN対応</option>
-                                            <option value="BY構築">BY構築</option>
-                                            <option value="生産ジグ">生産ジグ</option>
-                                            <option value="確認中">確認中</option>
-                                            <option value="その他">その他</option>
-                                            <option value="出庫キャンセル">出庫キャンセル</option>
-                                        </select>
-                                        <button class="bulk-btn bulk-btn-apply bulk-btn-sq" onclick="applyField('purpose')" title="目的を全行に適用">適用</button>
-                                    </div>
-                                </div>
-                                <div class="bulk-field" style="flex:1;min-width:0">
-                                    <label>S/N</label>
-                                    <div style="display:flex;gap:4px">
-                                        <input type="text" id="bulk-sn" placeholder="GST-00034" oninput="updateBulkSummary()" style="flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--border-color);border-radius:6px;font-size:.88rem">
-                                        <button class="sn-btn unit-btn" onclick="openBulkUnitModal()" title="Unit選択" style="padding:8px">🏭</button>
-                                        <button class="bulk-btn bulk-btn-apply bulk-btn-sq" onclick="applyField('sn')" title="S/Nを全行に適用">適用</button>
-                                    </div>
-                                </div>
-                            </div>
-                            <div class="bulk-toggle">
-                                <input type="checkbox" id="bulk-auto" checked>
-                                <label for="bulk-auto">新しい部品に自動適用</label>
-                            </div>
-                            <div class="bulk-divider"></div>
-                            <div class="bulk-actions">
-                                <button class="bulk-btn bulk-btn-empty" onclick="applyBulkMode('empty')">空欄のみ適用</button>
-                                <button class="bulk-btn bulk-btn-apply" onclick="applyBulkMode('all')">全行に適用</button>
-                                <button class="bulk-btn bulk-btn-clear" onclick="clearBulk()">クリア</button>
-                            </div>
-                            <div class="bulk-status" id="bulk-status"></div>
-                        </div>
-                    </div>
-
                     <div class="action-buttons">
                         <button class="action-btn" id="scan-add-btn" onclick="toggleScanner()">📷 QRスキャン追加</button>
                         <button class="action-btn" onclick="openPasteModal()">📋 リスト貼付け</button>
                     </div>
-                    <button class="clear-all-btn" id="clear-all-btn" onclick="clearAllParts()" style="display:none">🗑️ リストをすべてクリア</button>
                     <div id="qr-reader" class="qr-reader-container"></div>
                     <div class="parts-list" id="parts-list">
                         <div class="parts-list-empty">QRスキャンまたはリスト貼付けで部品を追加してください</div>
@@ -553,29 +466,6 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
             </div>
             <div class="unit-modal-number"><label>番号を入力 (例: 34, 105, 426)</label><input type="number" id="unit-number-input" placeholder="34" oninput="onUnitNumberChange(this.value)"></div>
             <button class="unit-confirm-btn" id="unit-confirm-btn" onclick="confirmUnitSelection()" disabled>Unitを選択してください</button>
-        </div>
-    </div>
-
-    <!-- Bulk Unit Code Modal -->
-    <div class="unit-modal-overlay" id="bulk-unit-modal">
-        <div class="unit-modal">
-            <div class="unit-modal-header"><h3>🏭 一括 S/N 選択</h3><button class="unit-modal-close" onclick="closeBulkUnitModal()">✕</button></div>
-            <p style="color: #666; font-size: 0.85rem; margin-bottom: 12px;">一括設定に適用するS/Nを選択</p>
-            <div class="unit-modal-chips" id="bulk-unit-chips">
-                <button class="unit-modal-chip" data-code="Ghost" onclick="selectBulkUnit('Ghost')">👻 Ghost</button>
-                <button class="unit-modal-chip" data-code="MB" onclick="selectBulkUnit('MB')">🛞 MB</button>
-                <button class="unit-modal-chip" data-code="Pillar" onclick="selectBulkUnit('Pillar')">🏛️ Pillar</button>
-                <button class="unit-modal-chip" data-code="H&B" onclick="selectBulkUnit('H&B')">🧠 H&B</button>
-                <button class="unit-modal-chip" data-code="Arm" onclick="selectBulkUnit('Arm')">🦾 Arm</button>
-                <button class="unit-modal-chip" data-code="Gripper" onclick="selectBulkUnit('Gripper')">🤏 Gripper</button>
-                <button class="unit-modal-chip" data-code="DK" onclick="selectBulkUnit('DK')">📦 DK</button>
-                <button class="unit-modal-chip" data-code="L-Mot" onclick="selectBulkUnit('L-Mot')">⚙️ L-Mot</button>
-                <button class="unit-modal-chip" data-code="A12" onclick="selectBulkUnit('A12')">⚙️ A12</button>
-                <button class="unit-modal-chip" data-code="A35" onclick="selectBulkUnit('A35')">⚙️ A35</button>
-                <button class="unit-modal-chip" data-code="A4" onclick="selectBulkUnit('A4')">⚙️ A4</button>
-            </div>
-            <div class="unit-modal-number"><label>番号を入力 (例: 34, 105, 426)</label><input type="number" id="bulk-unit-number" placeholder="34" oninput="updateBulkUnitPreview()" onkeydown="if(event.key==='Enter'&&!document.getElementById('bulk-unit-confirm').disabled)confirmBulkUnit()"></div>
-            <button class="unit-confirm-btn" id="bulk-unit-confirm" onclick="confirmBulkUnit()" disabled>Unitを選択してください</button>
         </div>
     </div>
 
@@ -1014,8 +904,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         // PARTS LIST
         // =====================================================
         function addPart(pn, showLocation = false, locationData = null) {
-            const bulk = isBulkAutoApply() ? getBulkValues() : { purpose: '', sn: '' };
-            parts.push({ pn, name: locationData?.name||'', purpose: bulk.purpose||'', sn: bulk.sn||'', snUnit: '', snNumber: '', qty: 1, showLocation, location: locationData?.location||'', tempLocation: locationData?.tempLocation||'' });
+            parts.push({ pn, name: locationData?.name||'', purpose: '', sn: '', snUnit: '', snNumber: '', qty: 1, showLocation, location: locationData?.location||'', tempLocation: locationData?.tempLocation||'' });
             renderPartsList(); updateSubmitButton();
         }
         function removePart(i) { parts.splice(i, 1); renderPartsList(); updateSubmitButton(); }
@@ -1053,7 +942,6 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         function updateSubmitButton() {
             const btn = document.getElementById('submit-btn'), v = parts.filter(p => p.purpose);
             btn.textContent = `一括登録する (${v.length}件)`; btn.disabled = !v.length;
-            document.getElementById('clear-all-btn').style.display = parts.length ? 'block' : 'none';
         }
 
         // =====================================================
@@ -1231,134 +1119,6 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         // =====================================================
         function showStatus(id, msg, type) { const s = document.getElementById(id); s.textContent = msg; s.className = 'status ' + type; }
         function hideStatus(id) { document.getElementById(id).className = 'status'; }
-
-        // =====================================================
-        // BULK SETTINGS
-        // =====================================================
-        let bulkCollapsed = false;
-
-        function toggleBulkPanel() {
-            bulkCollapsed = !bulkCollapsed;
-            document.getElementById('bulk-body').classList.toggle('hidden', bulkCollapsed);
-            document.getElementById('toggle-icon').classList.toggle('collapsed', bulkCollapsed);
-            document.getElementById('bulk-panel').classList.toggle('collapsed', bulkCollapsed);
-        }
-
-        function getBulkValues() {
-            return {
-                purpose: document.getElementById('bulk-purpose').value,
-                sn: document.getElementById('bulk-sn').value.trim()
-            };
-        }
-
-        function isBulkAutoApply() {
-            return document.getElementById('bulk-auto').checked;
-        }
-
-        function updateBulkSummary() {
-            const b = getBulkValues();
-            const p = [];
-            if (b.purpose) p.push(`目的: ${b.purpose}`);
-            if (b.sn) p.push(`S/N: ${b.sn}`);
-            document.getElementById('bulk-summary').textContent = p.length ? p.join(' | ') : '';
-        }
-
-        function applyField(field) {
-            const b = getBulkValues();
-            const val = field === 'purpose' ? b.purpose : b.sn;
-            const label = field === 'purpose' ? '目的' : 'S/N';
-            if (!val) { showBulkStatus(`${label}を設定してください`); return; }
-            if (!parts.length) { showBulkStatus('部品がありません'); return; }
-            let count = 0;
-            parts.forEach(p => {
-                if (field === 'purpose') { p.purpose = val; count++; }
-                else { p.sn = val; count++; }
-            });
-            renderPartsList(); updateSubmitButton();
-            showBulkStatus(`✅ ${label}を${count}件に適用しました`);
-        }
-
-        function applyBulkMode(mode) {
-            const b = getBulkValues();
-            if (!b.purpose && !b.sn) { showBulkStatus('設定する値がありません'); return; }
-            if (!parts.length) { showBulkStatus('部品がありません'); return; }
-            let count = 0;
-            parts.forEach(p => {
-                if (b.purpose && (mode === 'all' || !p.purpose)) { p.purpose = b.purpose; count++; }
-                if (b.sn && (mode === 'all' || !p.sn)) { p.sn = b.sn; count++; }
-            });
-            renderPartsList(); updateSubmitButton();
-            const label = mode === 'all' ? '全行' : '空欄';
-            showBulkStatus(`✅ ${count}件の項目を更新しました (${label})`);
-        }
-
-        function clearBulk() {
-            document.getElementById('bulk-purpose').value = '';
-            document.getElementById('bulk-sn').value = '';
-            updateBulkSummary();
-            showBulkStatus('クリアしました');
-        }
-
-        function clearAllParts() {
-            if (!parts.length) return;
-            if (!confirm(`${parts.length}件の部品をすべてクリアしますか？`)) return;
-            parts = [];
-            renderPartsList(); updateSubmitButton();
-            showStatus('batch-status', 'リストをクリアしました', 'success');
-            setTimeout(() => hideStatus('batch-status'), 2000);
-        }
-
-        function showBulkStatus(msg) {
-            const el = document.getElementById('bulk-status');
-            el.textContent = msg;
-            setTimeout(() => { el.textContent = ''; }, 2500);
-        }
-
-        // =====================================================
-        // BULK UNIT MODAL
-        // =====================================================
-        let bulkUnitCode = '';
-        let bulkUnitNumber = '';
-
-        function openBulkUnitModal() {
-            bulkUnitCode = ''; bulkUnitNumber = '';
-            document.getElementById('bulk-unit-number').value = '';
-            document.querySelectorAll('#bulk-unit-chips .unit-modal-chip').forEach(c => c.classList.remove('active'));
-            updateBulkUnitPreview();
-            document.getElementById('bulk-unit-modal').classList.add('active');
-        }
-        function closeBulkUnitModal() {
-            document.getElementById('bulk-unit-modal').classList.remove('active');
-        }
-        function selectBulkUnit(code) {
-            bulkUnitCode = code;
-            document.querySelectorAll('#bulk-unit-chips .unit-modal-chip').forEach(c => {
-                c.classList.toggle('active', c.dataset.code === code);
-            });
-            updateBulkUnitPreview();
-        }
-        function updateBulkUnitPreview() {
-            bulkUnitNumber = document.getElementById('bulk-unit-number').value.trim();
-            const btn = document.getElementById('bulk-unit-confirm');
-            if (bulkUnitCode && bulkUnitNumber) {
-                const uc = UNIT_CODES.find(u => u.code === bulkUnitCode);
-                const sn = uc ? `${uc.snCode}-${bulkUnitNumber.padStart(5, '0')}` : `${bulkUnitCode}-${bulkUnitNumber}`;
-                btn.textContent = `✅ ${sn} を設定`; btn.disabled = false;
-            } else if (bulkUnitCode) {
-                btn.textContent = '番号を入力してください'; btn.disabled = true;
-            } else {
-                btn.textContent = 'Unitを選択してください'; btn.disabled = true;
-            }
-        }
-        function confirmBulkUnit() {
-            if (!bulkUnitCode || !bulkUnitNumber) return;
-            const uc = UNIT_CODES.find(u => u.code === bulkUnitCode);
-            const sn = uc ? `${uc.snCode}-${bulkUnitNumber.padStart(5, '0')}` : `${bulkUnitCode}-${bulkUnitNumber}`;
-            document.getElementById('bulk-sn').value = sn;
-            updateBulkSummary();
-            closeBulkUnitModal();
-            showBulkStatus(`✅ S/N: ${sn} を設定しました`);
-        }
     </script>
 </body>
 </html>
