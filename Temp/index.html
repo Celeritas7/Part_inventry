@@ -533,8 +533,6 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         // =====================================================
         // INIT — Supabase Auth listener
         // =====================================================
-        let authReady = false;
-
         window.onload = function() {
             showLoading();
 
@@ -556,18 +554,13 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                     }
 
                     await checkUserApproval(session.user);
-                    authReady = true;
 
                 } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
                     currentUser = null;
                     userProfile = null;
-                    authReady = true;
                     showLogin();
                 }
             });
-
-            // Timeout fallback — if auth doesn't fire within 4s, show login
-            setTimeout(() => { if (!authReady) showLogin(); }, 4000);
         };
 
         // =====================================================
