@@ -397,7 +397,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                                 </div>
                             </div>
                             <div class="bulk-toggle">
-                                <input type="checkbox" id="bulk-auto" checked onchange="saveBulkSettings()">
+                                <input type="checkbox" id="bulk-auto" checked>
                                 <label for="bulk-auto">新しい部品に自動適用</label>
                             </div>
                             <div class="bulk-divider"></div>
@@ -434,8 +434,8 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
     <div class="modal-overlay" id="paste-modal">
         <div class="modal">
             <h2>📋 部品番号リスト貼付け</h2>
-            <p style="color: #666; margin-bottom: 12px; font-size: 0.85rem;">部品番号を改行で区切って貼り付けてください<br><span style="color:#2563eb">数量付き: P/N,数量 または P/N&lt;Tab&gt;数量 または P/N 数量</span></p>
-            <textarea id="paste-textarea" placeholder="GPMP-0540010-0-2,6&#10;GPCP-0000360-0-0&#9;4&#10;GPCP-0000154-0-0 2&#10;GPCP-0000332-0-0"></textarea>
+            <p style="color: #666; margin-bottom: 12px; font-size: 0.9rem;">部品番号を改行で区切って貼り付けてください</p>
+            <textarea id="paste-textarea" placeholder="GPMP-0540010-0-2&#10;GPCP-0000360-0-0&#10;GPCP-0000154-0-0"></textarea>
             <div class="modal-buttons">
                 <button class="modal-btn cancel" onclick="closePasteModal()">キャンセル</button>
                 <button class="modal-btn confirm" onclick="processPastedList()">追加する</button>
@@ -712,7 +712,6 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
 
             updateCurrentSheetDisplay();
             loadSavedTheme();
-            restoreBulkSettings();
         }
 
         // =====================================================
@@ -1130,29 +1129,15 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
             closePasteModal(); showStatus('batch-status', '部品情報を取得中...', 'loading');
             try {
                 if (!databaseCache) databaseCache = await loadDatabase();
-                const bulk = isBulkAutoApply() ? getBulkValues() : { purpose: '', sn: '' };
                 let added = 0;
-                lines.forEach(line => {
-                        // Auto-detect separator: tab, comma, or trailing space+number
-                        let pn, qty = 1;
-                        if (line.includes('\t')) { const p = line.split('\t'); pn = p[0].trim(); qty = parseInt(p[1]) || 1; }
-                        else if (line.includes(',')) { const p = line.split(','); pn = p[0].trim(); qty = parseInt(p[1]) || 1; }
-                        else if (/\s+\d+$/.test(line)) { const m = line.match(/^(.+?)\s+(\d+)$/); pn = m[1].trim(); qty = parseInt(m[2]) || 1; }
-                        else { pn = line; }
-                        if (!pn) return;
+                lines.forEach(pn => {
                         const f = databaseCache.find(r => r.partNumber === pn);
-                        parts.push({ pn, name: f?.name||'', purpose: bulk.purpose||'', sn: bulk.sn||'', snUnit: '', snNumber: '', qty, showLocation: true, location: f?.location||'', tempLocation: f?.tempLocation||'' });
+                        parts.push({ pn, name: f?.name||'', purpose: '', sn: '', snUnit: '', snNumber: '', qty: 1, showLocation: true, location: f?.location||'', tempLocation: f?.tempLocation||'' });
                         added++;
                 });
                 renderPartsList(); updateSubmitButton();
-                const pnList = lines.map(l => {
-                    if (l.includes('\t')) return l.split('\t')[0].trim();
-                    if (l.includes(',')) return l.split(',')[0].trim();
-                    if (/\s+\d+$/.test(l)) return l.match(/^(.+?)\s+\d+$/)[1].trim();
-                    return l;
-                });
-                document.getElementById('finder-input').value = pnList.join('\n');
-                await autoSearchFinder(pnList);
+                document.getElementById('finder-input').value = lines.join('\n');
+                await autoSearchFinder(lines);
                 if (added) { showStatus('batch-status', `✅ ${added}件の部品を追加しました`, 'success'); setTimeout(() => hideStatus('batch-status'), 3000); }
             } catch (e) { showStatus('batch-status', 'エラー: ' + e.message, 'error'); }
         }
@@ -1276,25 +1261,6 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
             if (b.purpose) p.push(`目的: ${b.purpose}`);
             if (b.sn) p.push(`S/N: ${b.sn}`);
             document.getElementById('bulk-summary').textContent = p.length ? p.join(' | ') : '';
-            // Persist to localStorage
-            saveBulkSettings();
-        }
-
-        function saveBulkSettings() {
-            const b = getBulkValues();
-            const autoApply = document.getElementById('bulk-auto').checked;
-            localStorage.setItem('bulk-settings', JSON.stringify({ purpose: b.purpose, sn: b.sn, auto: autoApply }));
-        }
-
-        function restoreBulkSettings() {
-            try {
-                const saved = JSON.parse(localStorage.getItem('bulk-settings'));
-                if (!saved) return;
-                if (saved.purpose) document.getElementById('bulk-purpose').value = saved.purpose;
-                if (saved.sn) document.getElementById('bulk-sn').value = saved.sn;
-                if (saved.auto !== undefined) document.getElementById('bulk-auto').checked = saved.auto;
-                updateBulkSummary();
-            } catch(e) { /* ignore */ }
         }
 
         function applyField(field) {
@@ -1329,7 +1295,6 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         function clearBulk() {
             document.getElementById('bulk-purpose').value = '';
             document.getElementById('bulk-sn').value = '';
-            localStorage.removeItem('bulk-settings');
             updateBulkSummary();
             showBulkStatus('クリアしました');
         }
