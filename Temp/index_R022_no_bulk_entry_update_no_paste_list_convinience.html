@@ -84,8 +84,6 @@ body {
 .header-icons { display: flex; gap: 8px; }
 .header-icon-btn { width: 40px; height: 40px; border: none; border-radius: 10px; background: var(--primary-bg); font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
 .header-icon-btn:hover { background: var(--primary-bg-hover); transform: scale(1.05); }
-.lang-toggle-btn { padding: 4px 8px; border: 1.5px solid var(--border-color); border-radius: 6px; background: white; font-size: 0.7rem; font-weight: 700; cursor: pointer; color: var(--text-secondary); transition: all 0.15s; letter-spacing: 0.03em; }
-.lang-toggle-btn:hover { border-color: var(--primary); color: var(--primary); }
 h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-size: 1.5rem; }
 .subtitle { text-align: center; color: var(--text-secondary); margin-bottom: 24px; font-size: 0.9rem; }
 
@@ -332,7 +330,6 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                     <p class="subtitle">生産チーム出庫依頼シート</p>
                 </div>
                 <div class="header-icons" id="header-icons" style="display: none;">
-                    <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
                     <button class="header-icon-btn" onclick="openFinderModal()" title="部品検索">🔍</button>
                     <a href="pick_list.html" class="header-icon-btn" title="ピックリスト" style="text-decoration:none;">📋</a>
                     <button class="header-icon-btn admin-only" id="sheet-selector-btn" onclick="openSheetSelectorModal()" title="シート選択" style="display: none;">📊</button>
@@ -399,15 +396,8 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                                     </div>
                                 </div>
                             </div>
-                            <div style="display:flex;gap:4px;align-items:flex-end">
-                                <div style="flex:1">
-                                    <label style="display:block;font-size:.72rem;font-weight:600;color:var(--text-secondary);margin-bottom:3px">コメント</label>
-                                    <input type="text" id="bulk-comment" placeholder="コメント" oninput="updateBulkSummary()" style="width:100%;padding:8px 10px;border:1.5px solid var(--border-color);border-radius:6px;font-size:.88rem">
-                                </div>
-                                <button class="bulk-btn bulk-btn-apply bulk-btn-sq" onclick="applyField('comment')" title="コメントを全行に適用">適用</button>
-                            </div>
                             <div class="bulk-toggle">
-                                <input type="checkbox" id="bulk-auto" checked onchange="saveBulkSettings()">
+                                <input type="checkbox" id="bulk-auto" checked>
                                 <label for="bulk-auto">新しい部品に自動適用</label>
                             </div>
                             <div class="bulk-divider"></div>
@@ -429,6 +419,10 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                     <div class="parts-list" id="parts-list">
                         <div class="parts-list-empty">QRスキャンまたはリスト貼付けで部品を追加してください</div>
                     </div>
+                    <div class="remarks-section">
+                        <label>備考欄 (共通)</label>
+                        <textarea id="remarks" placeholder="備考があれば入力"></textarea>
+                    </div>
                     <button class="submit-btn" id="submit-btn" onclick="submitBatch()" disabled>一括登録する (0件)</button>
                     <div class="status" id="batch-status"></div>
                 </div>
@@ -440,8 +434,8 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
     <div class="modal-overlay" id="paste-modal">
         <div class="modal">
             <h2>📋 部品番号リスト貼付け</h2>
-            <p style="color: #666; margin-bottom: 12px; font-size: 0.85rem;">部品番号を改行で区切って貼り付けてください<br><span style="color:#2563eb">数量付き: P/N,数量 または P/N&lt;Tab&gt;数量 または P/N 数量</span></p>
-            <textarea id="paste-textarea" placeholder="GPMP-0540010-0-2,6&#10;GPCP-0000360-0-0&#9;4&#10;GPCP-0000154-0-0 2&#10;GPCP-0000332-0-0"></textarea>
+            <p style="color: #666; margin-bottom: 12px; font-size: 0.9rem;">部品番号を改行で区切って貼り付けてください</p>
+            <textarea id="paste-textarea" placeholder="GPMP-0540010-0-2&#10;GPCP-0000360-0-0&#10;GPCP-0000154-0-0"></textarea>
             <div class="modal-buttons">
                 <button class="modal-btn cancel" onclick="closePasteModal()">キャンセル</button>
                 <button class="modal-btn confirm" onclick="processPastedList()">追加する</button>
@@ -718,8 +712,6 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
 
             updateCurrentSheetDisplay();
             loadSavedTheme();
-            restoreBulkSettings();
-            applyLang();
         }
 
         // =====================================================
@@ -1022,8 +1014,8 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         // PARTS LIST
         // =====================================================
         function addPart(pn, showLocation = false, locationData = null) {
-            const bulk = isBulkAutoApply() ? getBulkValues() : { purpose: '', sn: '', comment: '' };
-            parts.push({ pn, name: locationData?.name||'', purpose: bulk.purpose||'', sn: bulk.sn||'', comment: bulk.comment||'', snUnit: '', snNumber: '', qty: 1, showLocation, location: locationData?.location||'', tempLocation: locationData?.tempLocation||'' });
+            const bulk = isBulkAutoApply() ? getBulkValues() : { purpose: '', sn: '' };
+            parts.push({ pn, name: locationData?.name||'', purpose: bulk.purpose||'', sn: bulk.sn||'', snUnit: '', snNumber: '', qty: 1, showLocation, location: locationData?.location||'', tempLocation: locationData?.tempLocation||'' });
             renderPartsList(); updateSubmitButton();
         }
         function removePart(i) { parts.splice(i, 1); renderPartsList(); updateSubmitButton(); }
@@ -1031,8 +1023,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
 
         function renderPartsList() {
             const c = document.getElementById('parts-list');
-            const L = I18N[currentLang] || I18N['ja'];
-            if (!parts.length) { c.innerHTML = `<div class="parts-list-empty">${L.empty_list}</div>`; return; }
+            if (!parts.length) { c.innerHTML = '<div class="parts-list-empty">QRスキャンまたはリスト貼付けで部品を追加してください</div>'; return; }
             c.innerHTML = parts.map((p, i) => `
                 <div class="part-item">
                     <div class="part-header">
@@ -1045,9 +1036,9 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                     </div>
                     ${p.showLocation ? `<div class="inline-location">📍 ${p.location||'場所不明'}${p.tempLocation ? ` (仮: ${p.tempLocation})` : ''}</div>` : ''}
                     <div class="part-fields three-col">
-                        <div class="field-group"><label>${L.purpose}</label>
+                        <div class="field-group"><label>目的</label>
                             <select onchange="updatePart(${i},'purpose',this.value)"><option value="">選択</option>${PURPOSE_OPTIONS.map(o=>`<option value="${o}" ${p.purpose===o?'selected':''}>${o}</option>`).join('')}</select></div>
-                        <div class="field-group"><label>${L.qty}</label><input type="number" value="${p.qty}" min="1" onchange="updatePart(${i},'qty',this.value)"></div>
+                        <div class="field-group"><label>数量</label><input type="number" value="${p.qty}" min="1" onchange="updatePart(${i},'qty',this.value)"></div>
                         <div class="field-group sn-field"><label>S/N</label>
                             <div class="sn-compact-row">
                                 <input type="text" value="${p.sn}" placeholder="S/N" onchange="updatePart(${i},'sn',this.value)" class="sn-text-input">
@@ -1061,8 +1052,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
 
         function updateSubmitButton() {
             const btn = document.getElementById('submit-btn'), v = parts.filter(p => p.purpose);
-            const L = I18N[currentLang] || I18N['ja'];
-            btn.textContent = `${L.submit} (${v.length}件)`; btn.disabled = !v.length;
+            btn.textContent = `一括登録する (${v.length}件)`; btn.disabled = !v.length;
             document.getElementById('clear-all-btn').style.display = parts.length ? 'block' : 'none';
         }
 
@@ -1139,29 +1129,15 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
             closePasteModal(); showStatus('batch-status', '部品情報を取得中...', 'loading');
             try {
                 if (!databaseCache) databaseCache = await loadDatabase();
-                const bulk = isBulkAutoApply() ? getBulkValues() : { purpose: '', sn: '', comment: '' };
                 let added = 0;
-                lines.forEach(line => {
-                        // Auto-detect separator: tab, comma, or trailing space+number
-                        let pn, qty = 1;
-                        if (line.includes('\t')) { const p = line.split('\t'); pn = p[0].trim(); qty = parseInt(p[1]) || 1; }
-                        else if (line.includes(',')) { const p = line.split(','); pn = p[0].trim(); qty = parseInt(p[1]) || 1; }
-                        else if (/\s+\d+$/.test(line)) { const m = line.match(/^(.+?)\s+(\d+)$/); pn = m[1].trim(); qty = parseInt(m[2]) || 1; }
-                        else { pn = line; }
-                        if (!pn) return;
+                lines.forEach(pn => {
                         const f = databaseCache.find(r => r.partNumber === pn);
-                        parts.push({ pn, name: f?.name||'', purpose: bulk.purpose||'', sn: bulk.sn||'', comment: bulk.comment||'', snUnit: '', snNumber: '', qty, showLocation: true, location: f?.location||'', tempLocation: f?.tempLocation||'' });
+                        parts.push({ pn, name: f?.name||'', purpose: '', sn: '', snUnit: '', snNumber: '', qty: 1, showLocation: true, location: f?.location||'', tempLocation: f?.tempLocation||'' });
                         added++;
                 });
                 renderPartsList(); updateSubmitButton();
-                const pnList = lines.map(l => {
-                    if (l.includes('\t')) return l.split('\t')[0].trim();
-                    if (l.includes(',')) return l.split(',')[0].trim();
-                    if (/\s+\d+$/.test(l)) return l.match(/^(.+?)\s+\d+$/)[1].trim();
-                    return l;
-                });
-                document.getElementById('finder-input').value = pnList.join('\n');
-                await autoSearchFinder(pnList);
+                document.getElementById('finder-input').value = lines.join('\n');
+                await autoSearchFinder(lines);
                 if (added) { showStatus('batch-status', `✅ ${added}件の部品を追加しました`, 'success'); setTimeout(() => hideStatus('batch-status'), 3000); }
             } catch (e) { showStatus('batch-status', 'エラー: ' + e.message, 'error'); }
         }
@@ -1178,13 +1154,13 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                 const sheet = getCurrentSheetName(), sid = getCurrentSpreadsheetId();
                 if (!(await checkSheetExists(sheet, sid))) await createNewSheet(sheet, sid);
                 let row = await getNextRowNumber(sheet, sid);
-                const date = getDateString();
+                const date = getDateString(), remarks = document.getElementById('remarks').value.trim();
                 for (let i = 0; i < valid.length; i++) {
                     const p = valid[i];
-                    await writeRow(sheet, row + i, [date, userProfile.name, p.pn||'', '', '', String(p.qty||1), p.purpose||'', p.sn||'', p.comment||''], sid);
+                    await writeRow(sheet, row + i, [date, userProfile.name, p.pn||'', '', '', String(p.qty||1), p.purpose||'', p.sn||'', remarks||''], sid);
                 }
                 showStatus('batch-status', `✅ ${valid.length}件の登録が完了しました！`, 'success');
-                parts = []; renderPartsList(); updateSubmitButton();
+                parts = []; renderPartsList(); updateSubmitButton(); document.getElementById('remarks').value = '';
             } catch (e) { showStatus('batch-status', 'エラー: ' + e.message, 'error'); }
             finally { btn.disabled = false; updateSubmitButton(); }
         }
@@ -1271,8 +1247,7 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         function getBulkValues() {
             return {
                 purpose: document.getElementById('bulk-purpose').value,
-                sn: document.getElementById('bulk-sn').value.trim(),
-                comment: (document.getElementById('bulk-comment')||{}).value?.trim()||''
+                sn: document.getElementById('bulk-sn').value.trim()
             };
         }
 
@@ -1285,50 +1260,32 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
             const p = [];
             if (b.purpose) p.push(`目的: ${b.purpose}`);
             if (b.sn) p.push(`S/N: ${b.sn}`);
-            if (b.comment) p.push(`💬`);
             document.getElementById('bulk-summary').textContent = p.length ? p.join(' | ') : '';
-            saveBulkSettings();
-        }
-
-        function saveBulkSettings() {
-            const b = getBulkValues();
-            const autoApply = document.getElementById('bulk-auto').checked;
-            localStorage.setItem('bulk-settings', JSON.stringify({ purpose: b.purpose, sn: b.sn, comment: b.comment, auto: autoApply }));
-        }
-
-        function restoreBulkSettings() {
-            try {
-                const saved = JSON.parse(localStorage.getItem('bulk-settings'));
-                if (!saved) return;
-                if (saved.purpose) document.getElementById('bulk-purpose').value = saved.purpose;
-                if (saved.sn) document.getElementById('bulk-sn').value = saved.sn;
-                if (saved.comment) document.getElementById('bulk-comment').value = saved.comment;
-                if (saved.auto !== undefined) document.getElementById('bulk-auto').checked = saved.auto;
-                updateBulkSummary();
-            } catch(e) { /* ignore */ }
         }
 
         function applyField(field) {
             const b = getBulkValues();
-            const val = field === 'purpose' ? b.purpose : field === 'sn' ? b.sn : b.comment;
-            const label = field === 'purpose' ? '目的' : field === 'sn' ? 'S/N' : 'コメント';
+            const val = field === 'purpose' ? b.purpose : b.sn;
+            const label = field === 'purpose' ? '目的' : 'S/N';
             if (!val) { showBulkStatus(`${label}を設定してください`); return; }
             if (!parts.length) { showBulkStatus('部品がありません'); return; }
             let count = 0;
-            parts.forEach(p => { p[field] = val; count++; });
+            parts.forEach(p => {
+                if (field === 'purpose') { p.purpose = val; count++; }
+                else { p.sn = val; count++; }
+            });
             renderPartsList(); updateSubmitButton();
             showBulkStatus(`✅ ${label}を${count}件に適用しました`);
         }
 
         function applyBulkMode(mode) {
             const b = getBulkValues();
-            if (!b.purpose && !b.sn && !b.comment) { showBulkStatus('設定する値がありません'); return; }
+            if (!b.purpose && !b.sn) { showBulkStatus('設定する値がありません'); return; }
             if (!parts.length) { showBulkStatus('部品がありません'); return; }
             let count = 0;
             parts.forEach(p => {
                 if (b.purpose && (mode === 'all' || !p.purpose)) { p.purpose = b.purpose; count++; }
                 if (b.sn && (mode === 'all' || !p.sn)) { p.sn = b.sn; count++; }
-                if (b.comment && (mode === 'all' || !p.comment)) { p.comment = b.comment; count++; }
             });
             renderPartsList(); updateSubmitButton();
             const label = mode === 'all' ? '全行' : '空欄';
@@ -1338,8 +1295,6 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
         function clearBulk() {
             document.getElementById('bulk-purpose').value = '';
             document.getElementById('bulk-sn').value = '';
-            document.getElementById('bulk-comment').value = '';
-            localStorage.removeItem('bulk-settings');
             updateBulkSummary();
             showBulkStatus('クリアしました');
         }
@@ -1435,53 +1390,6 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
                     showBulkStatus(`⚠️ 検索エラー。${fallbackSN} を設定しました`);
                 }
             }
-        }
-
-        // =====================================================
-        // LANGUAGE TOGGLE
-        // =====================================================
-        const I18N = {
-            ja: { app_title:'出庫依頼入力', subtitle:'生産チーム出庫依頼シート', bulk_title:'一括設定', purpose:'目的', comment_label:'コメント', auto_apply:'新しい部品に自動適用', apply_empty:'空欄のみ適用', apply_all:'全行に適用', clear_btn:'クリア', qr_scan:'QRスキャン追加', paste_list:'リスト貼付け', clear_list:'🗑️ リストをすべてクリア', empty_list:'QRスキャンまたはリスト貼付けで部品を追加してください', submit:'一括登録する', qty:'数量' },
-            en: { app_title:'Parts Requisition', subtitle:'Production Team Parts Request', bulk_title:'Bulk Settings', purpose:'Purpose', comment_label:'Comment', auto_apply:'Auto-apply to new parts', apply_empty:'Apply to empty', apply_all:'Apply to all', clear_btn:'Clear', qr_scan:'QR Scan Add', paste_list:'Paste List', clear_list:'🗑️ Clear all parts', empty_list:'Add parts via QR scan or paste list', submit:'Submit batch', qty:'Qty' }
-        };
-        let currentLang = localStorage.getItem('app-lang') || 'ja';
-
-        function toggleLang() {
-            currentLang = currentLang === 'ja' ? 'en' : 'ja';
-            localStorage.setItem('app-lang', currentLang);
-            applyLang();
-        }
-
-        function applyLang() {
-            const L = I18N[currentLang];
-            document.getElementById('lang-toggle').textContent = currentLang === 'ja' ? 'EN' : 'JA';
-            // Header
-            const titleEl = document.querySelector('.app-title h1');
-            if (titleEl) titleEl.textContent = '📦 ' + L.app_title;
-            const subEl = document.querySelector('.app-title .subtitle');
-            if (subEl) subEl.textContent = L.subtitle;
-            // Bulk panel
-            const bulkTitle = document.querySelector('#bulk-panel .bulk-header h3');
-            if (bulkTitle) bulkTitle.innerHTML = `📋 ${L.bulk_title} <span class="toggle-icon" id="toggle-icon"${bulkCollapsed?' class="collapsed"':''}>▼</span>`;
-            const autoLabel = document.querySelector('label[for="bulk-auto"]');
-            if (autoLabel) autoLabel.textContent = L.auto_apply;
-            // Buttons
-            document.querySelectorAll('[onclick="applyBulkMode(\'empty\')"]').forEach(b => b.textContent = L.apply_empty);
-            document.querySelectorAll('[onclick="applyBulkMode(\'all\')"]').forEach(b => b.textContent = L.apply_all);
-            document.querySelectorAll('[onclick="clearBulk()"]').forEach(b => b.textContent = L.clear_btn);
-            // Action buttons
-            const scanBtn = document.getElementById('scan-add-btn');
-            if (scanBtn && !scanBtn.classList.contains('active')) scanBtn.textContent = '📷 ' + L.qr_scan;
-            // Clear all
-            const clearAll = document.getElementById('clear-all-btn');
-            if (clearAll) clearAll.textContent = L.clear_list;
-            // Empty list
-            const emptyEl = document.querySelector('.parts-list-empty');
-            if (emptyEl) emptyEl.textContent = L.empty_list;
-            // Submit
-            updateSubmitButton();
-            // Re-render if parts exist
-            if (parts.length) renderPartsList();
         }
     </script>
 </body>
