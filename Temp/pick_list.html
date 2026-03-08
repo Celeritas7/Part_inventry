@@ -159,7 +159,7 @@ window.onload=function(){
 };
 
 async function handleGoogleLogin(){
-    const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{scopes:'https://www.googleapis.com/auth/spreadsheets',redirectTo:window.location.origin+window.location.pathname,queryParams:{access_type:'offline',prompt:'consent'}}});
+    const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+window.location.pathname,queryParams:{access_type:'offline',prompt:'consent'}}});
     if(error){const e=document.getElementById('login-error');e.textContent='ログイン失敗: '+error.message;e.style.display='block';}
 }
 async function checkRole(u){
