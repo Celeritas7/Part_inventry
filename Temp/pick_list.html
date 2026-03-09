@@ -655,6 +655,14 @@ function regenPrint(){
     // Requisition panel
     let reqPanel=`<div class="req-panel ${selCount?'active':''}" id="req-panel">
         <h3>📦 出庫依頼 <span class="req-badge">${selCount}</span> 件選択中</h3>
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
+            <label style="font-size:.75rem;font-weight:600;color:var(--t2)">送信先:</label>
+            <select id="req-sheet-mode" onchange="reqSheetMode=this.value" style="padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:.82rem;font-weight:600">
+                <option value="production" ${reqSheetMode==='production'?'selected':''}>📊 本番シート</option>
+                <option value="test" ${reqSheetMode==='test'?'selected':''}>🧪 テストシート</option>
+            </select>
+            <span style="font-size:.72rem;color:var(--t3)" id="req-sheet-label">${getReqSheetName()}</span>
+        </div>
         <div class="req-row">
             <div class="req-field"><label>目的</label>
                 <select id="req-purpose"><option value="">-- 選択 --</option>
@@ -711,7 +719,12 @@ function reqUpdatePreview(){
 }
 
 // Google Sheets API helpers for requisition
-const REQ_SHEET_ID='1pGy5OkQd8i4tVlYbcG7afkeDHEdjaZIwwuq6Wqv96jM';
+const REQ_SHEETS={
+    production:'1pGy5OkQd8i4tVlYbcG7afkeDHEdjaZIwwuq6Wqv96jM',
+    test:'1hTbs5vFzaEAQ87y078-_O5xoP_ad3joRGkneC-8yNzk'
+};
+let reqSheetMode='production';
+function getReqSheetId(){return REQ_SHEETS[reqSheetMode];}
 function getReqSheetName(){const n=new Date();return`${n.getFullYear()}/${n.getMonth()+1}`;}
 
 async function reqSheetsApi(url,options={}){
@@ -723,19 +736,23 @@ async function reqSheetsApi(url,options={}){
 }
 
 async function reqCheckSheet(name){
-    const d=await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}?fields=sheets.properties.title`);
+    const sid=getReqSheetId();
+    const d=await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${sid}?fields=sheets.properties.title`);
     return d.sheets.some(s=>s.properties.title===name);
 }
 async function reqCreateSheet(name){
-    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}:batchUpdate`,{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:name}}}]})});
-    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}/values/${encodeURIComponent(name)}!A1:Q1?valueInputOption=RAW`,{method:'PUT',body:JSON.stringify({values:[['No.','日付','名前','部品番号かQRの値を入力','部品番号(自動入力)','部品名(自動入力)','数量','目的','SN','備考欄','出庫者','処理状況','貸出状況','保管場所','仮保管場所','部署','出庫メモ']]})});
+    const sid=getReqSheetId();
+    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${sid}:batchUpdate`,{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:name}}}]})});
+    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(name)}!A1:Q1?valueInputOption=RAW`,{method:'PUT',body:JSON.stringify({values:[['No.','日付','名前','部品番号かQRの値を入力','部品番号(自動入力)','部品名(自動入力)','数量','目的','SN','備考欄','出庫者','処理状況','貸出状況','保管場所','仮保管場所','部署','出庫メモ']]})});
 }
 async function reqGetNextRow(name){
-    const d=await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}/values/${encodeURIComponent(name)}!B:B`);
+    const sid=getReqSheetId();
+    const d=await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(name)}!B:B`);
     return(d.values?d.values.length:0)+1;
 }
 async function reqWriteRow(name,row,data){
-    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}/values/${encodeURIComponent(name)}!A${row}:Q${row}?valueInputOption=USER_ENTERED`,{method:'PUT',body:JSON.stringify({values:[data]})});
+    const sid=getReqSheetId();
+    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(name)}!B${row}:Q${row}?valueInputOption=USER_ENTERED`,{method:'PUT',body:JSON.stringify({values:[data]})});
 }
 
 async function reqSubmit(){

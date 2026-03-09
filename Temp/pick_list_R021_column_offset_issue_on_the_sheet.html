@@ -185,18 +185,6 @@ window.onload=function(){
         else if(ev==='SIGNED_OUT'||(ev==='INITIAL_SESSION'&&!session)){user=null;authReady=true;showAuth('login');}
     });
     setTimeout(()=>{if(!authReady)showAuth('login');},4000);
-
-    // Refresh session when returning from idle/background
-    document.addEventListener('visibilitychange',async()=>{
-        if(!document.hidden&&user){
-            try{
-                const{data,error}=await sb.auth.refreshSession();
-                if(error){console.warn('Session refresh failed:',error.message);return;}
-                if(data?.session?.provider_token){sheetsToken=data.session.provider_token;localStorage.setItem('sheets_access_token',data.session.provider_token);}
-                console.log('Session refreshed on focus');
-            }catch(e){console.warn('Refresh error:',e);}
-        }
-    });
 };
 
 async function handleGoogleLogin(){
@@ -598,7 +586,7 @@ function addGroupRow(prefix){
     renderTplContent();
 }
 
-async function saveTpl(isRetry){
+async function saveTpl(){
     editTpl.name=document.getElementById('tpl-name').value.trim();
     if(!editTpl.name){showSt('tpl-status','テンプレート名を入力してください','error');return;}
     showSt('tpl-status','保存中...','loading');
@@ -614,14 +602,7 @@ async function saveTpl(isRetry){
         }
         showSt('tpl-status','✅ 保存しました','success');
         setTimeout(()=>nav('folder',{folderId:currentFolderId}),600);
-    }catch(e){
-        if(!isRetry){
-            console.warn('Save failed, refreshing session and retrying...');
-            try{await sb.auth.refreshSession();}catch(re){}
-            return saveTpl(true);
-        }
-        showSt('tpl-status','エラー: '+e.message+'（再ログインしてください）','error');
-    }
+    }catch(e){showSt('tpl-status','エラー: '+e.message,'error');}
 }
 
 // =====================================================
@@ -674,14 +655,6 @@ function regenPrint(){
     // Requisition panel
     let reqPanel=`<div class="req-panel ${selCount?'active':''}" id="req-panel">
         <h3>📦 出庫依頼 <span class="req-badge">${selCount}</span> 件選択中</h3>
-        <div style="display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap">
-            <label style="font-size:.75rem;font-weight:600;color:var(--t2)">送信先:</label>
-            <select id="req-sheet-mode" onchange="reqSheetMode=this.value" style="padding:5px 8px;border:1.5px solid var(--brd);border-radius:6px;font-size:.82rem;font-weight:600">
-                <option value="production" ${reqSheetMode==='production'?'selected':''}>📊 本番シート</option>
-                <option value="test" ${reqSheetMode==='test'?'selected':''}>🧪 テストシート</option>
-            </select>
-            <span style="font-size:.72rem;color:var(--t3)" id="req-sheet-label">${getReqSheetName()}</span>
-        </div>
         <div class="req-row">
             <div class="req-field"><label>目的</label>
                 <select id="req-purpose"><option value="">-- 選択 --</option>
@@ -738,45 +711,31 @@ function reqUpdatePreview(){
 }
 
 // Google Sheets API helpers for requisition
-const REQ_SHEETS={
-    production:'1pGy5OkQd8i4tVlYbcG7afkeDHEdjaZIwwuq6Wqv96jM',
-    test:'1hTbs5vFzaEAQ87y078-_O5xoP_ad3joRGkneC-8yNzk'
-};
-let reqSheetMode='production';
-function getReqSheetId(){return REQ_SHEETS[reqSheetMode];}
+const REQ_SHEET_ID='1pGy5OkQd8i4tVlYbcG7afkeDHEdjaZIwwuq6Wqv96jM';
 function getReqSheetName(){const n=new Date();return`${n.getFullYear()}/${n.getMonth()+1}`;}
 
-async function reqSheetsApi(url,options={},isRetry=false){
+async function reqSheetsApi(url,options={}){
     if(!sheetsToken)sheetsToken=localStorage.getItem('sheets_access_token');
     if(!sheetsToken)throw new Error('Sheets認証切れ。メインアプリで再ログインしてください。');
     const r=await fetch(url,{...options,headers:{'Authorization':'Bearer '+sheetsToken,'Content-Type':'application/json',...(options.headers||{})}});
-    if(r.status===401&&!isRetry){
-        try{const{data}=await sb.auth.refreshSession();if(data?.session?.provider_token){sheetsToken=data.session.provider_token;localStorage.setItem('sheets_access_token',sheetsToken);return reqSheetsApi(url,options,true);}}catch(e){}
-        sheetsToken=null;localStorage.removeItem('sheets_access_token');
-        throw new Error('セッション切れ。再ログインしてください。');
-    }
     if(!r.ok){const t=await r.text();throw new Error(`Sheets API error ${r.status}: ${t}`);}
     return r.json();
 }
 
 async function reqCheckSheet(name){
-    const sid=getReqSheetId();
-    const d=await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${sid}?fields=sheets.properties.title`);
+    const d=await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}?fields=sheets.properties.title`);
     return d.sheets.some(s=>s.properties.title===name);
 }
 async function reqCreateSheet(name){
-    const sid=getReqSheetId();
-    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${sid}:batchUpdate`,{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:name}}}]})});
-    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(name)}!A1:Q1?valueInputOption=RAW`,{method:'PUT',body:JSON.stringify({values:[['No.','日付','名前','部品番号かQRの値を入力','部品番号(自動入力)','部品名(自動入力)','数量','目的','SN','備考欄','出庫者','処理状況','貸出状況','保管場所','仮保管場所','部署','出庫メモ']]})});
+    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}:batchUpdate`,{method:'POST',body:JSON.stringify({requests:[{addSheet:{properties:{title:name}}}]})});
+    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}/values/${encodeURIComponent(name)}!A1:Q1?valueInputOption=RAW`,{method:'PUT',body:JSON.stringify({values:[['No.','日付','名前','部品番号かQRの値を入力','部品番号(自動入力)','部品名(自動入力)','数量','目的','SN','備考欄','出庫者','処理状況','貸出状況','保管場所','仮保管場所','部署','出庫メモ']]})});
 }
 async function reqGetNextRow(name){
-    const sid=getReqSheetId();
-    const d=await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(name)}!B:B`);
+    const d=await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}/values/${encodeURIComponent(name)}!B:B`);
     return(d.values?d.values.length:0)+1;
 }
 async function reqWriteRow(name,row,data){
-    const sid=getReqSheetId();
-    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(name)}!B${row}:Q${row}?valueInputOption=USER_ENTERED`,{method:'PUT',body:JSON.stringify({values:[data]})});
+    await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${REQ_SHEET_ID}/values/${encodeURIComponent(name)}!A${row}:Q${row}?valueInputOption=USER_ENTERED`,{method:'PUT',body:JSON.stringify({values:[data]})});
 }
 
 async function reqSubmit(){
