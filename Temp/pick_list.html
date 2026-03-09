@@ -186,16 +186,15 @@ window.onload=function(){
     });
     setTimeout(()=>{if(!authReady)showAuth('login');},4000);
 
-    // Re-capture token when returning from idle (after SDK refreshes)
-    document.addEventListener('visibilitychange',()=>{
+    // Refresh session when returning from idle/background
+    document.addEventListener('visibilitychange',async()=>{
         if(!document.hidden&&user){
-            setTimeout(async()=>{
-                try{
-                    const{data}=await sb.auth.getSession();
-                    if(data?.session?.provider_token){sheetsToken=data.session.provider_token;localStorage.setItem('sheets_access_token',data.session.provider_token);}
-                    console.log('Token checked on focus');
-                }catch(e){console.warn('Token check error:',e);}
-            },2000);
+            try{
+                const{data,error}=await sb.auth.refreshSession();
+                if(error){console.warn('Session refresh failed:',error.message);return;}
+                if(data?.session?.provider_token){sheetsToken=data.session.provider_token;localStorage.setItem('sheets_access_token',data.session.provider_token);}
+                console.log('Session refreshed on focus');
+            }catch(e){console.warn('Refresh error:',e);}
         }
     });
 };
@@ -617,8 +616,8 @@ async function saveTpl(isRetry){
         setTimeout(()=>nav('folder',{folderId:currentFolderId}),600);
     }catch(e){
         if(!isRetry){
-            console.warn('Save failed, retrying...');
-            try{await sb.auth.getSession();}catch(re){}
+            console.warn('Save failed, refreshing session and retrying...');
+            try{await sb.auth.refreshSession();}catch(re){}
             return saveTpl(true);
         }
         showSt('tpl-status','エラー: '+e.message+'（再ログインしてください）','error');
@@ -752,7 +751,7 @@ async function reqSheetsApi(url,options={},isRetry=false){
     if(!sheetsToken)throw new Error('Sheets認証切れ。メインアプリで再ログインしてください。');
     const r=await fetch(url,{...options,headers:{'Authorization':'Bearer '+sheetsToken,'Content-Type':'application/json',...(options.headers||{})}});
     if(r.status===401&&!isRetry){
-        try{const{data}=await sb.auth.getSession();if(data?.session?.provider_token){sheetsToken=data.session.provider_token;localStorage.setItem('sheets_access_token',sheetsToken);return reqSheetsApi(url,options,true);}}catch(e){}
+        try{const{data}=await sb.auth.refreshSession();if(data?.session?.provider_token){sheetsToken=data.session.provider_token;localStorage.setItem('sheets_access_token',sheetsToken);return reqSheetsApi(url,options,true);}}catch(e){}
         sheetsToken=null;localStorage.removeItem('sheets_access_token');
         throw new Error('セッション切れ。再ログインしてください。');
     }
