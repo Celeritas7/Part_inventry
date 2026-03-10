@@ -187,9 +187,8 @@ let gisTokenClient=null;
 let sheetsToken=localStorage.getItem('gis_sheets_token')||null;
 
 if(!window.supabase||!window.supabase.createClient){document.getElementById('loading-section').innerHTML='<div style="text-align:center;padding:40px;color:#b91c1c;">SDK読み込み失敗。リロードしてください。</div>';throw new Error('SDK fail');}
-const sb=window.supabase.createClient(SB_URL,SB_KEY,{
-    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'sb-wylxvmkcrexwfpjpbhyy-auth-token'}
-});
+
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
 // =====================================================
 // STATE
