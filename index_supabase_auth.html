@@ -1,0 +1,1583 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>出庫依頼入力</title>
+    
+    <!-- Supabase JS SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    
+    <!-- Google API for Sheets -->
+    <script src="https://apis.google.com/js/api.js"></script>
+    
+    <!-- QR Scanner -->
+    <script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+    
+    <style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+    --primary: #667eea; --primary-dark: #764ba2; --primary-light: #8b9bf4;
+    --primary-bg: rgba(102, 126, 234, 0.1); --primary-bg-hover: rgba(102, 126, 234, 0.15);
+    --accent: #667eea; --accent-hover: #5a6fd6;
+    --badge-admin-bg: #e3f2fd; --badge-admin-text: #1565c0;
+    --badge-team-bg: #f3e5f5; --badge-team-text: #7b1fa2;
+    --card-bg: white; --text-primary: #333; --text-secondary: #666; --text-muted: #999;
+    --border-color: #e0e0e0; --input-focus: #667eea;
+    --success-bg: #e8f5e9; --success-text: #2e7d32;
+    --error-bg: #ffebee; --error-text: #c62828;
+    --warning-bg: #fff3e0; --warning-text: #e65100;
+}
+
+body.theme-purple {
+    --primary: #667eea; --primary-dark: #764ba2; --primary-light: #8b9bf4;
+    --primary-bg: rgba(102, 126, 234, 0.1); --primary-bg-hover: rgba(102, 126, 234, 0.15);
+    --accent: #667eea; --accent-hover: #5a6fd6;
+    --badge-admin-bg: #ede7f6; --badge-admin-text: #5e35b1;
+    --badge-team-bg: #f3e5f5; --badge-team-text: #7b1fa2;
+    --input-focus: #667eea;
+}
+body.theme-blue {
+    --primary: #2196F3; --primary-dark: #1565C0; --primary-light: #64b5f6;
+    --primary-bg: rgba(33, 150, 243, 0.1); --primary-bg-hover: rgba(33, 150, 243, 0.15);
+    --accent: #2196F3; --accent-hover: #1976d2;
+    --badge-admin-bg: #e3f2fd; --badge-admin-text: #1565c0;
+    --badge-team-bg: #e1f5fe; --badge-team-text: #0277bd;
+    --input-focus: #2196F3;
+}
+body.theme-green {
+    --primary: #43a047; --primary-dark: #2e7d32; --primary-light: #66bb6a;
+    --primary-bg: rgba(67, 160, 71, 0.1); --primary-bg-hover: rgba(67, 160, 71, 0.15);
+    --accent: #43a047; --accent-hover: #388e3c;
+    --badge-admin-bg: #e8f5e9; --badge-admin-text: #2e7d32;
+    --badge-team-bg: #f1f8e9; --badge-team-text: #558b2f;
+    --input-focus: #43a047;
+}
+body.theme-orange {
+    --primary: #ff9800; --primary-dark: #e65100; --primary-light: #ffb74d;
+    --primary-bg: rgba(255, 152, 0, 0.1); --primary-bg-hover: rgba(255, 152, 0, 0.15);
+    --accent: #ff9800; --accent-hover: #f57c00;
+    --badge-admin-bg: #fff3e0; --badge-admin-text: #e65100;
+    --badge-team-bg: #fbe9e7; --badge-team-text: #d84315;
+    --input-focus: #ff9800;
+}
+body.theme-dark {
+    --primary: #546e7a; --primary-dark: #37474f; --primary-light: #78909c;
+    --primary-bg: rgba(84, 110, 122, 0.15); --primary-bg-hover: rgba(84, 110, 122, 0.2);
+    --accent: #78909c; --accent-hover: #607d8b;
+    --badge-admin-bg: #eceff1; --badge-admin-text: #455a64;
+    --badge-team-bg: #e0e0e0; --badge-team-text: #616161;
+    --input-focus: #78909c; --card-bg: #fafafa;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    min-height: 100vh; padding: 20px; transition: background 0.3s ease;
+}
+.container { max-width: 600px; margin: 0 auto; }
+.card { background: var(--card-bg); border-radius: 16px; padding: 24px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+.app-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+.app-title h1 { color: var(--text-primary); font-size: 1.5rem; margin-bottom: 4px; }
+.app-title .subtitle { color: var(--text-secondary); font-size: 0.85rem; margin: 0; }
+.header-icons { display: flex; gap: 8px; }
+.header-icon-btn { width: 40px; height: 40px; border: none; border-radius: 10px; background: var(--primary-bg); font-size: 1.2rem; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.2s; }
+.header-icon-btn:hover { background: var(--primary-bg-hover); transform: scale(1.05); }
+.lang-toggle-btn { padding: 4px 8px; border: 1.5px solid var(--border-color); border-radius: 6px; background: white; font-size: 0.7rem; font-weight: 700; cursor: pointer; color: var(--text-secondary); transition: all 0.15s; letter-spacing: 0.03em; }
+.lang-toggle-btn:hover { border-color: var(--primary); color: var(--primary); }
+h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-size: 1.5rem; }
+.subtitle { text-align: center; color: var(--text-secondary); margin-bottom: 24px; font-size: 0.9rem; }
+
+#login-section { text-align: center; padding: 20px; }
+#login-section p { color: #666; margin-bottom: 20px; }
+.login-btn { background: #4285f4; color: white; border: none; padding: 12px 24px; border-radius: 8px; font-size: 1rem; cursor: pointer; display: inline-flex; align-items: center; gap: 8px; width: 100%; max-width: 280px; justify-content: center; }
+.login-btn:hover { background: #3367d6; }
+#login-error { color: #c62828; margin-top: 16px; display: none; white-space: pre-line; }
+
+#loading-section { text-align: center; padding: 40px; }
+.spinner { border: 4px solid #f3f3f3; border-top: 4px solid var(--primary); border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 0 auto 16px; }
+@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+
+.user-info { display: flex; align-items: center; justify-content: space-between; padding: 12px; background: var(--primary-bg); border-radius: 10px; margin-bottom: 16px; flex-wrap: wrap; gap: 8px; }
+.user-info span { color: var(--text-secondary); font-size: 0.9rem; }
+.user-info .user-badge { font-size: 0.7rem; padding: 2px 8px; border-radius: 10px; margin-left: 8px; }
+.user-badge.admin { background: var(--badge-admin-bg); color: var(--badge-admin-text); }
+.user-badge.role { background: var(--badge-team-bg); color: var(--badge-team-text); }
+.logout-btn { background: none; border: 1px solid var(--text-muted); color: var(--text-secondary); padding: 6px 12px; border-radius: 6px; font-size: 0.8rem; cursor: pointer; transition: all 0.2s; }
+.logout-btn:hover { border-color: var(--primary); color: var(--primary); }
+
+.current-sheet { background: var(--success-bg); color: var(--success-text); padding: 8px 16px; border-radius: 8px; text-align: center; margin-bottom: 20px; font-weight: 500; }
+.current-sheet.test-mode { background: var(--warning-bg); color: var(--warning-text); }
+
+.action-buttons { display: flex; gap: 10px; margin-bottom: 16px; }
+.action-btn { flex: 1; padding: 12px; border: 2px solid var(--primary); background: white; color: var(--primary); border-radius: 10px; font-size: 0.9rem; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px; transition: all 0.2s; }
+.action-btn:hover { background: var(--primary); color: white; }
+.action-btn.active { background: var(--primary); color: white; }
+
+.qr-reader-container { width: 100%; border-radius: 10px; overflow: hidden; display: none; margin-bottom: 16px; }
+
+.parts-list { border: 2px solid #e0e0e0; border-radius: 10px; margin-bottom: 16px; max-height: 400px; overflow-y: auto; }
+.parts-list-empty { padding: 40px 20px; text-align: center; color: #999; }
+.part-item { padding: 16px; border-bottom: 1px solid #e0e0e0; }
+.part-item:last-child { border-bottom: none; }
+.part-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; }
+.part-number { font-weight: 600; color: #333; font-size: 1rem; }
+.part-header-left { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; flex: 1; min-width: 0; }
+.part-name { color: #666; font-size: 0.8rem; font-weight: 500; background: #f0f0f0; padding: 2px 8px; border-radius: 4px; margin-left: 6px; border-left: 3px solid var(--primary); }
+.inline-location { background: var(--warning-bg); color: var(--warning-text); padding: 6px 12px; border-radius: 6px; font-size: 0.85rem; font-weight: 500; margin-bottom: 12px; }
+.part-index { background: var(--primary); color: white; padding: 2px 8px; border-radius: 12px; font-size: 0.8rem; margin-right: 8px; }
+.delete-btn { background: none; border: none; color: #e53935; font-size: 1.2rem; cursor: pointer; padding: 4px 8px; }
+.part-fields { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.part-fields.three-col { grid-template-columns: 1fr 70px 1.2fr; }
+
+@media (max-width: 480px) {
+    .part-fields.three-col { grid-template-columns: 1fr 70px; gap: 8px; }
+    .part-fields.three-col .field-group.sn-field { grid-column: 1 / -1; }
+    .sn-compact-row { gap: 3px; }
+    .sn-text-input { min-width: 0; font-size: 0.85rem; padding: 8px 6px; }
+    .sn-btn { padding: 8px 8px; font-size: 0.85rem; }
+    .part-number { font-size: 0.9rem; }
+    .part-name { font-size: 0.7rem; }
+    .bulk-row-inline { flex-direction: column; gap: 8px; }
+    .bulk-actions { flex-direction: column; }
+    .bulk-actions .bulk-btn { width: 100%; justify-content: center; }
+}
+
+/* Bulk Settings Panel */
+.bulk-panel { background: linear-gradient(135deg, rgba(102,126,234,.06), rgba(118,75,162,.06)); border: 1.5px solid rgba(102,126,234,.25); border-radius: 12px; padding: 14px; margin-bottom: 16px; }
+.bulk-panel.collapsed { padding: 10px 14px; }
+.bulk-header { display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+.bulk-header h3 { font-size: .85rem; font-weight: 700; color: var(--primary); display: flex; align-items: center; gap: 6px; }
+.bulk-header .toggle-icon { transition: transform .3s; font-size: .8rem; }
+.bulk-header .toggle-icon.collapsed { transform: rotate(-90deg); }
+.bulk-body { margin-top: 12px; display: flex; flex-direction: column; gap: 10px; }
+.bulk-body.hidden { display: none; }
+.bulk-row-inline { display: flex; gap: 10px; }
+.bulk-field label { display: block; font-size: .72rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 4px; }
+.bulk-field select, .bulk-field input { padding: 8px 10px; border: 1.5px solid var(--border-color); border-radius: 6px; font-size: .88rem; }
+.bulk-field select:focus, .bulk-field input:focus { outline: none; border-color: var(--input-focus); }
+.bulk-toggle { display: flex; align-items: center; gap: 8px; font-size: .8rem; color: var(--text-secondary); }
+.bulk-toggle input[type="checkbox"] { width: 16px; height: 16px; cursor: pointer; accent-color: var(--primary); }
+.bulk-toggle label { cursor: pointer; user-select: none; }
+.bulk-btn { padding: 7px 12px; border-radius: 6px; border: none; font-size: .8rem; font-weight: 600; cursor: pointer; transition: all .15s; display: inline-flex; align-items: center; gap: 4px; }
+.bulk-btn-apply { background: var(--primary); color: white; }
+.bulk-btn-apply:hover { background: var(--accent-hover); }
+.bulk-btn-sq { padding: 8px 10px; font-size: .76rem; border-radius: 6px; white-space: nowrap; }
+.bulk-btn-empty { background: var(--primary-bg); color: var(--primary); }
+.bulk-btn-empty:hover { background: var(--primary-bg-hover); }
+.bulk-btn-clear { background: #f5f5f5; color: var(--text-secondary); border: 1px solid var(--border-color); }
+.bulk-btn-clear:hover { background: #eee; }
+.bulk-actions { display: flex; gap: 8px; flex-wrap: wrap; }
+.bulk-divider { border-top: 1px dashed var(--border-color); margin: 4px 0; }
+.bulk-status { font-size: .78rem; color: var(--primary); font-weight: 500; min-height: 18px; }
+.bulk-summary-text { font-size: .75rem; color: var(--text-secondary); }
+.clear-all-btn { width: 100%; padding: 10px; border: 2px dashed #e53935; background: rgba(229,57,53,.04); color: #e53935; border-radius: 10px; font-size: .85rem; font-weight: 600; cursor: pointer; margin-bottom: 16px; transition: all .2s; }
+.clear-all-btn:hover { background: rgba(229,57,53,.1); }
+
+.sn-compact-row { display: flex; gap: 4px; }
+.sn-text-input { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+.sn-text-input:focus { outline: none; border-color: var(--input-focus); }
+.sn-btn { padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; background: #f5f5f5; cursor: pointer; font-size: 0.9rem; }
+.sn-btn:hover { background: #e0e0e0; }
+.sn-btn.unit-btn { background: #fff3e0; border-color: #ffb74d; }
+.qty-highlight { border: 2px solid #e53935 !important; background: #ffebee !important; animation: qty-pulse 1s ease-in-out 3; }
+@keyframes qty-pulse { 0%,100%{background:#ffebee} 50%{background:#ffcdd2} }
+.sn-btn.unit-btn:hover { background: #ffe0b2; }
+
+.unit-modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 200; align-items: center; justify-content: center; padding: 20px; }
+.unit-modal-overlay.active { display: flex; }
+.unit-modal { background: white; border-radius: 16px; padding: 24px; width: 100%; max-width: 400px; position: relative; }
+.unit-modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+.unit-modal-header h3 { margin: 0; color: #333; }
+.unit-modal-close { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; padding: 0; line-height: 1; }
+.unit-modal-close:hover { color: #333; }
+.unit-modal-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
+.unit-modal-chip { padding: 10px 14px; border: 2px solid #e0e0e0; border-radius: 20px; background: #f9f9f9; color: #333; font-size: 0.85rem; cursor: pointer; transition: all 0.2s; }
+.unit-modal-chip:hover { background: #f0f0f0; border-color: #999; }
+.unit-modal-chip.active { background: var(--primary); color: white; border-color: var(--primary); }
+.unit-modal-number { margin-bottom: 20px; }
+.unit-modal-number label { display: block; color: #666; font-size: 0.85rem; margin-bottom: 8px; }
+.unit-modal-number input { width: 100%; padding: 12px 16px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1.1rem; text-align: center; }
+.unit-modal-number input:focus { outline: none; border-color: var(--input-focus); }
+.unit-confirm-btn { width: 100%; padding: 14px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.unit-confirm-btn:hover { background: var(--accent-hover); }
+.unit-confirm-btn:disabled { background: #ccc; cursor: not-allowed; }
+
+.field-group { display: flex; flex-direction: column; gap: 4px; }
+.field-group label { font-size: 0.75rem; color: #666; }
+.field-group input, .field-group select { padding: 8px 10px; border: 1px solid #ddd; border-radius: 6px; font-size: 0.9rem; }
+.field-group input:focus, .field-group select:focus { outline: none; border-color: var(--input-focus); }
+
+.sn-qr-reader-container { width: 100%; border-radius: 10px; overflow: hidden; display: none; margin-top: 12px; border: 2px solid #f57c00; }
+
+.remarks-section { margin-bottom: 16px; }
+.remarks-section label { display: block; color: #333; font-weight: 500; margin-bottom: 8px; font-size: 0.9rem; }
+.remarks-section textarea { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 1rem; resize: vertical; min-height: 60px; }
+.remarks-section textarea:focus { outline: none; border-color: var(--input-focus); }
+
+.submit-btn { width: 100%; padding: 16px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border: none; border-radius: 12px; font-size: 1.1rem; font-weight: 600; cursor: pointer; transition: transform 0.2s, box-shadow 0.2s; }
+.submit-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25); }
+.submit-btn:disabled { background: #ccc; cursor: not-allowed; transform: none; box-shadow: none; }
+.submit-btn.finder-btn { background: linear-gradient(135deg, var(--success-text) 0%, #1b5e20 100%); }
+
+.status { padding: 12px 16px; border-radius: 8px; margin-top: 16px; text-align: center; display: none; }
+.status.success { background: var(--success-bg); color: var(--success-text); display: block; }
+.status.error { background: var(--error-bg); color: var(--error-text); display: block; }
+.status.loading { background: var(--primary-bg); color: var(--primary); display: block; }
+
+.modal-overlay { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 100; align-items: center; justify-content: center; padding: 20px; }
+.modal-overlay.active { display: flex; }
+.modal { background: white; border-radius: 16px; padding: 24px; width: 100%; max-width: 500px; max-height: 80vh; overflow-y: auto; }
+.modal h2 { margin-bottom: 16px; color: #333; }
+.modal textarea { width: 100%; height: 200px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 0.9rem; font-family: monospace; margin-bottom: 16px; }
+.modal textarea:focus { outline: none; border-color: var(--input-focus); }
+.modal-buttons { display: flex; gap: 10px; }
+.modal-btn { flex: 1; padding: 12px; border-radius: 8px; font-size: 1rem; cursor: pointer; }
+.modal-btn.cancel { background: #f5f5f5; border: 1px solid #ddd; color: #666; }
+.modal-btn.confirm { background: var(--primary); border: none; color: white; transition: background 0.2s; }
+.modal-btn.confirm:hover { background: var(--accent-hover); }
+
+.finder-results { margin-top: 16px; }
+.finder-result-item { padding: 16px; border: 2px solid #e0e0e0; border-radius: 10px; margin-bottom: 10px; }
+.finder-result-item.found { border-color: #43a047; background: #f1f8e9; }
+.finder-result-item.not-found { border-color: #e53935; background: #ffebee; }
+.finder-pn { font-weight: 600; font-size: 1rem; margin-bottom: 8px; }
+.finder-details { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; font-size: 0.85rem; }
+.finder-detail { display: flex; flex-direction: column; }
+.finder-detail-label { color: #666; font-size: 0.75rem; }
+.finder-detail-value { color: #333; font-weight: 500; }
+.location-highlight { background: #fff3e0; padding: 8px 12px; border-radius: 8px; margin-top: 8px; display: flex; align-items: center; gap: 8px; }
+.location-highlight .icon { font-size: 1.5rem; }
+.location-highlight .text { font-size: 1.1rem; font-weight: 600; color: #e65100; }
+.finder-input { width: 100%; padding: 12px; border: 2px solid #e0e0e0; border-radius: 10px; font-size: 0.9rem; font-family: monospace; min-height: 120px; margin-bottom: 16px; }
+.finder-input:focus { outline: none; border-color: #43a047; }
+.finder-hint { color: #666; font-size: 0.85rem; margin-bottom: 12px; }
+
+.modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
+.modal-header h2 { margin: 0; font-size: 1.2rem; }
+.modal-close-btn { background: none; border: none; font-size: 1.5rem; cursor: pointer; color: #999; padding: 0; line-height: 1; }
+.modal-close-btn:hover { color: #333; }
+.finder-modal { max-height: 90vh; overflow-y: auto; }
+
+.sheet-options { display: flex; flex-direction: column; gap: 12px; }
+.sheet-option { cursor: pointer; }
+.sheet-option input { display: none; }
+.sheet-option-content { display: flex; align-items: center; gap: 12px; padding: 16px; border: 2px solid #e0e0e0; border-radius: 12px; transition: all 0.2s; }
+.sheet-option input:checked + .sheet-option-content { border-color: var(--primary); background: var(--primary-bg); }
+.sheet-option-icon { font-size: 1.5rem; }
+.sheet-option-text { display: flex; flex-direction: column; }
+.sheet-option-text strong { color: #333; }
+.sheet-option-text small { color: #666; font-size: 0.8rem; }
+
+.settings-section { margin-bottom: 20px; }
+.settings-section h3 { color: #333; font-size: 1rem; margin-bottom: 12px; }
+.theme-options { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.theme-btn { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 12px; border: 2px solid #e0e0e0; border-radius: 12px; background: white; cursor: pointer; transition: all 0.2s; }
+.theme-btn:hover { border-color: #999; }
+.theme-btn.active { border-color: var(--primary); background: var(--primary-bg); }
+.theme-preview { width: 40px; height: 40px; border-radius: 50%; }
+.theme-preview.purple { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); }
+.theme-preview.blue { background: linear-gradient(135deg, #2196F3 0%, #1565C0 100%); }
+.theme-preview.green { background: linear-gradient(135deg, #43a047 0%, #2e7d32 100%); }
+.theme-preview.orange { background: linear-gradient(135deg, #ff9800 0%, #e65100 100%); }
+.theme-preview.dark { background: linear-gradient(135deg, #37474f 0%, #263238 100%); }
+.theme-btn span:last-child { font-size: 0.8rem; color: #666; }
+
+.admin-only-section { border-top: 2px dashed var(--border-color); padding-top: 20px; margin-top: 20px; }
+.admin-only-section h3 { color: var(--warning-text); }
+.location-edit-section { margin-top: 12px; }
+.location-edit-header { display: flex; align-items: center; gap: 8px; margin-bottom: 12px; }
+.location-edit-icon { font-size: 1.2rem; }
+.location-edit-title { font-size: 0.95rem; font-weight: 600; color: var(--text-primary); }
+.location-search-box { background: #f8f9fa; border-radius: 12px; padding: 12px; border: 1px solid var(--border-color); }
+.location-search-row { display: flex; gap: 8px; }
+.location-edit-input { flex: 1; padding: 12px 14px; border: 2px solid var(--border-color); border-radius: 10px; font-size: 0.95rem; background: white; }
+.location-edit-input:focus { outline: none; border-color: var(--input-focus); }
+.location-qr-btn { padding: 12px 14px; background: var(--warning-bg); color: var(--warning-text); border: 2px solid transparent; border-radius: 10px; font-size: 1.1rem; cursor: pointer; transition: all 0.2s; }
+.location-qr-btn:hover { background: #ffe0b2; }
+.location-search-btn { padding: 12px 16px; background: var(--primary); color: white; border: none; border-radius: 10px; font-size: 1rem; cursor: pointer; transition: all 0.2s; }
+.location-search-btn:hover { background: var(--accent-hover); transform: scale(1.02); }
+.location-qr-reader { display: none; margin-top: 12px; border-radius: 10px; overflow: hidden; }
+.location-edit-result { margin-top: 16px; }
+.location-edit-card { background: white; border-radius: 16px; border: 2px solid var(--primary); overflow: hidden; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08); }
+.location-edit-card-header { display: flex; align-items: center; gap: 12px; padding: 16px; background: linear-gradient(135deg, var(--primary-bg) 0%, rgba(255,255,255,0) 100%); border-bottom: 1px solid var(--border-color); }
+.location-edit-card-icon { font-size: 2rem; background: white; padding: 8px; border-radius: 12px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1); }
+.location-edit-card-info { flex: 1; }
+.location-edit-pn { font-weight: 700; font-size: 1rem; color: var(--text-primary); }
+.location-edit-name { font-size: 0.85rem; color: var(--text-secondary); margin-top: 2px; }
+.location-edit-card-badge { background: var(--primary); color: white; padding: 4px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.location-edit-card-body { padding: 16px; display: flex; flex-direction: column; gap: 14px; }
+.location-edit-field { display: flex; flex-direction: column; gap: 6px; }
+.location-field-label { display: flex; align-items: center; gap: 6px; font-size: 0.85rem; color: var(--text-secondary); font-weight: 500; }
+.location-field-icon { font-size: 1rem; }
+.location-field-input { padding: 12px 14px; border: 2px solid var(--border-color); border-radius: 10px; font-size: 1rem; font-weight: 500; transition: all 0.2s; }
+.location-field-input:focus { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-bg); }
+.location-save-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; margin: 0; padding: 14px; background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%); color: white; border: none; border-radius: 0 0 14px 14px; font-size: 1rem; font-weight: 600; cursor: pointer; transition: all 0.2s; }
+.location-save-btn:hover { filter: brightness(1.1); }
+.location-save-btn:active { transform: scale(0.98); }
+.save-btn-icon { font-size: 1.1rem; }
+.location-edit-status { margin-top: 12px; padding: 10px 14px; border-radius: 10px; font-size: 0.9rem; text-align: center; font-weight: 500; }
+.location-edit-status:empty { display: none; }
+.location-edit-status.loading { background: var(--primary-bg); color: var(--primary); animation: pulse 1.5s ease-in-out infinite; }
+@keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.6; } }
+.location-edit-status.success { background: var(--success-bg); color: var(--success-text); }
+.location-edit-status.error { background: var(--error-bg); color: var(--error-text); }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="card">
+            <div class="app-header">
+                <div class="app-title">
+                    <h1>📦 出庫依頼入力</h1>
+                    <p class="subtitle">生産チーム出庫依頼シート</p>
+                </div>
+                <div class="header-icons" id="header-icons" style="display: none;">
+                    <button class="lang-toggle-btn" id="lang-toggle" onclick="toggleLang()">EN</button>
+                    <button class="header-icon-btn" onclick="openFinderModal()" title="部品検索">🔍</button>
+                    <a href="pick_list.html" class="header-icon-btn" title="ピックリスト" style="text-decoration:none;">📋</a>
+                    <button class="header-icon-btn admin-only" id="sheet-selector-btn" onclick="openSheetSelectorModal()" title="シート選択" style="display: none;">📊</button>
+                    <button class="header-icon-btn" onclick="openSettingsModal()" title="設定">⚙️</button>
+                </div>
+            </div>
+
+            <div id="loading-section">
+                <div class="spinner"></div>
+                <p>読み込み中...</p>
+            </div>
+
+            <div id="login-section" style="display: none;">
+                <p>Googleアカウントでログインしてください</p>
+                <button class="login-btn" onclick="handleGoogleLogin()">
+                    <svg width="18" height="18" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>
+                    Googleでログイン
+                </button>
+                <p id="login-error"></p>
+            </div>
+
+            <div id="app-section" style="display: none;">
+                <div id="batch-content">
+
+                    <!-- Bulk Settings Panel -->
+                    <div class="bulk-panel" id="bulk-panel">
+                        <div class="bulk-header" onclick="toggleBulkPanel()">
+                            <h3><span>📋</span> 一括設定 <span class="toggle-icon" id="toggle-icon">▼</span></h3>
+                            <span class="bulk-summary-text" id="bulk-summary"></span>
+                        </div>
+                        <div class="bulk-body" id="bulk-body">
+                            <div class="bulk-row-inline">
+                                <div class="bulk-field" style="flex:1;min-width:0">
+                                    <label>目的</label>
+                                    <div style="display:flex;gap:4px">
+                                        <select id="bulk-purpose" onchange="updateBulkSummary()" style="flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--border-color);border-radius:6px;font-size:.88rem">
+                                            <option value="">-- 未設定 --</option>
+                                            <option value="通常組立">通常組立</option>
+                                            <option value="不良部品">不良部品</option>
+                                            <option value="仕損発生">仕損発生</option>
+                                            <option value="PICK UP不足">PICK UP不足</option>
+                                            <option value="市場品修理">市場品修理</option>
+                                            <option value="ECN対応">ECN対応</option>
+                                            <option value="BY構築">BY構築</option>
+                                            <option value="生産ジグ">生産ジグ</option>
+                                            <option value="確認中">確認中</option>
+                                            <option value="その他">その他</option>
+                                            <option value="出庫キャンセル">出庫キャンセル</option>
+                                        </select>
+                                        <button class="bulk-btn bulk-btn-apply bulk-btn-sq" onclick="applyField('purpose')" title="目的を全行に適用">適用</button>
+                                    </div>
+                                </div>
+                                <div class="bulk-field" style="flex:1;min-width:0">
+                                    <label>S/N</label>
+                                    <div style="display:flex;gap:4px">
+                                        <input type="text" id="bulk-sn" placeholder="GST-00034" oninput="updateBulkSummary()" style="flex:1;min-width:0;padding:8px 10px;border:1.5px solid var(--border-color);border-radius:6px;font-size:.88rem">
+                                        <button class="sn-btn unit-btn" onclick="openBulkUnitModal()" title="Unit選択" style="padding:8px">🏭</button>
+                                        <button class="bulk-btn bulk-btn-apply bulk-btn-sq" onclick="applyField('sn')" title="S/Nを全行に適用">適用</button>
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="display:flex;gap:4px;align-items:flex-end">
+                                <div style="flex:1">
+                                    <label style="display:block;font-size:.72rem;font-weight:600;color:var(--text-secondary);margin-bottom:3px">コメント</label>
+                                    <input type="text" id="bulk-comment" placeholder="コメント" oninput="updateBulkSummary()" style="width:100%;padding:8px 10px;border:1.5px solid var(--border-color);border-radius:6px;font-size:.88rem">
+                                </div>
+                                <button class="bulk-btn bulk-btn-apply bulk-btn-sq" onclick="applyField('comment')" title="コメントを全行に適用">適用</button>
+                            </div>
+                            <div class="bulk-toggle">
+                                <input type="checkbox" id="bulk-auto" checked onchange="saveBulkSettings()">
+                                <label for="bulk-auto">新しい部品に自動適用</label>
+                            </div>
+                            <div class="bulk-divider"></div>
+                            <div class="bulk-actions">
+                                <button class="bulk-btn bulk-btn-empty" onclick="applyBulkMode('empty')">空欄のみ適用</button>
+                                <button class="bulk-btn bulk-btn-apply" onclick="applyBulkMode('all')">全行に適用</button>
+                                <button class="bulk-btn" onclick="clearAllValues()" style="background:var(--error-bg);color:var(--error-text)">全入力クリア</button>
+                                <button class="bulk-btn bulk-btn-clear" onclick="clearBulk()">↩ 設定リセット</button>
+                            </div>
+                            <div class="bulk-status" id="bulk-status"></div>
+                        </div>
+                    </div>
+
+                    <div class="action-buttons">
+                        <button class="action-btn" id="scan-add-btn" onclick="toggleScanner()">📷 QRスキャン追加</button>
+                        <button class="action-btn" onclick="openPasteModal()">📋 リスト貼付け</button>
+                    </div>
+                    <button class="clear-all-btn" id="clear-all-btn" onclick="clearAllParts()" style="display:none">🗑️ リストをすべてクリア</button>
+                    <div id="qr-reader" class="qr-reader-container"></div>
+                    <div class="parts-list" id="parts-list">
+                        <div class="parts-list-empty">QRスキャンまたはリスト貼付けで部品を追加してください</div>
+                    </div>
+                    <button class="submit-btn" id="submit-btn" onclick="submitBatch()" disabled>一括登録する (0件)</button>
+                    <div class="status" id="batch-status"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paste Modal -->
+    <div class="modal-overlay" id="paste-modal">
+        <div class="modal">
+            <h2>📋 部品番号リスト貼付け</h2>
+            <p style="color: #666; margin-bottom: 12px; font-size: 0.85rem;">部品番号を改行で区切って貼り付けてください<br><span style="color:#2563eb">数量付き: P/N,数量 または P/N&lt;Tab&gt;数量 または P/N 数量</span></p>
+            <textarea id="paste-textarea" placeholder="GPMP-0540010-0-2,6&#10;GPCP-0000360-0-0&#9;4&#10;GPCP-0000154-0-0 2&#10;GPCP-0000332-0-0"></textarea>
+            <div class="modal-buttons">
+                <button class="modal-btn cancel" onclick="closePasteModal()">キャンセル</button>
+                <button class="modal-btn confirm" onclick="processPastedList()">追加する</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Part Finder Modal -->
+    <div class="modal-overlay" id="finder-modal">
+        <div class="modal finder-modal">
+            <div class="modal-header">
+                <h2>🔍 部品検索</h2>
+                <button class="modal-close-btn" onclick="closeFinderModal()">✕</button>
+            </div>
+            <p class="finder-hint">部品番号を入力してください（複数の場合は改行で区切る）</p>
+            <textarea class="finder-input" id="finder-input" placeholder="GPMP-0540010-0-2&#10;GPCP-0000360-0-0"></textarea>
+            <button class="submit-btn finder-btn" onclick="findParts()">🔍 部品を検索</button>
+            <div class="status" id="finder-status"></div>
+            <div class="finder-results" id="finder-results"></div>
+        </div>
+    </div>
+
+    <!-- Sheet Selector Modal (Admin Only) -->
+    <div class="modal-overlay" id="sheet-selector-modal">
+        <div class="modal">
+            <div class="modal-header">
+                <h2>📊 シート選択</h2>
+                <button class="modal-close-btn" onclick="closeSheetSelectorModal()">✕</button>
+            </div>
+            <p style="color: #666; margin-bottom: 16px; font-size: 0.9rem;">データを保存するシートを選択してください</p>
+            <div class="sheet-options">
+                <label class="sheet-option">
+                    <input type="radio" name="sheet" value="production" checked onchange="onSheetChange()">
+                    <span class="sheet-option-content"><span class="sheet-option-icon">📋</span><span class="sheet-option-text"><strong>生産チーム出庫依頼シート</strong><small>本番用シート</small></span></span>
+                </label>
+                <label class="sheet-option">
+                    <input type="radio" name="sheet" value="test" onchange="onSheetChange()">
+                    <span class="sheet-option-content"><span class="sheet-option-icon">🧪</span><span class="sheet-option-text"><strong>テスト用シート</strong><small>動作確認用</small></span></span>
+                </label>
+            </div>
+            <button class="modal-btn confirm" onclick="closeSheetSelectorModal()" style="width: 100%; margin-top: 16px;">閉じる</button>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div class="modal-overlay" id="settings-modal">
+        <div class="modal settings-modal">
+            <div class="modal-header">
+                <h2>⚙️ 設定</h2>
+                <button class="modal-close-btn" onclick="closeSettingsModal()">✕</button>
+            </div>
+            <!-- User Info -->
+            <div class="settings-section">
+                <h3>👤 ユーザー情報</h3>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5">
+                    <span style="font-size:.88rem;color:var(--text-primary)">ユーザー</span>
+                    <span style="font-size:.85rem;color:var(--primary);font-weight:600" id="s-user-name"></span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5">
+                    <span style="font-size:.88rem;color:var(--text-primary)">権限</span>
+                    <span style="font-size:.85rem;color:var(--primary);font-weight:600" id="s-user-role"></span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">
+                    <span style="font-size:.88rem;color:var(--text-primary)">ログアウト</span>
+                    <button onclick="handleLogout()" style="padding:6px 14px;border-radius:6px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;background:var(--error-bg);color:var(--error-text)">ログアウト</button>
+                </div>
+            </div>
+            <!-- Sheet Settings -->
+            <div class="settings-section">
+                <h3>📊 シート設定</h3>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f5f5f5">
+                    <span style="font-size:.88rem;color:var(--text-primary)">対象シート</span>
+                    <span style="font-size:.85rem;color:var(--primary);font-weight:600" id="s-sheet-name"></span>
+                </div>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0" id="s-sheet-mode-row">
+                    <span style="font-size:.88rem;color:var(--text-primary)">シートモード<br><small style="font-size:.72rem;color:var(--text-muted)">本番/テスト切替 (管理者のみ)</small></span>
+                    <select id="s-sheet-mode" onchange="onSheetModeChange()" style="padding:6px 10px;border:1.5px solid var(--border-color);border-radius:6px;font-size:.85rem">
+                        <option value="production">本番</option>
+                        <option value="test">テスト</option>
+                    </select>
+                </div>
+            </div>
+            <!-- Language -->
+            <div class="settings-section">
+                <h3>🌐 言語</h3>
+                <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0">
+                    <span style="font-size:.88rem;color:var(--text-primary)">表示言語</span>
+                    <div style="display:flex;border:1.5px solid var(--border-color);border-radius:8px;overflow:hidden">
+                        <button id="lang-btn-ja" onclick="setLang('ja')" style="padding:6px 14px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;background:var(--primary);color:#fff">日本語</button>
+                        <button id="lang-btn-en" onclick="setLang('en')" style="padding:6px 14px;border:none;font-size:.82rem;font-weight:600;cursor:pointer;background:#fff;color:var(--text-secondary)">English</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Theme -->
+            <div class="settings-section">
+                <h3>🎨 テーマ</h3>
+                <div class="theme-options">
+                    <button class="theme-btn" data-theme="purple" onclick="setTheme('purple')"><span class="theme-preview purple"></span><span>パープル</span></button>
+                    <button class="theme-btn" data-theme="blue" onclick="setTheme('blue')"><span class="theme-preview blue"></span><span>ブルー</span></button>
+                    <button class="theme-btn" data-theme="green" onclick="setTheme('green')"><span class="theme-preview green"></span><span>グリーン</span></button>
+                    <button class="theme-btn" data-theme="orange" onclick="setTheme('orange')"><span class="theme-preview orange"></span><span>オレンジ</span></button>
+                    <button class="theme-btn" data-theme="dark" onclick="setTheme('dark')"><span class="theme-preview dark"></span><span>ダーク</span></button>
+                </div>
+            </div>
+            <div class="settings-section admin-only-section" id="admin-location-section" style="display: none;">
+                <h3>🔧 管理者設定</h3>
+                <div class="location-edit-section">
+                    <div class="location-edit-header"><span class="location-edit-icon">📍</span><span class="location-edit-title">部品場所を編集</span></div>
+                    <div class="location-search-box">
+                        <div class="location-search-row">
+                            <input type="text" id="location-edit-pn" placeholder="部品番号 または QRコード..." class="location-edit-input">
+                            <button class="location-qr-btn" onclick="toggleLocationQRScanner()" title="QRスキャン">📷</button>
+                            <button class="location-search-btn" onclick="searchPartForLocationEdit()">🔍</button>
+                        </div>
+                        <div id="location-qr-reader" class="location-qr-reader"></div>
+                    </div>
+                    <div id="location-edit-result" class="location-edit-result" style="display: none;">
+                        <div class="location-edit-card">
+                            <div class="location-edit-card-header">
+                                <div class="location-edit-card-icon">📦</div>
+                                <div class="location-edit-card-info">
+                                    <div class="location-edit-pn" id="location-edit-found-pn"></div>
+                                    <div class="location-edit-name" id="location-edit-found-name"></div>
+                                </div>
+                                <div class="location-edit-card-badge">編集中</div>
+                            </div>
+                            <div class="location-edit-card-body">
+                                <div class="location-edit-field"><div class="location-field-label"><span class="location-field-icon">🏠</span><span>保管場所</span></div><input type="text" id="location-edit-location" placeholder="例: A-3-2" class="location-field-input"></div>
+                                <div class="location-edit-field"><div class="location-field-label"><span class="location-field-icon">📌</span><span>仮保管場所</span></div><input type="text" id="location-edit-temp" placeholder="例: B-1-5" class="location-field-input"></div>
+                            </div>
+                            <button class="location-save-btn" onclick="saveLocationEdit()"><span class="save-btn-icon">💾</span><span>場所を更新</span></button>
+                        </div>
+                        <div id="location-edit-status" class="location-edit-status"></div>
+                    </div>
+                </div>
+            </div>
+            <button class="modal-btn confirm" onclick="closeSettingsModal()" style="width: 100%; margin-top: 20px;">閉じる</button>
+        </div>
+    </div>
+
+    <!-- Unit Code Modal -->
+    <div class="unit-modal-overlay" id="unit-modal">
+        <div class="unit-modal">
+            <div class="unit-modal-header"><h3>🏭 Unit S/N 検索</h3><button class="unit-modal-close" onclick="closeUnitModal()">✕</button></div>
+            <p style="color: #666; font-size: 0.85rem; margin-bottom: 12px;">Ghost Trackerから完全なS/Nを検索します</p>
+            <div class="unit-modal-chips">
+                <button class="unit-modal-chip" data-code="Ghost" onclick="selectUnitChip('Ghost')">👻 Ghost</button>
+                <button class="unit-modal-chip" data-code="MB" onclick="selectUnitChip('MB')">🛞 MB</button>
+                <button class="unit-modal-chip" data-code="Pillar" onclick="selectUnitChip('Pillar')">🏛️ Pillar</button>
+                <button class="unit-modal-chip" data-code="H&B" onclick="selectUnitChip('H&B')">🧠 H&B</button>
+                <button class="unit-modal-chip" data-code="Arm" onclick="selectUnitChip('Arm')">🦾 Arm</button>
+                <button class="unit-modal-chip" data-code="Gripper" onclick="selectUnitChip('Gripper')">🤏 Gripper</button>
+                <button class="unit-modal-chip" data-code="DK" onclick="selectUnitChip('DK')">📦 DK</button>
+                <button class="unit-modal-chip" data-code="L-Mot" onclick="selectUnitChip('L-Mot')">⚙️ L-Mot</button>
+                <button class="unit-modal-chip" data-code="A12" onclick="selectUnitChip('A12')">⚙️ A12</button>
+                <button class="unit-modal-chip" data-code="A35" onclick="selectUnitChip('A35')">⚙️ A35</button>
+                <button class="unit-modal-chip" data-code="A4" onclick="selectUnitChip('A4')">⚙️ A4</button>
+            </div>
+            <div class="unit-modal-number"><label>番号を入力 (例: 34, 105, 426)</label><input type="number" id="unit-number-input" placeholder="34" oninput="onUnitNumberChange(this.value)"></div>
+            <button class="unit-confirm-btn" id="unit-confirm-btn" onclick="confirmUnitSelection()" disabled>Unitを選択してください</button>
+        </div>
+    </div>
+
+    <!-- Bulk Unit Code Modal -->
+    <div class="unit-modal-overlay" id="bulk-unit-modal">
+        <div class="unit-modal">
+            <div class="unit-modal-header"><h3>🏭 一括 S/N 選択</h3><button class="unit-modal-close" onclick="closeBulkUnitModal()">✕</button></div>
+            <p style="color: #666; font-size: 0.85rem; margin-bottom: 12px;">一括設定に適用するS/Nを選択</p>
+            <div class="unit-modal-chips" id="bulk-unit-chips">
+                <button class="unit-modal-chip" data-code="Ghost" onclick="selectBulkUnit('Ghost')">👻 Ghost</button>
+                <button class="unit-modal-chip" data-code="MB" onclick="selectBulkUnit('MB')">🛞 MB</button>
+                <button class="unit-modal-chip" data-code="Pillar" onclick="selectBulkUnit('Pillar')">🏛️ Pillar</button>
+                <button class="unit-modal-chip" data-code="H&B" onclick="selectBulkUnit('H&B')">🧠 H&B</button>
+                <button class="unit-modal-chip" data-code="Arm" onclick="selectBulkUnit('Arm')">🦾 Arm</button>
+                <button class="unit-modal-chip" data-code="Gripper" onclick="selectBulkUnit('Gripper')">🤏 Gripper</button>
+                <button class="unit-modal-chip" data-code="DK" onclick="selectBulkUnit('DK')">📦 DK</button>
+                <button class="unit-modal-chip" data-code="L-Mot" onclick="selectBulkUnit('L-Mot')">⚙️ L-Mot</button>
+                <button class="unit-modal-chip" data-code="A12" onclick="selectBulkUnit('A12')">⚙️ A12</button>
+                <button class="unit-modal-chip" data-code="A35" onclick="selectBulkUnit('A35')">⚙️ A35</button>
+                <button class="unit-modal-chip" data-code="A4" onclick="selectBulkUnit('A4')">⚙️ A4</button>
+            </div>
+            <div class="unit-modal-number"><label>番号を入力 (例: 34, 105, 426)</label><input type="number" id="bulk-unit-number" placeholder="34" oninput="updateBulkUnitPreview()" onkeydown="if(event.key==='Enter'&&!document.getElementById('bulk-unit-confirm').disabled)confirmBulkUnit()"></div>
+            <button class="unit-confirm-btn" id="bulk-unit-confirm" onclick="confirmBulkUnit()" disabled>Unitを選択してください</button>
+        </div>
+    </div>
+
+    <script>
+        // =====================================================
+        // SUPABASE CONFIG
+        // =====================================================
+        const SUPABASE_URL = 'https://wylxvmkcrexwfpjpbhyy.supabase.co';
+        const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak';
+
+        // Safety check — if SDK failed to load, show error
+        if (!window.supabase || !window.supabase.createClient) {
+            document.getElementById('loading-section').style.display = 'none';
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('login-error').textContent = 'Supabase SDKの読み込みに失敗しました。ページをリロードしてください。';
+            document.getElementById('login-error').style.display = 'block';
+            throw new Error('Supabase SDK not loaded');
+        }
+
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'sb-wylxvmkcrexwfpjpbhyy-auth-token' }
+        });
+
+        // =====================================================
+        // GOOGLE SHEETS CONFIG
+        // =====================================================
+        const SHEETS_CONFIG = {
+            production: { id: '1pGy5OkQd8i4tVlYbcG7afkeDHEdjaZIwwuq6Wqv96jM', name: '生産チーム出庫依頼シート' },
+            test:       { id: '1hTbs5vFzaEAQ87y078-_O5xoP_ad3joRGkneC-8yNzk', name: 'テスト用シート' }
+        };
+        const GHOST_TRACKER_SHEET_ID = '1mUhNDzucbHpS2y-IYu3A5ML1x5I_opUeNnqqyOtg95M';
+
+        const PURPOSE_OPTIONS = [
+            '通常組立', '不良部品', '仕損発生', 'PICK UP不足', '市場品修理',
+            'ECN対応', 'BY構築', '生産ジグ', '確認中', 'その他', '出庫キャンセル'
+        ];
+        const UNIT_CODES = [
+            { code: 'Ghost', sheetTab: '00_GHOST', snCode: 'GST' },
+            { code: 'MB', sheetTab: '05_Mobile Base', snCode: 'MBB' },
+            { code: 'Pillar', sheetTab: '06_Pillar', snCode: 'PLR' },
+            { code: 'H&B', sheetTab: '07_Head & Body', snCode: 'HBD' },
+            { code: 'Arm', sheetTab: '09_Arm', snCode: 'ARM' },
+            { code: 'Gripper', sheetTab: '08_Gripper', snCode: 'GPR' },
+            { code: 'DK', sheetTab: '10_Deploy Kit', snCode: 'DPK' },
+            { code: 'L-Mot', sheetTab: '01_L-motor', snCode: 'LAC' },
+            { code: 'A12', sheetTab: '02_A12-motor', snCode: 'A12' },
+            { code: 'A35', sheetTab: '03_A35-motor', snCode: 'A35' },
+            { code: 'A4', sheetTab: '04_A4-motor', snCode: 'A4A' }
+        ];
+
+        // =====================================================
+        // STATE
+        // =====================================================
+        let currentUser = null;
+        let userProfile = null;   // { email, name, role, isAdmin }
+        let accessToken = null;
+        let html5QrCode = null;
+        let scannerActive = false;
+        let snScanner = null;
+        let snScannerActive = false;
+        let snScannerIndex = -1;
+        let parts = [];
+        let databaseCache = null;
+        let currentSheet = 'production';
+        let currentSnIndex = -1;
+
+        // =====================================================
+        // INIT — Supabase Auth listener
+        // =====================================================
+        let authReady = false;
+
+        window.onload = function() {
+            showLoading();
+
+            sb.auth.onAuthStateChange(async (event, session) => {
+                console.log('Auth:', event, session?.user?.email);
+
+                if (session && session.user &&
+                    (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'INITIAL_SESSION')) {
+
+                    currentUser = session.user;
+
+                    // Capture Google provider_token (only present right after OAuth redirect)
+                    if (session.provider_token) {
+                        accessToken = session.provider_token;
+                        localStorage.setItem('sheets_access_token', accessToken);
+                    }
+                    if (!accessToken) {
+                        accessToken = localStorage.getItem('sheets_access_token');
+                    }
+
+                    await checkUserApproval(session.user);
+                    authReady = true;
+
+                } else if (event === 'SIGNED_OUT' || (event === 'INITIAL_SESSION' && !session)) {
+                    currentUser = null;
+                    userProfile = null;
+                    authReady = true;
+                    showLogin();
+                }
+            });
+
+            // Timeout fallback — if auth doesn't fire within 4s, show login
+            setTimeout(() => { if (!authReady) showLogin(); }, 4000);
+        };
+
+        // =====================================================
+        // UI STATES
+        // =====================================================
+        function showLoading() {
+            document.getElementById('loading-section').style.display = 'block';
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('app-section').style.display = 'none';
+        }
+        function showLogin() {
+            document.getElementById('loading-section').style.display = 'none';
+            document.getElementById('login-section').style.display = 'block';
+            document.getElementById('app-section').style.display = 'none';
+        }
+        function showApp() {
+            document.getElementById('loading-section').style.display = 'none';
+            document.getElementById('login-section').style.display = 'none';
+            document.getElementById('app-section').style.display = 'block';
+            document.getElementById('header-icons').style.display = 'flex';
+
+            // Sheet selector button: admin only
+            document.getElementById('sheet-selector-btn').style.display = userProfile.isAdmin ? 'flex' : 'none';
+
+            updateCurrentSheetDisplay();
+            loadSavedTheme();
+            restoreBulkSettings();
+            applyLang();
+        }
+
+        // =====================================================
+        // AUTH — Supabase Google OAuth
+        // =====================================================
+        async function handleGoogleLogin() {
+            try {
+                const { error } = await sb.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        scopes: 'https://www.googleapis.com/auth/spreadsheets',
+                        redirectTo: window.location.origin + window.location.pathname,
+                        queryParams: { access_type: 'offline', prompt: 'consent' }
+                    }
+                });
+                if (error) showLoginError('ログインに失敗しました: ' + error.message);
+            } catch (e) {
+                showLoginError('ログインに失敗しました: ' + e.message);
+            }
+        }
+
+        /**
+         * Check user against authentication_mode_user_roles table
+         * Columns: email, name, role (admin | operator | viewer)
+         */
+        async function checkUserApproval(user) {
+            try {
+                const { data, error } = await sb
+                    .from('authentication_mode_user_roles')
+                    .select('name, role')
+                    .eq('email', user.email)
+                    .single();
+
+                if (error || !data) {
+                    await sb.auth.signOut();
+                    showLoginError(
+                        `アクセスが拒否されました。\n${user.email} は許可されていません。\n管理者にお問い合わせください。`
+                    );
+                    showLogin();
+                    return;
+                }
+
+                userProfile = {
+                    email: user.email,
+                    name: data.name || user.email,
+                    role: data.role,
+                    isAdmin: data.role === 'admin'
+                };
+
+                showApp();
+            } catch (e) {
+                console.error('User check error:', e);
+                showLoginError('ユーザー確認中にエラーが発生しました');
+                showLogin();
+            }
+        }
+
+        async function handleLogout() {
+            await sb.auth.signOut();
+            localStorage.removeItem('sheets_access_token');
+            accessToken = null; userProfile = null; parts = [];
+            databaseCache = null; currentSheet = 'production';
+            stopScanner(); closeSnScanner();
+        }
+
+        function showLoginError(msg) {
+            const el = document.getElementById('login-error');
+            el.textContent = msg; el.style.display = 'block';
+        }
+
+        // =====================================================
+        // GOOGLE SHEETS API
+        // =====================================================
+        async function sheetsApiRequest(url, options = {}, isRetry = false) {
+            if (!accessToken) {
+                await refreshAccessToken();
+                if (!accessToken) throw new Error('Google Sheets認証が必要です。再ログインしてください。');
+            }
+            const resp = await fetch(url, {
+                ...options,
+                headers: { 'Authorization': `Bearer ${accessToken}`, 'Content-Type': 'application/json', ...options.headers }
+            });
+            if (resp.status === 401) {
+                if (!isRetry) { await refreshAccessToken(); if (accessToken) return sheetsApiRequest(url, options, true); }
+                localStorage.removeItem('sheets_access_token'); accessToken = null;
+                throw new Error('セッションが切れました。再ログインしてください。');
+            }
+            if (!resp.ok) { const e = await resp.json(); throw new Error(e.error?.message || 'API error'); }
+            return resp.json();
+        }
+
+        async function refreshAccessToken() {
+            try {
+                const { data } = await sb.auth.refreshSession();
+                if (data?.session?.provider_token) {
+                    accessToken = data.session.provider_token;
+                    localStorage.setItem('sheets_access_token', accessToken);
+                    return true;
+                }
+                return false;
+            } catch (e) { console.error('Token refresh failed:', e); return false; }
+        }
+
+        // =====================================================
+        // SHEET SELECTION
+        // =====================================================
+        function onSheetChange() {
+            const sel = document.querySelector('input[name="sheet"]:checked');
+            if (sel) { currentSheet = sel.value; databaseCache = null; updateCurrentSheetDisplay(); }
+        }
+        function getCurrentSpreadsheetId() { return SHEETS_CONFIG[currentSheet].id; }
+
+        // =====================================================
+        // MODALS
+        // =====================================================
+        function openFinderModal() { document.getElementById('finder-modal').classList.add('active'); }
+        function closeFinderModal() { document.getElementById('finder-modal').classList.remove('active'); }
+        function openSheetSelectorModal() {
+            const r = document.querySelector(`input[name="sheet"][value="${currentSheet}"]`);
+            if (r) r.checked = true;
+            document.getElementById('sheet-selector-modal').classList.add('active');
+        }
+        function closeSheetSelectorModal() { document.getElementById('sheet-selector-modal').classList.remove('active'); }
+        function openSettingsModal() {
+            updateThemeButtons();
+            // User info
+            if (userProfile) {
+                document.getElementById('s-user-name').textContent = userProfile.name;
+                document.getElementById('s-user-role').textContent = userProfile.isAdmin ? '管理者' : userProfile.role;
+            }
+            // Sheet info
+            document.getElementById('s-sheet-name').textContent = getCurrentSheetName();
+            document.getElementById('s-sheet-mode').value = currentSheet;
+            document.getElementById('s-sheet-mode-row').style.display = userProfile?.isAdmin ? 'flex' : 'none';
+            // Language buttons
+            document.getElementById('lang-btn-ja').style.background = currentLang === 'ja' ? 'var(--primary)' : '#fff';
+            document.getElementById('lang-btn-ja').style.color = currentLang === 'ja' ? '#fff' : 'var(--text-secondary)';
+            document.getElementById('lang-btn-en').style.background = currentLang === 'en' ? 'var(--primary)' : '#fff';
+            document.getElementById('lang-btn-en').style.color = currentLang === 'en' ? '#fff' : 'var(--text-secondary)';
+            // Admin sections
+            document.getElementById('admin-location-section').style.display = userProfile?.isAdmin ? 'block' : 'none';
+            document.getElementById('location-edit-pn').value = '';
+            document.getElementById('location-edit-result').style.display = 'none';
+            document.getElementById('location-edit-status').textContent = '';
+            stopLocationQRScanner();
+            document.getElementById('settings-modal').classList.add('active');
+        }
+        function closeSettingsModal() { stopLocationQRScanner(); document.getElementById('settings-modal').classList.remove('active'); }
+
+        function onSheetModeChange() {
+            currentSheet = document.getElementById('s-sheet-mode').value;
+            databaseCache = null;
+            document.getElementById('s-sheet-name').textContent = getCurrentSheetName();
+        }
+
+        function setLang(lang) {
+            currentLang = lang;
+            localStorage.setItem('app-lang', lang);
+            applyLang();
+            // Update settings modal buttons
+            document.getElementById('lang-btn-ja').style.background = lang === 'ja' ? 'var(--primary)' : '#fff';
+            document.getElementById('lang-btn-ja').style.color = lang === 'ja' ? '#fff' : 'var(--text-secondary)';
+            document.getElementById('lang-btn-en').style.background = lang === 'en' ? 'var(--primary)' : '#fff';
+            document.getElementById('lang-btn-en').style.color = lang === 'en' ? '#fff' : 'var(--text-secondary)';
+        }
+
+        // =====================================================
+        // ADMIN: LOCATION EDIT
+        // =====================================================
+        let locationEditPartData = null;
+        let locationQRScanner = null;
+        let locationQRScannerActive = false;
+
+        function toggleLocationQRScanner() { locationQRScannerActive ? stopLocationQRScanner() : startLocationQRScanner(); }
+        function startLocationQRScanner() {
+            const el = document.getElementById('location-qr-reader'); el.style.display = 'block';
+            locationQRScanner = new Html5Qrcode('location-qr-reader');
+            locationQRScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 200, height: 200 } },
+                (txt) => { document.getElementById('location-edit-pn').value = txt; stopLocationQRScanner(); searchPartForLocationEdit(); }, () => {}
+            ).catch(() => showLocationEditStatus('カメラにアクセスできません', 'error'));
+            locationQRScannerActive = true;
+        }
+        function stopLocationQRScanner() {
+            if (locationQRScanner && locationQRScannerActive) {
+                locationQRScanner.stop().then(() => { document.getElementById('location-qr-reader').style.display = 'none'; locationQRScannerActive = false; }).catch(console.log);
+            }
+        }
+
+        async function searchPartForLocationEdit() {
+            const val = document.getElementById('location-edit-pn').value.trim();
+            if (!val) { showLocationEditStatus('部品番号を入力してください', 'error'); return; }
+            showLocationEditStatus('検索中...', 'loading');
+            try {
+                const info = await lookupPartFromSupabase(val);
+                if (info) {
+                    locationEditPartData = info;
+                    document.getElementById('location-edit-found-pn').textContent = info.partNumber;
+                    document.getElementById('location-edit-found-name').textContent = info.name || '(名前なし)';
+                    document.getElementById('location-edit-location').value = info.location || '';
+                    document.getElementById('location-edit-temp').value = info.tempLocation || '';
+                    document.getElementById('location-edit-result').style.display = 'block';
+                    showLocationEditStatus('', '');
+                } else {
+                    document.getElementById('location-edit-result').style.display = 'none';
+                    showLocationEditStatus('部品が見つかりません: ' + val, 'error');
+                }
+            } catch (e) { showLocationEditStatus('検索エラー: ' + e.message, 'error'); }
+        }
+
+        async function lookupPartFromSupabase(searchValue) {
+            const headers = { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` };
+            try {
+                // Try by P/N first
+                let resp = await fetch(`${SUPABASE_URL}/rest/v1/master_parts_list_all?pn=eq.${encodeURIComponent(searchValue)}&select=pn,name,location,temp_location,qr_code`, { headers });
+                if (resp.ok) { const d = await resp.json(); if (d.length > 0) { const r = d[0]; return { partNumber: r.pn||'', name: r.name||'', location: r.location||'', tempLocation: r.temp_location||'' }; } }
+                // Try by QR code
+                resp = await fetch(`${SUPABASE_URL}/rest/v1/master_parts_list_all?qr_code=eq.${encodeURIComponent(searchValue)}&select=pn,name,location,temp_location,qr_code`, { headers });
+                if (resp.ok) { const d = await resp.json(); if (d.length > 0) { const r = d[0]; return { partNumber: r.pn||'', name: r.name||'', location: r.location||'', tempLocation: r.temp_location||'' }; } }
+                return null;
+            } catch (e) { console.error('Supabase lookup error:', e); return null; }
+        }
+
+        async function saveLocationEdit() {
+            if (!locationEditPartData) return;
+            const loc = document.getElementById('location-edit-location').value.trim();
+            const tmp = document.getElementById('location-edit-temp').value.trim();
+            if (!confirm(`場所を更新しますか?\n\n部品: ${locationEditPartData.partNumber}\n保管場所: ${loc || '(空)'}\n仮保管場所: ${tmp || '(空)'}`)) return;
+            showLocationEditStatus('更新中...', 'loading');
+            try {
+                const resp = await fetch(`${SUPABASE_URL}/rest/v1/master_parts_list_all?pn=eq.${encodeURIComponent(locationEditPartData.partNumber)}`, {
+                    method: 'PATCH', headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}`, 'Content-Type': 'application/json', 'Prefer': 'return=minimal' },
+                    body: JSON.stringify({ location: loc, temp_location: tmp, updated_at: new Date().toISOString() })
+                });
+                if (resp.ok) {
+                    showLocationEditStatus('✅ 場所を更新しました！', 'success');
+                    if (databaseCache) { const c = databaseCache.find(p => p.partNumber === locationEditPartData.partNumber); if (c) { c.location = loc; c.tempLocation = tmp; } }
+                    parts.forEach(p => { if (p.pn === locationEditPartData.partNumber) { p.location = loc; p.tempLocation = tmp; } });
+                    renderPartsList();
+                    locationEditPartData.location = loc; locationEditPartData.tempLocation = tmp;
+                } else { throw new Error(await resp.text() || 'Update failed'); }
+            } catch (e) { showLocationEditStatus('❌ 更新エラー: ' + e.message, 'error'); }
+        }
+
+        function showLocationEditStatus(msg, type) {
+            const s = document.getElementById('location-edit-status');
+            s.textContent = msg; s.className = 'location-edit-status'; if (type) s.classList.add(type);
+        }
+
+        // =====================================================
+        // THEME
+        // =====================================================
+        function setTheme(theme) {
+            document.body.classList.remove('theme-purple','theme-blue','theme-green','theme-orange','theme-dark');
+            document.body.classList.add(`theme-${theme}`);
+            localStorage.setItem('app-theme', theme); updateThemeButtons();
+        }
+        function loadSavedTheme() { setTheme(localStorage.getItem('app-theme') || 'purple'); }
+        function updateThemeButtons() {
+            const t = localStorage.getItem('app-theme') || 'purple';
+            document.querySelectorAll('.theme-btn').forEach(b => b.classList.toggle('active', b.dataset.theme === t));
+        }
+
+        // =====================================================
+        // DATE / SHEET HELPERS
+        // =====================================================
+        function getCurrentSheetName() { const n = new Date(); return `${n.getFullYear()}/${n.getMonth()+1}`; }
+        function updateCurrentSheetDisplay() {
+            // Sheet display moved to settings modal
+            const sn = document.getElementById('s-sheet-name');
+            if (sn) sn.textContent = getCurrentSheetName();
+        }
+        function getDateString() { const n = new Date(); return `${n.getMonth()+1}/${n.getDate()}`; }
+
+        // =====================================================
+        // QR SCANNER
+        // =====================================================
+        function toggleScanner() { scannerActive ? stopScanner() : startScanner(); }
+        function startScanner() {
+            document.getElementById('qr-reader').style.display = 'block';
+            document.getElementById('scan-add-btn').classList.add('active');
+            document.getElementById('scan-add-btn').textContent = '🔴 スキャン中...';
+            html5QrCode = new Html5Qrcode('qr-reader');
+            html5QrCode.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 250, height: 250 } },
+                async (txt) => {
+                    stopScanner(); showStatus('batch-status', '部品情報を取得中...', 'loading');
+                    const info = await lookupPartFromSupabase(txt);
+                    const ld = info ? { name: info.name, location: info.location, tempLocation: info.tempLocation } : null;
+                    addPart(txt, true, ld);
+                    showStatus('batch-status', `✅ ${txt} を追加しました`, 'success');
+                    setTimeout(() => hideStatus('batch-status'), 2000);
+                }, () => {}
+            ).catch(err => { showStatus('batch-status', 'カメラエラー: ' + err, 'error'); stopScanner(); });
+            scannerActive = true;
+        }
+        function stopScanner() {
+            if (html5QrCode && scannerActive) {
+                html5QrCode.stop().then(() => {
+                    document.getElementById('qr-reader').style.display = 'none';
+                    document.getElementById('scan-add-btn').classList.remove('active');
+                    document.getElementById('scan-add-btn').textContent = '📷 QRスキャン追加';
+                    scannerActive = false;
+                }).catch(console.log);
+            }
+        }
+
+        // S/N QR Scanner
+        function openSnScanner(index) {
+            stopScanner(); closeSnScanner();
+            const el = document.getElementById(`sn-qr-reader-${index}`); if (!el) return;
+            el.style.display = 'block'; snScannerIndex = index;
+            snScanner = new Html5Qrcode(`sn-qr-reader-${index}`);
+            snScanner.start({ facingMode: "environment" }, { fps: 10, qrbox: { width: 200, height: 200 } },
+                (txt) => {
+                    parts[index].sn = txt; parts[index].snUnit = ''; parts[index].snNumber = '';
+                    closeSnScanner(); renderPartsList();
+                    showStatus('batch-status', `✅ S/N: ${txt} を読み取りました`, 'success');
+                    setTimeout(() => hideStatus('batch-status'), 2000);
+                }, () => {}
+            ).catch(err => showStatus('batch-status', 'カメラエラー: ' + err, 'error'));
+            snScannerActive = true;
+        }
+        function closeSnScanner() {
+            if (snScanner && snScannerActive) {
+                snScanner.stop().then(() => {
+                    if (snScannerIndex >= 0) { const el = document.getElementById(`sn-qr-reader-${snScannerIndex}`); if (el) el.style.display = 'none'; }
+                    snScannerActive = false; snScannerIndex = -1;
+                }).catch(console.log);
+            }
+        }
+
+        // =====================================================
+        // PARTS LIST
+        // =====================================================
+        function addPart(pn, showLocation = false, locationData = null) {
+            const bulk = isBulkAutoApply() ? getBulkValues() : { purpose: '', sn: '', comment: '' };
+            parts.push({ pn, name: locationData?.name||'', purpose: bulk.purpose||'', sn: bulk.sn||'', comment: bulk.comment||'', snUnit: '', snNumber: '', qty: '', showLocation, location: locationData?.location||'', tempLocation: locationData?.tempLocation||'' });
+            renderPartsList(); updateSubmitButton();
+        }
+        function removePart(i) { parts.splice(i, 1); renderPartsList(); updateSubmitButton(); }
+        function updatePart(i, field, val) { parts[i][field] = val; updateSubmitButton(); }
+
+        function renderPartsList() {
+            const c = document.getElementById('parts-list');
+            const L = I18N[currentLang] || I18N['ja'];
+            if (!parts.length) { c.innerHTML = `<div class="parts-list-empty">${L.empty_list}</div>`; return; }
+            c.innerHTML = parts.map((p, i) => `
+                <div class="part-item">
+                    <div class="part-header">
+                        <div class="part-header-left">
+                            <span class="part-index">#${i+1}</span>
+                            <span class="part-number">${p.pn}</span>
+                            ${p.name ? `<span class="part-name">${p.name}</span>` : ''}
+                        </div>
+                        <button class="delete-btn" onclick="removePart(${i})">🗑️</button>
+                    </div>
+                    ${p.showLocation ? `<div class="inline-location">📍 ${p.location||'場所不明'}${p.tempLocation ? ` (仮: ${p.tempLocation})` : ''}</div>` : ''}
+                    <div class="part-fields three-col">
+                        <div class="field-group"><label>${L.purpose}</label>
+                            <select onchange="updatePart(${i},'purpose',this.value)"><option value="">選択</option>${PURPOSE_OPTIONS.map(o=>`<option value="${o}" ${p.purpose===o?'selected':''}>${o}</option>`).join('')}</select></div>
+                        <div class="field-group"><label>${L.qty}</label><input type="number" value="${p.qty}" min="1" onchange="updatePart(${i},'qty',this.value)"></div>
+                        <div class="field-group sn-field"><label>S/N</label>
+                            <div class="sn-compact-row">
+                                <input type="text" value="${p.sn}" placeholder="S/N" onchange="updatePart(${i},'sn',this.value)" class="sn-text-input">
+                                <button class="sn-btn" onclick="openSnScanner(${i})">📷</button>
+                                <button class="sn-btn unit-btn" onclick="openUnitModal(${i})">🏭</button>
+                            </div></div>
+                    </div>
+                    <div id="sn-qr-reader-${i}" class="sn-qr-reader-container"></div>
+                </div>`).join('');
+        }
+
+        function updateSubmitButton() {
+            const btn = document.getElementById('submit-btn'), v = parts.filter(p => p.purpose);
+            const L = I18N[currentLang] || I18N['ja'];
+            btn.textContent = `${L.submit} (${v.length}件)`; btn.disabled = !v.length;
+            document.getElementById('clear-all-btn').style.display = parts.length ? 'block' : 'none';
+        }
+
+        // =====================================================
+        // UNIT CODE MODAL
+        // =====================================================
+        function openUnitModal(i) {
+            currentSnIndex = i;
+            document.getElementById('unit-number-input').value = parts[i].snNumber || '';
+            document.querySelectorAll('.unit-modal-chip').forEach(c => c.classList.remove('active'));
+            if (parts[i].snUnit) { const el = document.querySelector(`.unit-modal-chip[data-code="${parts[i].snUnit}"]`); if (el) el.classList.add('active'); }
+            updateUnitPreview(); document.getElementById('unit-modal').classList.add('active');
+        }
+        function closeUnitModal() { document.getElementById('unit-modal').classList.remove('active'); currentSnIndex = -1; }
+        function selectUnitChip(code) {
+            document.querySelectorAll('.unit-modal-chip').forEach(c => c.classList.remove('active'));
+            document.querySelector(`.unit-modal-chip[data-code="${code}"]`).classList.add('active');
+            if (currentSnIndex >= 0) parts[currentSnIndex].snUnit = code;
+            updateUnitPreview();
+        }
+        function onUnitNumberChange(val) { if (currentSnIndex >= 0) parts[currentSnIndex].snNumber = val; updateUnitPreview(); }
+        function updateUnitPreview() {
+            const btn = document.getElementById('unit-confirm-btn');
+            if (currentSnIndex < 0) return;
+            const u = parts[currentSnIndex].snUnit||'', n = parts[currentSnIndex].snNumber||'';
+            if (u && n) { btn.textContent = `🔍 検索: ${u}-${n}`; btn.disabled = false; }
+            else { btn.textContent = u ? '番号を入力してください' : 'Unitを選択してください'; btn.disabled = true; }
+        }
+
+        async function confirmUnitSelection() {
+            if (currentSnIndex < 0) return;
+            const unit = parts[currentSnIndex].snUnit||'', number = parts[currentSnIndex].snNumber||'';
+            if (unit && number) {
+                const btn = document.getElementById('unit-confirm-btn'); btn.textContent = '🔍 検索中...'; btn.disabled = true;
+                try {
+                    const sn = await lookupGhostTrackerSN(unit, number);
+                    if (sn) { parts[currentSnIndex].sn = sn; showStatus('batch-status', `✅ S/N: ${sn} を取得しました`, 'success'); }
+                    else { const sc = (UNIT_CODES.find(u=>u.code===unit)||{}).snCode||unit; parts[currentSnIndex].sn = `${sc}-${number}`; showStatus('batch-status', `⚠️ Ghost Trackerに見つかりません。${sc}-${number} を設定しました`, 'error'); }
+                } catch (e) {
+                    const sc = (UNIT_CODES.find(u=>u.code===unit)||{}).snCode||unit; parts[currentSnIndex].sn = `${sc}-${number}`;
+                    showStatus('batch-status', `⚠️ 検索エラー。${sc}-${number} を設定しました`, 'error');
+                }
+                setTimeout(() => hideStatus('batch-status'), 3000); renderPartsList();
+            }
+            closeUnitModal();
+        }
+
+        async function lookupGhostTrackerSN(unitCode, number) {
+            const uc = UNIT_CODES.find(u => u.code === unitCode);
+            if (!uc) return null;
+            const data = await sheetsApiRequest(`https://sheets.googleapis.com/v4/spreadsheets/${GHOST_TRACKER_SHEET_ID}/values/${encodeURIComponent(uc.sheetTab)}!A:Z`);
+            const rows = data.values||[]; if (rows.length < 2) return null;
+            let snCol = rows[0].findIndex(h => /^S\/?N$/i.test((h||'').trim()));
+            if (snCol === -1) { outer: for (let ci = 0; ci < Math.min(rows[0].length, 10); ci++) { for (let ri = 1; ri < Math.min(rows.length, 5); ri++) { if (/^GT\d{3}-[A-Z0-9]{2,3}-\d{3,5}$/i.test(rows[ri][ci]||'')) { snCol = ci; break outer; } } } }
+            if (snCol === -1) snCol = 0;
+            const pad = number.toString().padStart(5, '0'), snUp = uc.snCode.toUpperCase();
+            for (let i = 1; i < rows.length; i++) {
+                const cell = (rows[i][snCol]||'').trim().toUpperCase();
+                const m = cell.match(/^(GT\d{3})-([A-Z0-9]{2,3})-(\d{3,5})$/);
+                if (m && m[2] === snUp && (m[3] === number.toString() || m[3].padStart(5,'0') === pad || parseInt(m[3]) === parseInt(number))) return cell;
+            }
+            return null;
+        }
+
+        // =====================================================
+        // PASTE MODAL
+        // =====================================================
+        function openPasteModal() { document.getElementById('paste-modal').classList.add('active'); document.getElementById('paste-textarea').value = ''; document.getElementById('paste-textarea').focus(); }
+        function closePasteModal() { document.getElementById('paste-modal').classList.remove('active'); }
+
+        async function processPastedList() {
+            const lines = document.getElementById('paste-textarea').value.split('\n').map(l=>l.trim()).filter(l=>l);
+            if (!lines.length) return;
+            closePasteModal(); showStatus('batch-status', '部品情報を取得中...', 'loading');
+            try {
+                if (!databaseCache) databaseCache = await loadDatabase();
+                const bulk = isBulkAutoApply() ? getBulkValues() : { purpose: '', sn: '', comment: '' };
+                let added = 0;
+                lines.forEach(line => {
+                        // Auto-detect separator: tab, comma, or trailing space+number
+                        let pn, qty = '';
+                        if (line.includes('\t')) { const p = line.split('\t'); pn = p[0].trim(); qty = parseInt(p[1]) || ''; }
+                        else if (line.includes(',')) { const p = line.split(','); pn = p[0].trim(); qty = parseInt(p[1]) || ''; }
+                        else if (/\s+\d+$/.test(line)) { const m = line.match(/^(.+?)\s+(\d+)$/); pn = m[1].trim(); qty = parseInt(m[2]) || ''; }
+                        else { pn = line; }
+                        if (!pn) return;
+                        const f = databaseCache.find(r => r.partNumber === pn);
+                        parts.push({ pn, name: f?.name||'', purpose: bulk.purpose||'', sn: bulk.sn||'', comment: bulk.comment||'', snUnit: '', snNumber: '', qty, showLocation: true, location: f?.location||'', tempLocation: f?.tempLocation||'' });
+                        added++;
+                });
+                renderPartsList(); updateSubmitButton();
+                const pnList = lines.map(l => {
+                    if (l.includes('\t')) return l.split('\t')[0].trim();
+                    if (l.includes(',')) return l.split(',')[0].trim();
+                    if (/\s+\d+$/.test(l)) return l.match(/^(.+?)\s+\d+$/)[1].trim();
+                    return l;
+                });
+                document.getElementById('finder-input').value = pnList.join('\n');
+                await autoSearchFinder(pnList);
+                if (added) { showStatus('batch-status', `✅ ${added}件の部品を追加しました`, 'success'); setTimeout(() => hideStatus('batch-status'), 3000); }
+            } catch (e) { showStatus('batch-status', 'エラー: ' + e.message, 'error'); }
+        }
+
+        // =====================================================
+        // BATCH SUBMIT
+        // =====================================================
+        async function submitBatch() {
+            const valid = parts.filter(p => p.purpose);
+            if (!valid.length) { showStatus('batch-status', '目的が選択されていない部品があります', 'error'); return; }
+            // Check for empty qty
+            const emptyQty = parts.filter(p => !p.qty || p.qty === '' || parseInt(p.qty) <= 0);
+            if (emptyQty.length) {
+                showStatus('batch-status', `⚠️ 数量が未入力の部品が${emptyQty.length}件あります`, 'error');
+                highlightEmptyQty();
+                return;
+            }
+            const btn = document.getElementById('submit-btn'); btn.disabled = true; btn.textContent = '登録中...';
+            showStatus('batch-status', 'データを送信中...', 'loading');
+            try {
+                const sheet = getCurrentSheetName(), sid = getCurrentSpreadsheetId();
+                if (!(await checkSheetExists(sheet, sid))) await createNewSheet(sheet, sid);
+                let row = await getNextRowNumber(sheet, sid);
+                const date = getDateString();
+                for (let i = 0; i < valid.length; i++) {
+                    const p = valid[i];
+                    await writeRow(sheet, row + i, [date, userProfile.name, p.pn||'', '', '', String(p.qty||1), p.purpose||'', p.sn||'', p.comment||''], sid);
+                }
+                showStatus('batch-status', `✅ ${valid.length}件の登録が完了しました！`, 'success');
+                parts = []; renderPartsList(); updateSubmitButton();
+            } catch (e) { showStatus('batch-status', 'エラー: ' + e.message, 'error'); }
+            finally { btn.disabled = false; updateSubmitButton(); }
+        }
+
+        function highlightEmptyQty() {
+            document.querySelectorAll('.qty-highlight').forEach(el => el.classList.remove('qty-highlight'));
+            parts.forEach((p, i) => {
+                if (!p.qty || p.qty === '' || parseInt(p.qty) <= 0) {
+                    const item = document.querySelectorAll('.part-item')[i];
+                    if (item) {
+                        const qtyInput = item.querySelector('input[type="number"]');
+                        if (qtyInput) { qtyInput.classList.add('qty-highlight'); qtyInput.focus(); }
+                    }
+                }
+            });
+        }
+
+        // =====================================================
+        // PART FINDER
+        // =====================================================
+        async function findParts() {
+            const pns = document.getElementById('finder-input').value.split('\n').map(l=>l.trim()).filter(l=>l);
+            if (!pns.length) { showStatus('finder-status', '部品番号を入力してください', 'error'); return; }
+            showStatus('finder-status', '検索中...', 'loading');
+            try {
+                if (!databaseCache) databaseCache = await loadDatabase();
+                renderFinderResults(pns.map(pn => ({ pn, found: !!databaseCache.find(r=>r.partNumber===pn), data: databaseCache.find(r=>r.partNumber===pn) })));
+                hideStatus('finder-status');
+            } catch (e) { showStatus('finder-status', 'エラー: ' + e.message, 'error'); }
+        }
+        async function autoSearchFinder(pns) {
+            try {
+                if (!databaseCache) databaseCache = await loadDatabase();
+                renderFinderResults(pns.map(pn => ({ pn, found: !!databaseCache.find(r=>r.partNumber===pn), data: databaseCache.find(r=>r.partNumber===pn) })));
+            } catch (e) { console.error(e); }
+        }
+
+        async function loadDatabase() {
+            try {
+                const resp = await fetch(`${SUPABASE_URL}/rest/v1/master_parts_list_all?select=pn,name,location,temp_location`, {
+                    headers: { 'apikey': SUPABASE_ANON_KEY, 'Authorization': `Bearer ${SUPABASE_ANON_KEY}` }
+                });
+                if (!resp.ok) throw new Error('Supabase fetch failed');
+                return (await resp.json()).map(r => ({ partNumber: r.pn||'', name: r.name||'', location: r.location||'', tempLocation: r.temp_location||'' })).filter(r => r.partNumber);
+            } catch (e) { console.error(e); return []; }
+        }
+
+        function renderFinderResults(results) {
+            document.getElementById('finder-results').innerHTML = results.map(r => {
+                if (r.found) {
+                    const d = r.data;
+                    return `<div class="finder-result-item found"><div class="finder-pn">✅ ${r.pn}</div>
+                        <div class="finder-details"><div class="finder-detail"><span class="finder-detail-label">物品名</span><span class="finder-detail-value">${d.name}</span></div></div>
+                        <div class="location-highlight"><span class="icon">📍</span><span class="text">${d.location}</span>${d.tempLocation?`<span style="color:#666;margin-left:10px;">(仮: ${d.tempLocation})</span>`:''}</div></div>`;
+                }
+                return `<div class="finder-result-item not-found"><div class="finder-pn">❌ ${r.pn}</div><div style="color:#c62828;font-size:0.9rem;">データベースに見つかりません</div></div>`;
+            }).join('');
+        }
+
+        // =====================================================
+        // GOOGLE SHEETS HELPERS
+        // =====================================================
+        async function checkSheetExists(name, sid) {
+            const d = await sheetsApiRequest(`https://sheets.googleapis.com/v4/spreadsheets/${sid}?fields=sheets.properties.title`);
+            return (d.sheets||[]).some(s => s.properties.title === name);
+        }
+        async function createNewSheet(name, sid) {
+            await sheetsApiRequest(`https://sheets.googleapis.com/v4/spreadsheets/${sid}:batchUpdate`, { method: 'POST', body: JSON.stringify({ requests: [{ addSheet: { properties: { title: name } } }] }) });
+            await sheetsApiRequest(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(name)}!A1:Q1?valueInputOption=RAW`, { method: 'PUT', body: JSON.stringify({ values: [['No.','日付','名前','部品番号かQRの値を入力','部品番号(自動入力)','部品名(自動入力)','数量','目的','SN','備考欄','出庫者','処理状況','貸出状況','保管場所','仮保管場所','部署','出庫メモ']] }) });
+        }
+        async function getNextRowNumber(name, sid) {
+            const d = await sheetsApiRequest(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(name)}!B:B`);
+            return (d.values||[]).length + 1;
+        }
+        async function writeRow(name, row, data, sid) {
+            await sheetsApiRequest(`https://sheets.googleapis.com/v4/spreadsheets/${sid}/values/${encodeURIComponent(name)}!B${row}:J${row}?valueInputOption=USER_ENTERED`, { method: 'PUT', body: JSON.stringify({ values: [data] }) });
+        }
+
+        // =====================================================
+        // STATUS
+        // =====================================================
+        function showStatus(id, msg, type) { const s = document.getElementById(id); s.textContent = msg; s.className = 'status ' + type; }
+        function hideStatus(id) { document.getElementById(id).className = 'status'; }
+
+        // =====================================================
+        // BULK SETTINGS
+        // =====================================================
+        let bulkCollapsed = false;
+
+        function toggleBulkPanel() {
+            bulkCollapsed = !bulkCollapsed;
+            document.getElementById('bulk-body').classList.toggle('hidden', bulkCollapsed);
+            document.getElementById('toggle-icon').classList.toggle('collapsed', bulkCollapsed);
+            document.getElementById('bulk-panel').classList.toggle('collapsed', bulkCollapsed);
+        }
+
+        function getBulkValues() {
+            return {
+                purpose: document.getElementById('bulk-purpose').value,
+                sn: document.getElementById('bulk-sn').value.trim(),
+                comment: (document.getElementById('bulk-comment')||{}).value?.trim()||''
+            };
+        }
+
+        function isBulkAutoApply() {
+            return document.getElementById('bulk-auto').checked;
+        }
+
+        function updateBulkSummary() {
+            const b = getBulkValues();
+            const p = [];
+            if (b.purpose) p.push(`目的: ${b.purpose}`);
+            if (b.sn) p.push(`S/N: ${b.sn}`);
+            if (b.comment) p.push(`💬`);
+            document.getElementById('bulk-summary').textContent = p.length ? p.join(' | ') : '';
+            saveBulkSettings();
+        }
+
+        function saveBulkSettings() {
+            const b = getBulkValues();
+            const autoApply = document.getElementById('bulk-auto').checked;
+            localStorage.setItem('bulk-settings', JSON.stringify({ purpose: b.purpose, sn: b.sn, comment: b.comment, auto: autoApply }));
+        }
+
+        function restoreBulkSettings() {
+            try {
+                const saved = JSON.parse(localStorage.getItem('bulk-settings'));
+                if (!saved) return;
+                if (saved.purpose) document.getElementById('bulk-purpose').value = saved.purpose;
+                if (saved.sn) document.getElementById('bulk-sn').value = saved.sn;
+                if (saved.comment) document.getElementById('bulk-comment').value = saved.comment;
+                if (saved.auto !== undefined) document.getElementById('bulk-auto').checked = saved.auto;
+                updateBulkSummary();
+            } catch(e) { /* ignore */ }
+        }
+
+        function applyField(field) {
+            const b = getBulkValues();
+            const val = field === 'purpose' ? b.purpose : field === 'sn' ? b.sn : b.comment;
+            const label = field === 'purpose' ? '目的' : field === 'sn' ? 'S/N' : 'コメント';
+            if (!val) { showBulkStatus(`${label}を設定してください`); return; }
+            if (!parts.length) { showBulkStatus('部品がありません'); return; }
+            let count = 0;
+            parts.forEach(p => { p[field] = val; count++; });
+            renderPartsList(); updateSubmitButton();
+            showBulkStatus(`✅ ${label}を${count}件に適用しました`);
+        }
+
+        function applyBulkMode(mode) {
+            const b = getBulkValues();
+            if (!b.purpose && !b.sn && !b.comment) { showBulkStatus('設定する値がありません'); return; }
+            if (!parts.length) { showBulkStatus('部品がありません'); return; }
+            let count = 0;
+            parts.forEach(p => {
+                if (b.purpose && (mode === 'all' || !p.purpose)) { p.purpose = b.purpose; count++; }
+                if (b.sn && (mode === 'all' || !p.sn)) { p.sn = b.sn; count++; }
+                if (b.comment && (mode === 'all' || !p.comment)) { p.comment = b.comment; count++; }
+            });
+            renderPartsList(); updateSubmitButton();
+            const label = mode === 'all' ? '全行' : '空欄';
+            showBulkStatus(`✅ ${count}件の項目を更新しました (${label})`);
+        }
+
+        function clearBulk() {
+            document.getElementById('bulk-purpose').value = '';
+            document.getElementById('bulk-sn').value = '';
+            document.getElementById('bulk-comment').value = '';
+            localStorage.removeItem('bulk-settings');
+            updateBulkSummary();
+            showBulkStatus('クリアしました');
+        }
+
+        function clearAllParts() {
+            if (!parts.length) return;
+            if (!confirm(`${parts.length}件の部品をすべてクリアしますか？`)) return;
+            parts = [];
+            renderPartsList(); updateSubmitButton();
+            showStatus('batch-status', 'リストをクリアしました', 'success');
+            setTimeout(() => hideStatus('batch-status'), 2000);
+        }
+
+        function clearAllValues() {
+            if (!parts.length) { showBulkStatus('部品がありません'); return; }
+            if (!confirm('全行の目的・S/N・コメントをクリアしますか？\n(P/Nと数量はそのまま残ります)')) return;
+            parts.forEach(p => { p.purpose = ''; p.sn = ''; p.comment = ''; });
+            renderPartsList(); updateSubmitButton();
+            showBulkStatus('✅ 全行の入力値をクリアしました');
+        }
+
+        function showBulkStatus(msg) {
+            const el = document.getElementById('bulk-status');
+            el.textContent = msg;
+            setTimeout(() => { el.textContent = ''; }, 2500);
+        }
+
+        // =====================================================
+        // BULK UNIT MODAL
+        // =====================================================
+        let bulkUnitCode = '';
+        let bulkUnitNumber = '';
+
+        function openBulkUnitModal() {
+            bulkUnitCode = ''; bulkUnitNumber = '';
+            document.getElementById('bulk-unit-number').value = '';
+            document.querySelectorAll('#bulk-unit-chips .unit-modal-chip').forEach(c => c.classList.remove('active'));
+            updateBulkUnitPreview();
+            document.getElementById('bulk-unit-modal').classList.add('active');
+        }
+        function closeBulkUnitModal() {
+            document.getElementById('bulk-unit-modal').classList.remove('active');
+        }
+        function selectBulkUnit(code) {
+            bulkUnitCode = code;
+            document.querySelectorAll('#bulk-unit-chips .unit-modal-chip').forEach(c => {
+                c.classList.toggle('active', c.dataset.code === code);
+            });
+            updateBulkUnitPreview();
+        }
+        function updateBulkUnitPreview() {
+            bulkUnitNumber = document.getElementById('bulk-unit-number').value.trim();
+            const btn = document.getElementById('bulk-unit-confirm');
+            if (bulkUnitCode && bulkUnitNumber) {
+                const uc = UNIT_CODES.find(u => u.code === bulkUnitCode);
+                const sn = uc ? `${uc.snCode}-${bulkUnitNumber.padStart(5, '0')}` : `${bulkUnitCode}-${bulkUnitNumber}`;
+                btn.textContent = `✅ ${sn} を設定`; btn.disabled = false;
+            } else if (bulkUnitCode) {
+                btn.textContent = '番号を入力してください'; btn.disabled = true;
+            } else {
+                btn.textContent = 'Unitを選択してください'; btn.disabled = true;
+            }
+        }
+        async function confirmBulkUnit() {
+            if (!bulkUnitCode || !bulkUnitNumber) return;
+            const btn = document.getElementById('bulk-unit-confirm');
+            const uc = UNIT_CODES.find(u => u.code === bulkUnitCode);
+            const fallbackSN = uc ? `${uc.snCode}-${bulkUnitNumber.padStart(5, '0')}` : `${bulkUnitCode}-${bulkUnitNumber}`;
+
+            // Check if we have an access token first
+            if (!accessToken) {
+                document.getElementById('bulk-sn').value = fallbackSN;
+                updateBulkSummary();
+                closeBulkUnitModal();
+                showBulkStatus(`⚠️ Sheets認証切れ。${fallbackSN} を設定。再ログインで検索可能`);
+                return;
+            }
+
+            btn.textContent = '🔍 検索中...'; btn.disabled = true;
+            try {
+                const fullSN = await lookupGhostTrackerSN(bulkUnitCode, bulkUnitNumber);
+                if (fullSN) {
+                    document.getElementById('bulk-sn').value = fullSN;
+                    updateBulkSummary();
+                    closeBulkUnitModal();
+                    showBulkStatus(`✅ S/N: ${fullSN} を取得しました`);
+                } else {
+                    document.getElementById('bulk-sn').value = fallbackSN;
+                    updateBulkSummary();
+                    closeBulkUnitModal();
+                    showBulkStatus(`⚠️ Ghost Trackerに見つかりません。${fallbackSN} を設定しました`);
+                }
+            } catch (e) {
+                console.error('Bulk unit lookup error:', e);
+                document.getElementById('bulk-sn').value = fallbackSN;
+                updateBulkSummary();
+                closeBulkUnitModal();
+                if (e.message && e.message.includes('再ログイン')) {
+                    showBulkStatus(`⚠️ セッション切れ。${fallbackSN} を設定。再ログインしてください`);
+                } else {
+                    showBulkStatus(`⚠️ 検索エラー。${fallbackSN} を設定しました`);
+                }
+            }
+        }
+
+        // =====================================================
+        // LANGUAGE TOGGLE
+        // =====================================================
+        const I18N = {
+            ja: { app_title:'出庫依頼入力', subtitle:'生産チーム出庫依頼シート', bulk_title:'一括設定', purpose:'目的', comment_label:'コメント', auto_apply:'新しい部品に自動適用', apply_empty:'空欄のみ適用', apply_all:'全行に適用', clear_values:'全入力クリア', qr_scan:'QRスキャン追加', paste_list:'リスト貼付け', clear_list:'🗑️ リストをすべてクリア', empty_list:'QRスキャンまたはリスト貼付けで部品を追加してください', submit:'一括登録する', qty:'数量' },
+            en: { app_title:'Parts Requisition', subtitle:'Production Team Parts Request', bulk_title:'Bulk Settings', purpose:'Purpose', comment_label:'Comment', auto_apply:'Auto-apply to new parts', apply_empty:'Apply to empty', apply_all:'Apply to all', clear_values:'Clear all values', qr_scan:'QR Scan Add', paste_list:'Paste List', clear_list:'🗑️ Clear all parts', empty_list:'Add parts via QR scan or paste list', submit:'Submit batch', qty:'Qty' }
+        };
+        let currentLang = localStorage.getItem('app-lang') || 'ja';
+
+        function toggleLang() {
+            currentLang = currentLang === 'ja' ? 'en' : 'ja';
+            localStorage.setItem('app-lang', currentLang);
+            applyLang();
+        }
+
+        function applyLang() {
+            const L = I18N[currentLang];
+            document.getElementById('lang-toggle').textContent = currentLang === 'ja' ? 'EN' : 'JA';
+            // Header
+            const titleEl = document.querySelector('.app-title h1');
+            if (titleEl) titleEl.textContent = '📦 ' + L.app_title;
+            const subEl = document.querySelector('.app-title .subtitle');
+            if (subEl) subEl.textContent = L.subtitle;
+            // Bulk panel
+            const bulkTitle = document.querySelector('#bulk-panel .bulk-header h3');
+            if (bulkTitle) bulkTitle.innerHTML = `📋 ${L.bulk_title} <span class="toggle-icon" id="toggle-icon"${bulkCollapsed?' class="collapsed"':''}>▼</span>`;
+            const autoLabel = document.querySelector('label[for="bulk-auto"]');
+            if (autoLabel) autoLabel.textContent = L.auto_apply;
+            // Buttons
+            document.querySelectorAll('[onclick="applyBulkMode(\'empty\')"]').forEach(b => b.textContent = L.apply_empty);
+            document.querySelectorAll('[onclick="applyBulkMode(\'all\')"]').forEach(b => b.textContent = L.apply_all);
+            document.querySelectorAll('[onclick="clearAllValues()"]').forEach(b => b.textContent = L.clear_values);
+            // Action buttons
+            const scanBtn = document.getElementById('scan-add-btn');
+            if (scanBtn && !scanBtn.classList.contains('active')) scanBtn.textContent = '📷 ' + L.qr_scan;
+            // Clear all
+            const clearAll = document.getElementById('clear-all-btn');
+            if (clearAll) clearAll.textContent = L.clear_list;
+            // Empty list
+            const emptyEl = document.querySelector('.parts-list-empty');
+            if (emptyEl) emptyEl.textContent = L.empty_list;
+            // Submit
+            updateSubmitButton();
+            // Re-render if parts exist
+            if (parts.length) renderPartsList();
+        }
+    </script>
+</body>
+</html>

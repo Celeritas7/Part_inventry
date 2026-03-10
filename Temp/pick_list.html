@@ -45,6 +45,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .folder-card .ico{font-size:2.5rem;margin-bottom:8px}
 .folder-card h3{font-size:.95rem;font-weight:700;margin-bottom:4px}
 .folder-card p{font-size:.78rem;color:var(--t3)}
+.folder-acts{display:flex;gap:4px;justify-content:center;margin-top:8px}
 .li{border:1px solid var(--brd);border-radius:var(--r);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;transition:border-color .15s;cursor:pointer}
 .li:hover{border-color:var(--pri)}
 .li-info h3{font-size:.9rem;font-weight:600;margin-bottom:2px}
@@ -321,12 +322,39 @@ function renderBread(){
 // =====================================================
 function renderFolders(){
     const el=document.getElementById('v-folders');el.style.display='block';
-    el.innerHTML=`<div class="card"><div class="shdr"><h2>フォルダ一覧</h2></div>
+    const addBtn=user.isAdmin?`<button class="btn btn-g btn-sm" onclick="addFolder()">＋ 新規フォルダ</button>`:'';
+    el.innerHTML=`<div class="card"><div class="shdr"><h2>フォルダ一覧</h2>${addBtn}</div>
         <div class="folder-grid">${folders.map(f=>{
             const tc=templates.filter(t=>t.folder_id===f.id).length;
             const gc=generatedLists.filter(g=>g.folder_id===f.id).length;
-            return`<div class="folder-card" onclick="nav('folder',{folderId:${f.id}})"><div class="ico">${f.icon||'📁'}</div><h3>${esc(f.name)}</h3><p>${tc} テンプレート ・ ${gc} リスト</p></div>`;
+            return`<div class="folder-card" onclick="nav('folder',{folderId:${f.id}})"><div class="ico">${f.icon||'📁'}</div><h3>${esc(f.name)}</h3><p>${tc} テンプレート ・ ${gc} リスト</p>
+                ${user.isAdmin?`<div class="folder-acts" onclick="event.stopPropagation()"><button class="btn btn-s btn-sm" onclick="editFolder(${f.id})" style="padding:3px 6px;font-size:.72rem">✏️</button><button class="btn btn-d btn-sm" onclick="delFolder(${f.id})" style="padding:3px 6px;font-size:.72rem">🗑️</button></div>`:''}</div>`;
         }).join('')}${folders.length?'':'<div class="empty"><div class="ico">📁</div><p>フォルダがありません</p></div>'}</div></div>`;
+}
+
+async function addFolder(){
+    const name=prompt('フォルダ名:');if(!name)return;
+    const icon=prompt('アイコン (絵文字):','📁')||'📁';
+    const{data,error}=await sb.from(T.FOLDERS).insert({name,icon,sort_order:folders.length+1}).select('*').single();
+    if(error){alert('エラー: '+error.message);return;}
+    folders.push(data);renderFolders();
+}
+async function editFolder(id){
+    const f=folders.find(f=>f.id===id);if(!f)return;
+    const name=prompt('フォルダ名:',f.name);if(!name)return;
+    const icon=prompt('アイコン:',f.icon)||f.icon;
+    const{error}=await sb.from(T.FOLDERS).update({name,icon}).eq('id',id);
+    if(error){alert('エラー: '+error.message);return;}
+    f.name=name;f.icon=icon;renderFolders();
+}
+async function delFolder(id){
+    const tc=templates.filter(t=>t.folder_id===id).length;
+    const gc=generatedLists.filter(g=>g.folder_id===id).length;
+    if(tc||gc){alert(`このフォルダには ${tc}テンプレート、${gc}リスト があります。先に中身を削除してください。`);return;}
+    if(!confirm('このフォルダを削除しますか？'))return;
+    const{error}=await sb.from(T.FOLDERS).delete().eq('id',id);
+    if(error){alert('エラー: '+error.message);return;}
+    folders=folders.filter(f=>f.id!==id);renderFolders();
 }
 
 // =====================================================
@@ -339,14 +367,25 @@ function renderFolder(){
     const tpls=templates.filter(t=>t.folder_id===f.id);
     const gens=generatedLists.filter(g=>g.folder_id===f.id);
 
+    // Detect if templates need rail spec (have AUTO sections with formulas)
+    const hasRailTpl=tpls.some(t=>(t.sections||[]).some(s=>s.badge==='auto'&&(s.items||[]).some(i=>i.formula&&!i.formula.startsWith('LOOKUP')&&/SEGS|S025|S100|S150|LENGTH|CABLE/.test(i.formula))));
+
     let quickHtml='';
     if(tpls.length){
-        quickHtml=`<div class="quick-box no-print"><h3>⚡ クイック生成</h3>
-            <div class="quick-row"><input type="text" id="quick-input" placeholder="3.5/STD/10m" onkeydown="if(event.key==='Enter')quickGen()"><button class="btn btn-g" onclick="quickGen()">生成</button></div>
-            <details style="margin-top:8px"><summary style="font-size:.82rem;color:var(--t2);cursor:pointer">📋 一括生成</summary>
-                <textarea id="batch-input" class="batch-area" placeholder="3.5/STD/10m&#10;3.25/MR/8m" style="margin-top:8px"></textarea>
-                <button class="btn btn-g btn-sm" onclick="batchGen()" style="margin-top:6px">一括生成</button></details>
-            <div class="quick-hint">形式: 長さ/タイプ(STD|MR)/ケーブル長</div><div class="status" id="quick-status"></div></div>`;
+        if(hasRailTpl){
+            // Rail template — spec input required
+            quickHtml=`<div class="quick-box no-print"><h3>⚡ クイック生成</h3>
+                <div class="quick-row"><input type="text" id="quick-input" placeholder="3.5/STD/10m" onkeydown="if(event.key==='Enter')quickGen()"><button class="btn btn-g" onclick="quickGen()">生成</button></div>
+                <details style="margin-top:8px"><summary style="font-size:.82rem;color:var(--t2);cursor:pointer">📋 一括生成</summary>
+                    <textarea id="batch-input" class="batch-area" placeholder="3.5/STD/10m&#10;3.25/MR/8m" style="margin-top:8px"></textarea>
+                    <button class="btn btn-g btn-sm" onclick="batchGen()" style="margin-top:6px">一括生成</button></details>
+                <div class="quick-hint">形式: 長さ/タイプ(STD|MR)/ケーブル長</div><div class="status" id="quick-status"></div></div>`;
+        } else {
+            // Fixed/Manual template — no spec needed, simple generate
+            quickHtml=`<div class="quick-box no-print"><h3>⚡ リスト生成</h3>
+                <div class="quick-row"><input type="text" id="quick-name" placeholder="リスト名 (例: ECN対応 #34)" style="border-color:var(--grn)"><button class="btn btn-g" onclick="directGen()">生成</button></div>
+                <div class="quick-hint">リスト名を入力して生成 (仕様入力は不要)</div><div class="status" id="quick-status"></div></div>`;
+        }
     }
 
     let tplHtml=tpls.map(t=>{
@@ -370,6 +409,29 @@ function renderFolder(){
 
 async function delTpl(id){if(!confirm('テンプレートを削除しますか？'))return;await sb.from(T.TEMPLATES).delete().eq('id',id);templates=templates.filter(t=>t.id!==id);renderFolder();}
 async function delGen(id){if(!confirm('削除しますか？'))return;await sb.from(T.GENERATED).delete().eq('id',id);generatedLists=generatedLists.filter(g=>g.id!==id);renderFolder();}
+
+// Direct generate for fixed/manual templates (no rail spec)
+async function directGen(){
+    const nameInput=document.getElementById('quick-name');
+    const name=(nameInput?nameInput.value.trim():'')||`リスト ${new Date().toLocaleDateString('ja-JP')}`;
+    const tpl=templates.find(t=>t.folder_id===currentFolderId);
+    if(!tpl){showSt('quick-status','テンプレートがありません','error');return;}
+    showSt('quick-status','生成中...','loading');
+    // Resolve template with empty params (no rail logic)
+    const sections=(tpl.sections||[]).map(sec=>{
+        const items=(sec.items||[]).map(item=>({pn:item.pn||'',qty:item.qty||1,comment:item.comment||''}));
+        return{name:sec.name,badge:sec.badge,items};
+    });
+    const{data,error}=await sb.from(T.GENERATED).insert({
+        template_id:tpl.id,folder_id:currentFolderId,name,spec:'',
+        params:{},segments:{},sections,created_by:user.name
+    }).select('*').single();
+    if(error){showSt('quick-status','エラー: '+error.message,'error');return;}
+    generatedLists.unshift(data);
+    if(nameInput)nameInput.value='';
+    showSt('quick-status',`✅ "${name}" を生成しました`,'success');
+    setTimeout(()=>{hideSt('quick-status');renderFolder();},800);
+}
 
 // =====================================================
 // QUICK / BATCH GENERATE
