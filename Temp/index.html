@@ -642,7 +642,9 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
             throw new Error('Supabase SDK not loaded');
         }
 
-        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        const sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
+            auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true, storageKey: 'sb-wylxvmkcrexwfpjpbhyy-auth-token' }
+        });
 
         // =====================================================
         // GOOGLE SHEETS CONFIG
@@ -725,22 +727,6 @@ h1 { text-align: center; color: var(--text-primary); margin-bottom: 8px; font-si
 
             // Timeout fallback — if auth doesn't fire within 4s, show login
             setTimeout(() => { if (!authReady) showLogin(); }, 4000);
-
-            // Re-capture token when returning from idle (after SDK refreshes)
-            document.addEventListener('visibilitychange', () => {
-                if (!document.hidden && currentUser) {
-                    setTimeout(async () => {
-                        try {
-                            const { data } = await sb.auth.getSession();
-                            if (data?.session?.provider_token) {
-                                accessToken = data.session.provider_token;
-                                localStorage.setItem('sheets_access_token', accessToken);
-                            }
-                            console.log('Token checked on focus');
-                        } catch(e) { console.warn('Token check error:', e); }
-                    }, 2000);
-                }
-            });
         };
 
         // =====================================================
