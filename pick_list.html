@@ -435,7 +435,7 @@ async function quickGen(){
     const{data,error}=await withTimeout(sb.from(T.GENERATED).insert({
         template_id:tpl.id,folder_id:currentFolderId,name,spec:input,
         params,segments:result.segments,sections:result.sections,created_by:user.name
-    }).select('*').single();
+    }).select('*').single());
     if(error){showSt('quick-status','エラー: '+error.message,'error');return;}
     generatedLists.unshift(data);
     document.getElementById('quick-input').value='';
