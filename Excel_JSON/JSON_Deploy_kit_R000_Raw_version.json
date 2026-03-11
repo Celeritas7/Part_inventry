@@ -1,0 +1,290 @@
+[
+    {
+        "name": "Rail Assembly",
+        "badge": "auto",
+        "items": [
+            {
+                "pn": "GPMP-0100010-0-0",
+                "comment": "Rail Connector",
+                "formula": "(SEGS-1)*3"
+            },
+            {
+                "pn": "GPCP-0000339-0-0",
+                "comment": "Connector Screws",
+                "formula": "(SEGS-1)*3*2"
+            },
+            {
+                "pn": "GPCP-0000340-0-0",
+                "comment": "Rack Gear Screws",
+                "formula": "S025*2+S100*6+S150*9"
+            },
+            {
+                "pn": "GPCP-0000341-0-0",
+                "comment": "Rail Cover Screws",
+                "formula": "S025*8+S100*16+S150*24"
+            },
+            {
+                "pn": "GPMP-0100034-0-1",
+                "comment": "L1 Cable Carrier Bracket",
+                "formula": "1",
+                "switchMap": "{\"STD\":\"GPMP-0100034-0-1\",\"MR\":\"GPMP-0100034-0-1\"}",
+                "switchField": "asmType"
+            },
+            {
+                "pn": "GPMP-0200054-0-3",
+                "comment": "Scraper Plate Assy",
+                "formula": "1",
+                "switchMap": "{\"STD\":\"GPMP-0200054-0-3\",\"MR\":\"GPMP-0200055-0-3\"}",
+                "switchField": "asmType"
+            },
+            {
+                "pn": "DUMMY-CC-LINK",
+                "comment": "Cable Carrier Links",
+                "formula": "LOOKUP(cc_links)"
+            },
+            {
+                "pn": "GPCP-0100011-0-0",
+                "qty": 1,
+                "comment": "Cable carrier (100 links)",
+                "formula": "1"
+            },
+            {
+                "pn": "GPCP-0000404-0-0",
+                "qty": 1,
+                "comment": "HFBCM3-6",
+                "formula": "2"
+            }
+        ]
+    },
+    {
+        "name": "Separator Plates (MR only)",
+        "badge": "auto",
+        "items": [
+            {
+                "pn": "GPMP-0100037-0-0",
+                "comment": "Separator Plate 0.25m",
+                "formula": "LOOKUP(sep_025)"
+            },
+            {
+                "pn": "GPMP-0100038-0-0",
+                "comment": "Separator Plate 0.75m",
+                "formula": "LOOKUP(sep_075)"
+            },
+            {
+                "pn": "GPMP-0100036-0-1",
+                "comment": "Separator Plate 1m",
+                "formula": "LOOKUP(sep_100)"
+            },
+            {
+                "pn": "GPMP-0100035-0-1",
+                "comment": "Separator Plate 1.5m",
+                "formula": "LOOKUP(sep_150)"
+            },
+            {
+                "pn": "GPCP-0000332-0-0",
+                "comment": "Separator Plate Screws (2 per plate)",
+                "formula": "(LOOKUP(sep_025)+LOOKUP(sep_075)+LOOKUP(sep_100)+LOOKUP(sep_150))*2"
+            },
+            {
+                "pn": "GPCP-0000398-0-0",
+                "qty": 1,
+                "comment": "RMS-3V0 (TKK)",
+                "formula": "(LOOKUP(sep_025)+LOOKUP(sep_075)+LOOKUP(sep_100)+LOOKUP(sep_150))*2"
+            }
+        ]
+    },
+    {
+        "name": "Fixed Assembly Parts",
+        "badge": "fixed",
+        "items": [
+            {
+                "pn": "GPMP-0200055-0-0",
+                "qty": 1,
+                "comment": ""
+            },
+            {
+                "pn": "GPCP-0000122-0-0",
+                "qty": 8,
+                "comment": ""
+            },
+            {
+                "pn": "GPCP-0000401-0-0",
+                "qty": 8,
+                "comment": ""
+            },
+            {
+                "pn": "GPMP-0100009-0-0",
+                "qty": 1,
+                "comment": ""
+            },
+            {
+                "pn": "GPCP-0000332-0-0",
+                "qty": 2,
+                "comment": "Cable carrier → rail"
+            },
+            {
+                "pn": "GPCP-0000332-0-0",
+                "qty": 2,
+                "comment": "Rail scraper screws"
+            },
+            {
+                "pn": "GPCP-0000332-0-0",
+                "qty": 2,
+                "comment": "End cap"
+            }
+        ]
+    },
+    {
+        "name": "Screw bag",
+        "badge": "fixed",
+        "items": [
+            {
+                "pn": "GPCP-0000109-0-0",
+                "qty": 2,
+                "comment": "CBE4-15"
+            },
+            {
+                "pn": "GPCP-0000332-0-0",
+                "qty": 2,
+                "comment": "PACK-SCB3-6-YBM"
+            },
+            {
+                "pn": "GPCP-0000331-0-0",
+                "qty": 8,
+                "comment": "PACK-SCB5-30-YBM"
+            },
+            {
+                "pn": "GPCP-0200018-0-0",
+                "qty": 1,
+                "comment": "RCM4-2V0B"
+            },
+            {
+                "pn": "GPCP-0000397-0-0",
+                "qty": 4,
+                "comment": "FCF-0615E"
+            },
+            {
+                "pn": "GPCP-0000395-0-0",
+                "qty": 10,
+                "comment": "Anti-loosening bolt M5 x 15"
+            },
+            {
+                "pn": "GPCP-0000396-0-0",
+                "qty": 10,
+                "comment": "Washer_10-5-2"
+            },
+            {
+                "pn": "GPCP-0000333-0-0",
+                "qty": 18,
+                "comment": "CBE5-8   ALOK"
+            },
+            {
+                "pn": "GPCP-0000341-0-0",
+                "qty": 80,
+                "comment": "HFBCM4-8 ALOK"
+            },
+            {
+                "pn": "GPCP-0000340-0-0",
+                "qty": 29,
+                "comment": "CBE5-15  ALOK"
+            },
+            {
+                "pn": "GPMP-0100010-0-0",
+                "qty": 9,
+                "comment": "3K_Rail_Connector"
+            },
+            {
+                "pn": "GPMP-0200053-0-3",
+                "qty": 1,
+                "comment": "Rail scraper(sta)"
+            },
+            {
+                "pn": "GPMP-0200054-0-3",
+                "qty": 1,
+                "comment": "Rail scraper(mir)"
+            },
+            {
+                "pn": "GPMP-0200055-0-0",
+                "qty": 1,
+                "comment": "Rail scraper Extension"
+            },
+            {
+                "pn": "GPCP-0000332-0-0",
+                "qty": 2,
+                "comment": "PACK-SCB3-6-YBM"
+            },
+            {
+                "pn": "GPCP-0000332-0-0",
+                "qty": 2,
+                "comment": "PACK-SCB3-6-YBM"
+            }
+        ]
+    },
+    {
+        "name": "End plate assy and slope",
+        "badge": "fixed",
+        "items": [
+            {
+                "pn": "GPMA-0100031-0-0",
+                "qty": 2,
+                "comment": "Rail endplate assy (R)"
+            },
+            {
+                "pn": "GPMA-0100032-0- 0",
+                "qty": 2,
+                "comment": "Rail endplate assy (L)"
+            },
+            {
+                "pn": "GPMP-0100009-0-0",
+                "qty": 1,
+                "comment": "3K_Rail_Slope"
+            },
+            {
+                "pn": "GPCP-0000122-0-0",
+                "qty": 4,
+                "comment": "CBE6-12"
+            },
+            {
+                "pn": "GPCP-0000401-0-0",
+                "qty": 4,
+                "comment": "Collar spacer"
+            },
+            {
+                "pn": "(SPMSB-D8-V6-L2.2)\"",
+                "qty": 1,
+                "comment": ""
+            },
+            {
+                "pn": "RCM4-2V0B",
+                "qty": 1,
+                "comment": ""
+            }
+        ]
+    },
+    {
+        "name": "Rail scraper assy",
+        "badge": "fixed",
+        "items": [
+            {
+                "pn": "GPMP-0200053-0-3",
+                "qty": 1,
+                "comment": "Rail scraper (mir)"
+            },
+            {
+                "pn": "GPMP-0200054-0-3",
+                "qty": 1,
+                "comment": "Rail scraper (sta)"
+            },
+            {
+                "pn": "GPMP-0200055-0-0",
+                "qty": 1,
+                "comment": "Rail scraper Extension 1"
+            },
+            {
+                "pn": "GPCP-0000332-0-0",
+                "qty": 2,
+                "comment": "PACK-SCB3-6-YBM"
+            }
+        ]
+    }
+]

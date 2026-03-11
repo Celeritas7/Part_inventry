@@ -1,0 +1,16 @@
+GPCP-0000109-0-0,2,CBE4-15,CarrierÅ®MB *2
+GPCP-0000332-0-0,2,PACK-SCB3-6-YBM,CarrierÅ®Rail *2
+GPCP-0000331-0-0,8,PACK-SCB5-30-YBM,EndplateÅ®Rail*8
+GPCP-0200018-0-0,1,RCM4-2V0B,Endplate*1
+GPCP-0000397-0-0,4,FCF-0615E,ArmÅ®Body *4
+GPCP-0000395-0-0,10,Anti-loosening bolt M5 x 15,PillarÅ®MB *10
+GPCP-0000396-0-0,10,Washer_10-5-2,PillarÅ®MB *10
+GPCP-0000333-0-0,18,CBE5-8   ALOK,Rail_Connector*6x
+GPCP-0000341-0-0,80,HFBCM4-8 ALOK,Rail Cover*x
+GPCP-0000340-0-0,29,CBE5-15  ALOK,Rack Gear*x
+GPMP-0100010-0-0,9,3K_Rail_Connector,RailÅ®Rail*3x
+GPMP-0200053-0-3,1,Rail scraper(sta),Rail Scraper*1
+GPMP-0200054-0-3,1,Rail scraper(mir),Rail Scraper*1
+GPMP-0200055-0-0,1,Rail scraper Extension,Rail Scraper*1
+GPCP-0000332-0-0,2,PACK-SCB3-6-YBM,Rail Scraper*2
+GPCP-0000332-0-0,2,PACK-SCB3-6-YBM,Rail separator*2x

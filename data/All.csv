@@ -1,0 +1,84 @@
+,,,,,,,,,,,,,,,
+,Module,Part Number,QTY,Part Name,Notes,,,,,,,,,,
+,01_Gantry (Rail),GPMA-0100000-0-1,1,Ghost_Rail_Top_Assy,"Rev up to ""GPMA-0100000-0-2 Ghost_Rail_Top_Assy""",,,Rails,,,,,,,
+,01_Gantry (Rail),GPMA-0100002-0-0,0,3K_Ghost_Rail_EndPl ate_Assy,Removed (2 -> 0),,,GPMA-0100003-0-2,Ghost_Rail_250_Assy,,,,GPCP-0000109-0-0,2,CBE4-15
+,01_Gantry (Rail),GPMA-0100031-0-0,2,Rail endplate assy (R),New Assy,,,GPMP-0100004-0-2,,,,,GPCP-0000332-0-0,2,PACK-SCB3-6-YBM
+,01_Gantry (Rail),GPMP-0100024-0-3,4,Rail bumper block,New Part,,,GPMA-0100005-0-2,,,,,GPCP-0000331-0-0,8,PACK-SCB5-30-YBM
+,01_Gantry (Rail),GPMP-0100031-0-0,2,Rail Endplate (R),New Part,,,,,,,,GPCP-0200018-0-0,1,RCM4-2V0B
+,01_Gantry (Rail),GPMA-0100032-0- 0,2,Rail endplate assy (L),New Assy,,,,,,,,GPCP-0000397-0-0,4,FCF-0615E
+,01_Gantry (Rail),GPMP-0100032-0-0,2,Rail Endplate (L),New Part,,,End plate assy and slope,,,,,GPCP-0000395-0-0,10,Anti-loosening bolt M5 x 15
+,01_Gantry (Rail),GPMP-0100001-0-0,4,3K_Rail_Anchor_Brac ket,"Rev up to ""GPMP-0100001-0-2 3K_Rail_Anchor_Bracket""",,,GPMA-0100031-0-0,2,Rail endplate assy (R),,,GPCP-0000396-0-0,10,Washer_10-5-2
+,01_Gantry (Rail),GPCP-0000107-0-0,12,CBE4-10,QTY Increase (0 -> 12),,,GPMA-0100032-0- 0,2,Rail endplate assy (L),,,GPCP-0000333-0-0,18,CBE5-8   ALOK
+,01_Gantry (Rail),GPCP-0000293-0-0,12,SPWF4,QTY Increase (0 -> 12),,,GPMP-0100009-0-0,1,3K_Rail_Slope,,,GPCP-0000341-0-0,80,HFBCM4-8 ALOK
+,"01_Gantry (Rail) 01_Gantry (Rail) 01_Gantry (Rail) 
+01_Gantry (Rail) 01_Gantry (Rail) 01_Gantry (Rail)","GPCP-0000337-0-0 GPCP-0100003-0-0 GPCP-0100002-0-0 
+GPMA-0100003-0-1 GPMP-0100002-0-1 GPMA-0100004-0-1","0 
+0 
+0 
+1 
+1","CSH-STTAL-M3-8 FC-777-2 
+CP-30-HC-20 
+Ghost_Rail_250_Assy 1
+Rail_Extrusion_250 
+3K_Ghost_Rail_1000_ Assy","Removed (8 -> 0) 
+Removed (2 -> 0) 
+Removed (8 -> 0) 
+Rev up to ""GPMA-0100003-0-2 Ghost_Rail_250_Assy"" 
+Rev up to ""GPMP-0100002-0-2 Rail_Extrusion_250"" 
+Rev up to ""GPMA-0100004-0-2 3K_Ghost_Rail_1000_Assy""",,,GPCP-0000122-0-0,4,CBE6-12,,,GPCP-0000340-0-0,29,CBE5-15  ALOK
+,01_Gantry (Rail),GPMP-0100004-0-1,1,Rail_Extrusion_1000,"Rev up to ""GPMP-0100004-0-2 Rail_Extrusion_1000""",,,GPCP-0000401-0-0,4,"Collar spacer 
+(SPMSB-D8-V6-L2.2)",,,GPMP-0100010-0-0,9,3K_Rail_Connector
+,01_Gantry (Rail),GPMA-0100005-0-1,1,3K_Ghost_Rail_1500_ Assy,"Rev up to ""GPMA-0100005-0-2 3K_Ghost_Rail_1500_Assy""",,,RCM4-2V0B,1,,,,GPMP-0200053-0-3,1,Rail scraper(sta)
+,01_Gantry (Rail),GPMP-0100006-0-1,1,3K_Rail_Extrusion_15 00,"Rev up to ""GPMP-0100006-0-2 3K_Rail_Extrusion_1500""",,,,,,,,GPMP-0200054-0-3,1,Rail scraper(mir)
+,01_Gantry (Rail),GPMP-0100008-0-1,,"3K_Rail_Cable 
+carrier_adapter_Inside 0",Removed (1 -> 0),,,Cable carriers,,,,,GPMP-0200055-0-0,1,Rail scraper Extension
+,01_Gantry (Rail),GPMP-0100009-0-0,1,3K_Rail_Slope,"Rev up to ""GPMP-0100009-0-1 3K_Rail_Slope""",,,GPCP-0100011-0-0,1,,,,GPCP-0000332-0-0,2,PACK-SCB3-6-YBM
+,01_Gantry (Rail),GPMP-0100035-0-1,-1,Rail separator 1500,"New Part, QTY Configuration Dependant",,,GPMP-0100033-0-1,1,L1 cable carrier bracket- fix (mir),,,GPCP-0000332-0-0,2,PACK-SCB3-6-YBM
+,01_Gantry (Rail),GPMP-0100036-0-1,-1,Rail separator 1000,"New Part, QTY Configuration Dependant",,,GPMP-0100034-0-1,1,L1 cable carrier bracket- fix (sta) ,,,,,
+,01_Gantry (Rail),GPMP-0100037-0-0,-1,Rail separator 250,"New Part, QTY Configuration Dependant",,,GPCP-0000404-0-0,2,HFBCM3-6,,,,,
+,01_Gantry (Rail),GPMP-0100038-0-0,-1,Rail separator 750,"New Part, QTY Configuration Dependant",,,,,,,,,,
+,,,,,,,,,,,,,,,
+,,,,,,,,Rail scraper assy,,,,,,,
+,2,,,,,,,GPMP-0200053-0-3,1,Rail scraper (mir),,,,,
+,,,,,,,,GPMP-0200054-0-3,1,Rail scraper (sta),,,,,
+,ENGINEERING CHANGE NOTICE (GP-ECN-0119),,,,,,,GPMP-0200055-0-0,1,Rail scraper Extension 1,,,,,
+,01_Gantry (Rail),GPCP-0000398-0-0,-8,RMS-3V0 (TKK),"New Part, QTY Configuration Dependant",,,GPCP-0000332-0-0,2,PACK-SCB3-6-YBM,,,,,
+,01_Gantry (Rail),GPCP-0000399-0-0,1,RCM4-2V0B (TKK),New Part,,,,,,,,,,
+,01_Gantry (Rail),GPCP-0000401-0-0,4,"Collar spacer 
+(SPMSB-D8-V6-L2.2)",New Part,,,,,,,,,,
+,01_Gantry (Rail),GPCP-0100006-0-0,0,FC-777-2(250MM),Removed (2 -> 0),,,,,,,,,,
+,01_Gantry (Rail),GPCP-0100008-0-0,0,FC-777-2(1000MM),Removed (2 -> 0),,,,,,,,,,
+,01_Gantry (Rail),GPCP-0100010-0-0,0,FC-777-2(1500MM),Removed (2 -> 0),,,,,,,,,,
+,01_Gantry (Rail),GPCP-0000329-0-0,,PACK-SBCB6-10-YBM 0,Removed (4 -> 0),,,,,,,,,,
+,01_Gantry (Rail),GPCP-0000122-0-0,4,CBE6-12,QTY Increase (0 -> 4),,,,,,,,,,
+,01_Gantry (Rail),GPCP-0000142-0-0,2,HFBCM3-8,Reduced QTY(4 -> 2),,,Rail seperators,,,,,,,
+,"01_Gantry (Rail) 01_Gantry (Rail) 
+01_Gantry (Rail) 01_Gantry (Rail) 
+01_Gantry (Rail) 02_MobileBase 02_MobileBase 02_MobileBase 02_MobileBase","GPCP-0000404-0-0 GPCP-0000215-0-0 
+GPMP-0100033-0-1 GPMP-0100034-0-1 
+GPCP-0000332-0-0 GPMP-0200053-0-3 GPMP-0200054-0-3 GPMP-0200055-0-0 GPCP-0000332-0-0","2 
+0 
+(1) 
+(1) 
+(8) 
+(1) 
+(1) 
+(4)","HFBCM3-6 
+Washer_6 
+L1 cable carrier bracket- fix (mir) 
+L1 cable carrier bracket- fix (sta) 
+PACK-SCB3-6-YBM
+Rail scraper (mir) 
+Rail scraper (sta) 
+Rail scraper Extension 1
+PACK-SCB3-6-YBM","New Part 
+Removed (2 -> 0) 
+Mirrored Configuration only 
+Standard Configuration only 
+QTY increase (2 -> 8), QTY configuration dependant 
+Mirrored Configuration only Standard Configuration only New Part 
+QTY increase (0 -> 4)",,,GPMP-0100035-0-1,1,Rail separator 1500,,,,,
+,01_Gantry (Rail),GPMP-0100019-0-0,0,Angle bracket,Removed (1 -> 0),,,GPMP-0100036-0-1,1,Rail separator 1000,,,,,
+,01_Gantry (Rail),GPCP-0000143-0-0,0,HFBMB4-10,Removed (2 -> 0),,,GPMP-0100037-0-0,1,Rail separator 250,,,,,
+,,,,,,,,GPMP-0100038-0-0,1,Rail separator 750,,,,,
+,,,,,,,,GPCP-0000398-0-0,2,RMS-3V0 (TKK),,,,,

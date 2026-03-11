@@ -1,0 +1,40 @@
+Rails,,
+GPMA-0100003-0-2,Ghost_Rail_250_Assy,
+GPMP-0100004-0-2,,
+GPMA-0100005-0-2,,
+,,
+,,
+End plate assy and slope,,
+GPMA-0100031-0-0,2,Rail endplate assy (R)
+GPMA-0100032-0- 0,2,Rail endplate assy (L)
+GPMP-0100009-0-0,1,3K_Rail_Slope
+GPCP-0000122-0-0,4,CBE6-12
+GPCP-0000401-0-0,4,"Collar spacer 
+(SPMSB-D8-V6-L2.2)"
+RCM4-2V0B,1,
+,,
+Cable carriers,,
+GPCP-0100011-0-0,1,
+GPMP-0100033-0-1,1,L1 cable carrier bracket- fix (mir)
+GPMP-0100034-0-1,1,L1 cable carrier bracket- fix (sta) 
+GPCP-0000404-0-0,2,HFBCM3-6
+,,
+,,
+Rail scraper assy,,
+GPMP-0200053-0-3,1,Rail scraper (mir)
+GPMP-0200054-0-3,1,Rail scraper (sta)
+GPMP-0200055-0-0,1,Rail scraper Extension 1
+GPCP-0000332-0-0,2,PACK-SCB3-6-YBM
+,,
+,,
+,,
+,,
+,,
+,,
+,,
+Rail seperators,,
+GPMP-0100035-0-1,1,Rail separator 1500
+GPMP-0100036-0-1,1,Rail separator 1000
+GPMP-0100037-0-0,1,Rail separator 250
+GPMP-0100038-0-0,1,Rail separator 750
+GPCP-0000398-0-0,2,RMS-3V0 (TKK)
