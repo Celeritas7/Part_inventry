@@ -103,10 +103,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .pt .cmt{color:var(--t2);font-size:.78rem;font-style:italic}
 .pt tr.sec-row td{background:var(--pri);color:#fff;font-weight:700;font-size:.83rem;padding:5px 10px}
 .pt tr.sel-row{background:rgba(37,99,235,.06)}.pt tr.sel-row td{border-color:rgba(37,99,235,.2)}
-.pt tr.excl-row{opacity:.35;text-decoration:line-through}
-.pt tr.excl-row td{background:#f8f8f8}
-.excl-btn{background:none;border:none;cursor:pointer;font-size:1rem;padding:2px 4px;border-radius:4px}
-.excl-btn:hover{background:#f0f0f0}
 .pt .ck input{accent-color:var(--pri)}
 .sel-all-bar{display:flex;justify-content:space-between;align-items:center;padding:8px 12px;background:#f8fafc;border:1px solid var(--brd);border-radius:8px;margin-bottom:12px}
 .sel-all-bar label{font-size:.82rem;color:var(--t2);cursor:pointer;display:flex;align-items:center;gap:6px}
@@ -191,9 +187,8 @@ let gisTokenClient=null;
 let sheetsToken=localStorage.getItem('gis_sheets_token')||null;
 
 if(!window.supabase||!window.supabase.createClient){document.getElementById('loading-section').innerHTML='<div style="text-align:center;padding:40px;color:#b91c1c;">SDK読み込み失敗。リロードしてください。</div>';throw new Error('SDK fail');}
-const sb=window.supabase.createClient(SB_URL,SB_KEY,{
-    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'sb-wylxvmkcrexwfpjpbhyy-auth-token'}
-});
+
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
 // =====================================================
 // STATE
@@ -203,7 +198,6 @@ let folders=[],templates=[],generatedLists=[],partsCache=null;
 let currentView='loading',currentFolderId=null,currentTplId=null;
 let editTpl=null,printData=null,authReady=false;
 let reqSelection=[]; // indices of selected print items
-let reqExcluded=new Set(); // indices of rows excluded from submission
 
 // =====================================================
 // AUTH
@@ -765,7 +759,6 @@ async function saveTpl(){
 async function openPrint(genId){
     const g=generatedLists.find(g=>g.id===genId);
     if(!g)return;
-    reqSelection=[];reqExcluded=new Set();
     await loadParts();
     nav('print',{data:g});
 }
@@ -794,18 +787,16 @@ function regenPrint(){
     // Store for selection reference
     window._printItems=flatItems;
 
-    const selCount=reqSelection.filter(i=>!reqExcluded.has(i)).length;
-    const exclCount=reqExcluded.size;
-    const selectableCount=flatItems.length-exclCount;
-    let selBar=`<div class="sel-all-bar no-print"><label><input type="checkbox" id="req-select-all" onchange="reqToggleAll()" ${selCount===selectableCount&&selectableCount?'checked':''}> すべて選択</label><span class="sel-count-label">${selCount} 件選択${exclCount?` ・ ${exclCount} 件除外`:''}</span></div>`;
+    const selCount=reqSelection.length;
+    let selBar=`<div class="sel-all-bar no-print"><label><input type="checkbox" id="req-select-all" onchange="reqToggleAll()" ${selCount===flatItems.length&&flatItems.length?'checked':''}> すべて選択</label><span class="sel-count-label">${selCount} 件選択</span></div>`;
 
-    let h=`<thead><tr><th class="ck no-print">☐</th><th class="nm">#</th><th>部品番号</th><th>物品名</th><th class="qc">数量</th><th>保管場所</th><th>コメント</th><th class="no-print" style="width:30px"></th></tr></thead><tbody>`;
+    let h=`<thead><tr><th class="ck no-print">☐</th><th class="nm">#</th><th>部品番号</th><th>物品名</th><th class="qc">数量</th><th>保管場所</th><th>コメント</th></tr></thead><tbody>`;
     let n=0;let currentSection='';
     flatItems.forEach((item,i)=>{
-        if(item.section!==currentSection){currentSection=item.section;h+=`<tr class="sec-row"><td colspan="8">${esc(currentSection)}</td></tr>`;}
-        n++;const sel=reqSelection.includes(i);const excl=reqExcluded.has(i);
+        if(item.section!==currentSection){currentSection=item.section;h+=`<tr class="sec-row"><td colspan="7">${esc(currentSection)}</td></tr>`;}
+        n++;const sel=reqSelection.includes(i);
         const fullLoc=item.tempLocation?`${item.location} (仮: ${item.tempLocation})`:item.location;
-        h+=`<tr class="${sel?'sel-row':''} ${excl?'excl-row':''}" onclick="reqToggle(${i})" style="cursor:pointer"><td class="ck no-print"><input type="checkbox" ${sel?'checked':''} onclick="event.stopPropagation();reqToggle(${i})"></td><td class="nm">${n}</td><td class="pnc">${esc(item.pn)}</td><td class="${!item.name?'miss':''}">${!item.name?'<input type="text" class="miss-in" placeholder="手動入力" onclick="event.stopPropagation()">':esc(item.name)}</td><td class="qc">${item.qty}</td><td class="${!fullLoc?'miss':''}">${!fullLoc?'<input type="text" class="miss-in" placeholder="手動入力" onclick="event.stopPropagation()">':esc(fullLoc)}</td><td class="cmt">${esc(item.comment)}</td><td class="no-print"><button class="excl-btn" onclick="event.stopPropagation();reqToggleExcl(${i})" title="${excl?'送信に含める':'送信から除外'}">${excl?'🚫':'👁️'}</button></td></tr>`;
+        h+=`<tr class="${sel?'sel-row':''}" onclick="reqToggle(${i})" style="cursor:pointer"><td class="ck no-print"><input type="checkbox" ${sel?'checked':''} onclick="event.stopPropagation();reqToggle(${i})"></td><td class="nm">${n}</td><td class="pnc">${esc(item.pn)}</td><td class="${!item.name?'miss':''}">${!item.name?'<input type="text" class="miss-in" placeholder="手動入力" onclick="event.stopPropagation()">':esc(item.name)}</td><td class="qc">${item.qty}</td><td class="${!fullLoc?'miss':''}">${!fullLoc?'<input type="text" class="miss-in" placeholder="手動入力" onclick="event.stopPropagation()">':esc(fullLoc)}</td><td class="cmt">${esc(item.comment)}</td></tr>`;
     });
     h+='</tbody>';
 
@@ -830,7 +821,7 @@ function regenPrint(){
             <div class="req-field"><label>S/N</label>
                 <div class="req-inline"><input type="text" id="req-sn" placeholder="GST-00034"><button class="btn btn-sm btn-s" onclick="openReqUnitModal()" title="Unit選択">🏭</button></div></div>
         </div>
-        <div style="font-size:.75rem;color:var(--t3);margin-bottom:8px">💬 各行のテンプレートコメントがシートに送信されます</div>
+        <div class="req-field" style="margin-bottom:10px"><label>コメント</label><input type="text" id="req-comment" placeholder="コメント"></div>
         <div class="req-preview" id="req-preview"></div>
         <div class="req-actions">
             <button class="btn btn-g" onclick="reqSubmit()">📦 出庫依頼を送信</button>
@@ -850,7 +841,6 @@ function regenPrint(){
 // REQUISITION — Selection & Submission
 // =====================================================
 function reqToggle(i){
-    if(reqExcluded.has(i))return; // can't select excluded rows
     const idx=reqSelection.indexOf(i);
     if(idx>=0)reqSelection.splice(idx,1);else reqSelection.push(i);
     reqSelection.sort((a,b)=>a-b);
@@ -859,24 +849,19 @@ function reqToggle(i){
 function reqToggleAll(){
     const items=window._printItems||[];
     if(reqSelection.length===items.length){reqSelection=[];}
-    else{reqSelection=items.map((_,i)=>i).filter(i=>!reqExcluded.has(i));}
+    else{reqSelection=items.map((_,i)=>i);}
     regenPrint();
 }
 function reqClearSel(){reqSelection=[];regenPrint();}
-function reqToggleExcl(i){
-    if(reqExcluded.has(i)){reqExcluded.delete(i);}
-    else{reqExcluded.add(i);reqSelection=reqSelection.filter(x=>x!==i);}
-    regenPrint();
-}
 
 function reqUpdatePreview(){
     const el=document.getElementById('req-preview');if(!el)return;
     const items=window._printItems||[];
-    const selected=reqSelection.filter(i=>!reqExcluded.has(i)).map(i=>items[i]).filter(Boolean);
+    const selected=reqSelection.map(i=>items[i]).filter(Boolean);
     if(!selected.length){el.innerHTML='';return;}
-    let h=`<table class="rp-tbl"><thead><tr><th>#</th><th>部品番号</th><th>物品名</th><th style="text-align:center">数量</th><th>コメント</th></tr></thead><tbody>`;
+    let h=`<table class="rp-tbl"><thead><tr><th>#</th><th>部品番号</th><th>物品名</th><th style="text-align:center">数量</th></tr></thead><tbody>`;
     selected.forEach((item,i)=>{
-        h+=`<tr><td>${i+1}</td><td class="pn">${esc(item.pn)}</td><td>${esc(item.name)}</td><td style="text-align:center;font-weight:600">${item.qty}</td><td style="font-size:.78rem;color:var(--t2)">${esc(item.comment)}</td></tr>`;
+        h+=`<tr><td>${i+1}</td><td class="pn">${esc(item.pn)}</td><td>${esc(item.name)}</td><td style="text-align:center;font-weight:600">${item.qty}</td></tr>`;
     });
     h+='</tbody></table>';
     el.innerHTML=h;
@@ -954,11 +939,12 @@ async function reqWriteRow(name,row,data){
 
 async function reqSubmit(){
     const items=window._printItems||[];
-    const selected=reqSelection.filter(i=>!reqExcluded.has(i)).map(i=>items[i]).filter(Boolean);
+    const selected=reqSelection.map(i=>items[i]).filter(Boolean);
     if(!selected.length){showSt('req-status','部品を選択してください','error');return;}
     const purpose=document.getElementById('req-purpose').value;
     if(!purpose){showSt('req-status','目的を選択してください','error');return;}
     const sn=document.getElementById('req-sn').value.trim();
+    const comment=document.getElementById('req-comment').value.trim();
 
     showSt('req-status','送信中...','loading');
     try{
@@ -968,15 +954,15 @@ async function reqSubmit(){
         const date=`${new Date().getMonth()+1}/${new Date().getDate()}`;
         for(let i=0;i<selected.length;i++){
             const p=selected[i];
-            // Use template comment per row (from the list)
-            await reqWriteRow(sheet,row+i,[date,user.name,p.pn||'','','',String(p.qty||1),purpose,sn||'',p.comment||'']);
+            await reqWriteRow(sheet,row+i,[date,user.name,p.pn||'','','',String(p.qty||1),purpose,sn||'',comment||'']);
         }
         showSt('req-status',`✅ ${selected.length}件の出庫依頼を送信しました`,'success');
         setTimeout(()=>{reqSelection=[];regenPrint();},2000);
     }catch(e){
         console.error(e);
         if(e.message==='NEEDS_GIS_AUTH'){
-            showSt('req-status','📋 Google Sheets認証が必要です','error');
+            showSt('req-status','📋 Google Sheets認証が必要です。ボタンをクリックして認証してください。','error');
+            // Show auth button
             const statusEl=document.getElementById('req-status');
             if(statusEl)statusEl.innerHTML+='<br><button onclick="gisRequestToken()" style="margin-top:8px;padding:8px 16px;background:var(--pri);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">🔑 Google Sheets認証</button>';
         }else{
@@ -995,14 +981,11 @@ function hideSt(id){const e=document.getElementById(id);if(e)e.className='status
 // =====================================================
 // UNIT S/N MODAL (for requisition panel)
 // =====================================================
-const GHOST_TRACKER_SHEET_ID='1mUhNDzucbHpS2y-IYu3A5ML1x5I_opUeNnqqyOtg95M';
 const REQ_UNIT_CODES=[
-    {code:'Ghost',snCode:'GST',sheetTab:'00_GHOST'},{code:'MB',snCode:'MBB',sheetTab:'05_Mobile Base'},
-    {code:'Pillar',snCode:'PLR',sheetTab:'06_Pillar'},{code:'H&B',snCode:'HBD',sheetTab:'07_Head & Body'},
-    {code:'Arm',snCode:'ARM',sheetTab:'09_Arm'},{code:'Gripper',snCode:'GPR',sheetTab:'08_Gripper'},
-    {code:'DK',snCode:'DPK',sheetTab:'10_Deploy Kit'},{code:'L-Mot',snCode:'LAC',sheetTab:'01_L-motor'},
-    {code:'A12',snCode:'A12',sheetTab:'02_A12-motor'},{code:'A35',snCode:'A35',sheetTab:'03_A35-motor'},
-    {code:'A4',snCode:'A4A',sheetTab:'04_A4-motor'}
+    {code:'Ghost',snCode:'GST'},{code:'MB',snCode:'MBB'},{code:'Pillar',snCode:'PLR'},
+    {code:'H&B',snCode:'HBD'},{code:'Arm',snCode:'ARM'},{code:'Gripper',snCode:'GPR'},
+    {code:'DK',snCode:'DPK'},{code:'L-Mot',snCode:'LAC'},{code:'A12',snCode:'A12'},
+    {code:'A35',snCode:'A35'},{code:'A4',snCode:'A4A'}
 ];
 let reqUnitCode='',reqUnitNumber='';
 
@@ -1029,53 +1012,12 @@ function updateReqUnitPreview(){
     }else if(reqUnitCode){btn.textContent='番号を入力してください';btn.disabled=true;}
     else{btn.textContent='Unitを選択してください';btn.disabled=true;}
 }
-async function confirmReqUnit(){
+function confirmReqUnit(){
     if(!reqUnitCode||!reqUnitNumber)return;
-    const btn=document.getElementById('req-unit-confirm');
     const uc=REQ_UNIT_CODES.find(u=>u.code===reqUnitCode);
-    const fallbackSN=uc?`${uc.snCode}-${reqUnitNumber.padStart(5,'0')}`:`${reqUnitCode}-${reqUnitNumber}`;
-
-    btn.textContent='🔍 検索中...';btn.disabled=true;
-    try{
-        const fullSN=await lookupGhostSN(reqUnitCode,reqUnitNumber);
-        if(fullSN){
-            const snIn=document.getElementById('req-sn');if(snIn)snIn.value=fullSN;
-            closeReqUnitModal();
-        }else{
-            const snIn=document.getElementById('req-sn');if(snIn)snIn.value=fallbackSN;
-            closeReqUnitModal();
-            showSt('req-status',`⚠️ Ghost Trackerに見つかりません。${fallbackSN} を設定`,'error');
-        }
-    }catch(e){
-        console.warn('Ghost Tracker lookup failed:',e);
-        const snIn=document.getElementById('req-sn');if(snIn)snIn.value=fallbackSN;
-        closeReqUnitModal();
-        if(e.message==='NEEDS_GIS_AUTH'){
-            showSt('req-status','📋 Google Sheets認証が必要です','error');
-            const el=document.getElementById('req-status');
-            if(el)el.innerHTML+='<br><button onclick="gisRequestToken()" style="margin-top:6px;padding:6px 14px;background:var(--pri);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">🔑 Google認証</button>';
-        }else{
-            showSt('req-status',`⚠️ 検索エラー。${fallbackSN} を設定`,'error');
-        }
-    }
-}
-
-async function lookupGhostSN(unitCode,number){
-    const uc=REQ_UNIT_CODES.find(u=>u.code===unitCode);
-    if(!uc||!uc.sheetTab)return null;
-    const data=await reqSheetsApi(`https://sheets.googleapis.com/v4/spreadsheets/${GHOST_TRACKER_SHEET_ID}/values/${encodeURIComponent(uc.sheetTab)}!A:Z`);
-    const rows=data.values||[];if(rows.length<2)return null;
-    // Find S/N column
-    let snCol=rows[0].findIndex(h=>/^S\/?N$/i.test((h||'').trim()));
-    if(snCol===-1){outer:for(let ci=0;ci<Math.min(rows[0].length,10);ci++){for(let ri=1;ri<Math.min(rows.length,5);ri++){if(/^GT\d{3}-[A-Z0-9]{2,3}-\d{3,5}$/i.test(rows[ri][ci]||'')){snCol=ci;break outer;}}}}
-    if(snCol===-1)snCol=0;
-    const pad=number.toString().padStart(5,'0'),snUp=uc.snCode.toUpperCase();
-    for(let i=1;i<rows.length;i++){
-        const cell=(rows[i][snCol]||'').trim().toUpperCase();
-        const m=cell.match(/^(GT\d{3})-([A-Z0-9]{2,3})-(\d{3,5})$/);
-        if(m&&m[2]===snUp&&(m[3]===number.toString()||m[3].padStart(5,'0')===pad||parseInt(m[3])===parseInt(number)))return cell;
-    }
-    return null;
+    const sn=uc?`${uc.snCode}-${reqUnitNumber.padStart(5,'0')}`:`${reqUnitCode}-${reqUnitNumber}`;
+    const snIn=document.getElementById('req-sn');if(snIn)snIn.value=sn;
+    closeReqUnitModal();
 }
 </script>
 
