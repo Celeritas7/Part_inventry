@@ -343,14 +343,14 @@ function renderFolders(){
 async function addFolder(){
     const name=prompt('フォルダ名:');if(!name)return;
     const icon=prompt('アイコン (絵文字):','📁')||'📁';
-    try{const{data,error}=await sb.from(T.FOLDERS).insert({name,icon,sort_order:folders.length+1}).select('*').single();
+    try{const{data,error}=await withTimeout(sb.from(T.FOLDERS).insert({name,icon,sort_order:folders.length+1}).select('*').single());
     if(error)throw error;folders.push(data);renderFolders();}catch(e){alert('エラー: '+e.message);}
 }
 async function editFolder(id){
     const f=folders.find(f=>f.id===id);if(!f)return;
     const name=prompt('フォルダ名:',f.name);if(!name)return;
     const icon=prompt('アイコン:',f.icon)||f.icon;
-    try{const{error}=await sb.from(T.FOLDERS).update({name,icon}).eq('id',id);
+    try{const{error}=await withTimeout(sb.from(T.FOLDERS).update({name,icon}).eq('id',id));
     if(error)throw error;f.name=name;f.icon=icon;renderFolders();}catch(e){alert('エラー: '+e.message);}
 }
 async function delFolder(id){
@@ -358,7 +358,7 @@ async function delFolder(id){
     const gc=generatedLists.filter(g=>g.folder_id===id).length;
     if(tc||gc){alert(`このフォルダには ${tc}テンプレート、${gc}リスト があります。先に中身を削除してください。`);return;}
     if(!confirm('このフォルダを削除しますか？'))return;
-    try{const{error}=await sb.from(T.FOLDERS).delete().eq('id',id);
+    try{const{error}=await withTimeout(sb.from(T.FOLDERS).delete().eq('id',id));
     if(error)throw error;folders=folders.filter(f=>f.id!==id);renderFolders();}catch(e){alert('エラー: '+e.message);}
 }
 
@@ -412,8 +412,8 @@ function renderFolder(){
         <div class="card"><div class="shdr"><h2>📄 生成済みリスト</h2></div>${genHtml}</div>`;
 }
 
-async function delTpl(id){if(!confirm('テンプレートを削除しますか？'))return;try{await sb.from(T.TEMPLATES).delete().eq('id',id);}catch(e){alert('削除エラー: '+e.message);return;}templates=templates.filter(t=>t.id!==id);renderFolder();}
-async function delGen(id){if(!confirm('削除しますか？'))return;try{await sb.from(T.GENERATED).delete().eq('id',id);}catch(e){alert('削除エラー: '+e.message);return;}generatedLists=generatedLists.filter(g=>g.id!==id);renderFolder();}
+async function delTpl(id){if(!confirm('テンプレートを削除しますか？'))return;try{await withTimeout(sb.from(T.TEMPLATES).delete().eq('id',id));}catch(e){alert('削除エラー: '+e.message);return;}templates=templates.filter(t=>t.id!==id);renderFolder();}
+async function delGen(id){if(!confirm('削除しますか？'))return;try{await withTimeout(sb.from(T.GENERATED).delete().eq('id',id));}catch(e){alert('削除エラー: '+e.message);return;}generatedLists=generatedLists.filter(g=>g.id!==id);renderFolder();}
 
 // Direct generate for fixed/manual templates (no rail spec)
 async function directGen(){
@@ -427,10 +427,10 @@ async function directGen(){
         const items=(sec.items||[]).map(item=>({pn:item.pn||'',qty:item.qty||1,comment:item.comment||''}));
         return{name:sec.name,badge:sec.badge,items};
     });
-    const{data,error}=await sb.from(T.GENERATED).insert({
+    const{data,error}=await withTimeout(sb.from(T.GENERATED).insert({
         template_id:tpl.id,folder_id:currentFolderId,name,spec:'',
         params:{},segments:{},sections,created_by:user.name
-    }).select('*').single();
+    }).select('*').single());
     if(error){showSt('quick-status','エラー: '+error.message,'error');return;}
     generatedLists.unshift(data);
     if(nameInput)nameInput.value='';
@@ -451,10 +451,10 @@ async function quickGen(){
     showSt('quick-status','生成中...','loading');
     const result=resolveTemplate(tpl,params);
     const name=`${tpl.name.replace('Template','').trim()} ${params.length}m ${params.asmType}`;
-    const{data,error}=await sb.from(T.GENERATED).insert({
+    const{data,error}=await withTimeout(sb.from(T.GENERATED).insert({
         template_id:tpl.id,folder_id:currentFolderId,name,spec:input,
         params,segments:result.segments,sections:result.sections,created_by:user.name
-    }).select('*').single();
+    }).select('*').single());
     if(error){showSt('quick-status','エラー: '+error.message,'error');return;}
     generatedLists.unshift(data);
     document.getElementById('quick-input').value='';
@@ -474,10 +474,10 @@ async function batchGen(){
         if(!params){fail++;continue;}
         const result=resolveTemplate(tpl,params);
         const name=`${tpl.name.replace('Template','').trim()} ${params.length}m ${params.asmType}`;
-        const{data,error}=await sb.from(T.GENERATED).insert({
+        const{data,error}=await withTimeout(sb.from(T.GENERATED).insert({
             template_id:tpl.id,folder_id:currentFolderId,name,spec,
             params,segments:result.segments,sections:result.sections,created_by:user.name
-        }).select('*').single();
+        }).select('*').single());
         if(error){fail++;}else{generatedLists.unshift(data);ok++;}
     }
     document.getElementById('batch-input').value='';
@@ -709,26 +709,33 @@ function addGroupRow(prefix){
     renderTplContent();
 }
 
-function withTimeout(){} // deprecated, kept for reference
+function withTimeout(promise, ms=10000){
+    return Promise.race([promise, new Promise((_,rej)=>setTimeout(()=>rej(new Error('タイムアウト (10秒)')),ms))]);
+}
 
-async function saveTpl(){
+async function saveTpl(isRetry){
     editTpl.name=document.getElementById('tpl-name').value.trim();
     if(!editTpl.name){showSt('tpl-status','テンプレート名を入力してください','error');return;}
     showSt('tpl-status','保存中...','loading');
     try{
         const payload={name:editTpl.name,sections:editTpl.sections,lookups:editTpl.lookups||{},updated_at:new Date().toISOString()};
         if(editTpl.id){
-            const{error}=await sb.from(T.TEMPLATES).update(payload).eq('id',editTpl.id);
+            const{error}=await withTimeout(sb.from(T.TEMPLATES).update(payload).eq('id',editTpl.id));
             if(error)throw error;
             const idx=templates.findIndex(t=>t.id===editTpl.id);if(idx>=0)templates[idx]={...templates[idx],...payload};
         }else{
-            const{data,error}=await sb.from(T.TEMPLATES).insert({folder_id:currentFolderId,...payload,created_by:user.name}).select('*').single();
+            const{data,error}=await withTimeout(sb.from(T.TEMPLATES).insert({folder_id:currentFolderId,...payload,created_by:user.name}).select('*').single());
             if(error)throw error;templates.push(data);
         }
         showSt('tpl-status','✅ 保存しました','success');
         setTimeout(()=>nav('folder',{folderId:currentFolderId}),600);
     }catch(e){
-        showSt('tpl-status','❌ '+e.message+' — ページをリロードして再試行','error');
+        if(!isRetry){
+            console.warn('Save failed, refreshing and retrying...',e.message);
+            try{await sb.auth.getSession();}catch(re){}
+            return saveTpl(true);
+        }
+        showSt('tpl-status','❌ '+e.message+' — 再ログインしてください','error');
     }
 }
 

@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ピックリスト生成</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--pri:#2563eb;--pri-dk:#1e40af;--pri-bg:rgba(37,99,235,.08);--pri-bg2:rgba(37,99,235,.14);--grn:#059669;--grn-bg:rgba(5,150,105,.08);--card:#fff;--t1:#1e293b;--t2:#64748b;--t3:#94a3b8;--brd:#e2e8f0;--focus:#2563eb;--ok-bg:#f0fdf4;--ok:#15803d;--ok-brd:#bbf7d0;--err-bg:#fef2f2;--err:#b91c1c;--err-brd:#fecaca;--miss:#fef9c3;--r:10px}
@@ -179,10 +180,15 @@ const SB_URL='https://wylxvmkcrexwfpjpbhyy.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak';
 const T={FOLDERS:'part_inventry_app_folders',TEMPLATES:'part_inventry_app_templates',GENERATED:'part_inventry_app_generated_lists',PARTS:'master_parts_list_all',ROLES:'authentication_mode_user_roles'};
 
+// Google Identity Services config (same client as Ghost Tracker)
+const GIS_CLIENT_ID='1088099187141-ut0dn0scqt3h99htf3rg8gsrg2oo1ad8.apps.googleusercontent.com';
+const GIS_SCOPES='https://www.googleapis.com/auth/spreadsheets';
+let gisTokenClient=null;
+let sheetsToken=localStorage.getItem('gis_sheets_token')||null;
+
 if(!window.supabase||!window.supabase.createClient){document.getElementById('loading-section').innerHTML='<div style="text-align:center;padding:40px;color:#b91c1c;">SDK読み込み失敗。リロードしてください。</div>';throw new Error('SDK fail');}
-const sb=window.supabase.createClient(SB_URL,SB_KEY,{
-    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'sb-wylxvmkcrexwfpjpbhyy-auth-token'}
-});
+
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
 // =====================================================
 // STATE
@@ -191,7 +197,6 @@ let user=null; // {email,name,role,isAdmin}
 let folders=[],templates=[],generatedLists=[],partsCache=null;
 let currentView='loading',currentFolderId=null,currentTplId=null;
 let editTpl=null,printData=null,authReady=false;
-let sheetsToken=null;
 let reqSelection=[]; // indices of selected print items
 
 // =====================================================
@@ -200,17 +205,33 @@ let reqSelection=[]; // indices of selected print items
 window.onload=function(){
     sb.auth.onAuthStateChange(async(ev,session)=>{
         if(session&&session.user&&(ev==='SIGNED_IN'||ev==='TOKEN_REFRESHED'||ev==='INITIAL_SESSION')){
-            if(session.provider_token){sheetsToken=session.provider_token;localStorage.setItem('sheets_access_token',session.provider_token);}
-            if(!sheetsToken)sheetsToken=localStorage.getItem('sheets_access_token');
             await checkRole(session.user);authReady=true;
         }
         else if(ev==='SIGNED_OUT'||(ev==='INITIAL_SESSION'&&!session)){user=null;authReady=true;showAuth('login');}
     });
     setTimeout(()=>{if(!authReady)showAuth('login');},4000);
+    // Initialize Google Identity Services for Sheets API
+    initGIS();
 };
 
+function initGIS(){
+    if(typeof google==='undefined'||!google.accounts){setTimeout(initGIS,300);return;}
+    gisTokenClient=google.accounts.oauth2.initTokenClient({
+        client_id:GIS_CLIENT_ID,
+        scope:GIS_SCOPES,
+        callback:r=>{
+            if(r.access_token){
+                sheetsToken=r.access_token;
+                localStorage.setItem('gis_sheets_token',sheetsToken);
+                console.log('GIS: Sheets token obtained');
+            }
+        }
+    });
+    console.log('GIS: Token client initialized');
+}
+
 async function handleGoogleLogin(){
-    const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{scopes:'https://www.googleapis.com/auth/spreadsheets',redirectTo:window.location.origin+window.location.pathname,queryParams:{access_type:'offline',prompt:'consent'}}});
+    const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+window.location.pathname,queryParams:{access_type:'offline',prompt:'consent'}}});
     if(error){const e=document.getElementById('login-error');e.textContent='ログイン失敗: '+error.message;e.style.display='block';}
 }
 async function checkRole(u){
@@ -224,7 +245,7 @@ async function checkRole(u){
         nav('folders');
     }catch(e){console.error(e);showAuth('login');}
 }
-async function handleLogout(){await sb.auth.signOut();user=null;folders=[];templates=[];generatedLists=[];partsCache=null;document.getElementById('bar-right').style.display='none';}
+async function handleLogout(){await sb.auth.signOut();user=null;folders=[];templates=[];generatedLists=[];partsCache=null;sheetsToken=null;localStorage.removeItem('gis_sheets_token');document.getElementById('bar-right').style.display='none';}
 function showAuth(v){
     document.getElementById('loading-section').style.display=v==='loading'?'block':'none';
     document.getElementById('login-section').style.display=v==='login'?'block':'none';
@@ -343,14 +364,14 @@ function renderFolders(){
 async function addFolder(){
     const name=prompt('フォルダ名:');if(!name)return;
     const icon=prompt('アイコン (絵文字):','📁')||'📁';
-    try{const{data,error}=await withTimeout(sb.from(T.FOLDERS).insert({name,icon,sort_order:folders.length+1}).select('*').single());
+    try{const{data,error}=await sb.from(T.FOLDERS).insert({name,icon,sort_order:folders.length+1}).select('*').single();
     if(error)throw error;folders.push(data);renderFolders();}catch(e){alert('エラー: '+e.message);}
 }
 async function editFolder(id){
     const f=folders.find(f=>f.id===id);if(!f)return;
     const name=prompt('フォルダ名:',f.name);if(!name)return;
     const icon=prompt('アイコン:',f.icon)||f.icon;
-    try{const{error}=await withTimeout(sb.from(T.FOLDERS).update({name,icon}).eq('id',id));
+    try{const{error}=await sb.from(T.FOLDERS).update({name,icon}).eq('id',id);
     if(error)throw error;f.name=name;f.icon=icon;renderFolders();}catch(e){alert('エラー: '+e.message);}
 }
 async function delFolder(id){
@@ -358,7 +379,7 @@ async function delFolder(id){
     const gc=generatedLists.filter(g=>g.folder_id===id).length;
     if(tc||gc){alert(`このフォルダには ${tc}テンプレート、${gc}リスト があります。先に中身を削除してください。`);return;}
     if(!confirm('このフォルダを削除しますか？'))return;
-    try{const{error}=await withTimeout(sb.from(T.FOLDERS).delete().eq('id',id));
+    try{const{error}=await sb.from(T.FOLDERS).delete().eq('id',id);
     if(error)throw error;folders=folders.filter(f=>f.id!==id);renderFolders();}catch(e){alert('エラー: '+e.message);}
 }
 
@@ -412,8 +433,8 @@ function renderFolder(){
         <div class="card"><div class="shdr"><h2>📄 生成済みリスト</h2></div>${genHtml}</div>`;
 }
 
-async function delTpl(id){if(!confirm('テンプレートを削除しますか？'))return;try{await withTimeout(sb.from(T.TEMPLATES).delete().eq('id',id));}catch(e){alert('削除エラー: '+e.message);return;}templates=templates.filter(t=>t.id!==id);renderFolder();}
-async function delGen(id){if(!confirm('削除しますか？'))return;try{await withTimeout(sb.from(T.GENERATED).delete().eq('id',id));}catch(e){alert('削除エラー: '+e.message);return;}generatedLists=generatedLists.filter(g=>g.id!==id);renderFolder();}
+async function delTpl(id){if(!confirm('テンプレートを削除しますか？'))return;try{await sb.from(T.TEMPLATES).delete().eq('id',id);}catch(e){alert('削除エラー: '+e.message);return;}templates=templates.filter(t=>t.id!==id);renderFolder();}
+async function delGen(id){if(!confirm('削除しますか？'))return;try{await sb.from(T.GENERATED).delete().eq('id',id);}catch(e){alert('削除エラー: '+e.message);return;}generatedLists=generatedLists.filter(g=>g.id!==id);renderFolder();}
 
 // Direct generate for fixed/manual templates (no rail spec)
 async function directGen(){
@@ -427,10 +448,10 @@ async function directGen(){
         const items=(sec.items||[]).map(item=>({pn:item.pn||'',qty:item.qty||1,comment:item.comment||''}));
         return{name:sec.name,badge:sec.badge,items};
     });
-    const{data,error}=await withTimeout(sb.from(T.GENERATED).insert({
+    const{data,error}=await sb.from(T.GENERATED).insert({
         template_id:tpl.id,folder_id:currentFolderId,name,spec:'',
         params:{},segments:{},sections,created_by:user.name
-    }).select('*').single());
+    }).select('*').single();
     if(error){showSt('quick-status','エラー: '+error.message,'error');return;}
     generatedLists.unshift(data);
     if(nameInput)nameInput.value='';
@@ -451,10 +472,10 @@ async function quickGen(){
     showSt('quick-status','生成中...','loading');
     const result=resolveTemplate(tpl,params);
     const name=`${tpl.name.replace('Template','').trim()} ${params.length}m ${params.asmType}`;
-    const{data,error}=await withTimeout(sb.from(T.GENERATED).insert({
+    const{data,error}=await sb.from(T.GENERATED).insert({
         template_id:tpl.id,folder_id:currentFolderId,name,spec:input,
         params,segments:result.segments,sections:result.sections,created_by:user.name
-    }).select('*').single());
+    }).select('*').single();
     if(error){showSt('quick-status','エラー: '+error.message,'error');return;}
     generatedLists.unshift(data);
     document.getElementById('quick-input').value='';
@@ -474,10 +495,10 @@ async function batchGen(){
         if(!params){fail++;continue;}
         const result=resolveTemplate(tpl,params);
         const name=`${tpl.name.replace('Template','').trim()} ${params.length}m ${params.asmType}`;
-        const{data,error}=await withTimeout(sb.from(T.GENERATED).insert({
+        const{data,error}=await sb.from(T.GENERATED).insert({
             template_id:tpl.id,folder_id:currentFolderId,name,spec,
             params,segments:result.segments,sections:result.sections,created_by:user.name
-        }).select('*').single());
+        }).select('*').single();
         if(error){fail++;}else{generatedLists.unshift(data);ok++;}
     }
     document.getElementById('batch-input').value='';
@@ -709,33 +730,26 @@ function addGroupRow(prefix){
     renderTplContent();
 }
 
-function withTimeout(promise, ms=10000){
-    return Promise.race([promise, new Promise((_,rej)=>setTimeout(()=>rej(new Error('タイムアウト (10秒)')),ms))]);
-}
+function withTimeout(){} // deprecated, kept for reference
 
-async function saveTpl(isRetry){
+async function saveTpl(){
     editTpl.name=document.getElementById('tpl-name').value.trim();
     if(!editTpl.name){showSt('tpl-status','テンプレート名を入力してください','error');return;}
     showSt('tpl-status','保存中...','loading');
     try{
         const payload={name:editTpl.name,sections:editTpl.sections,lookups:editTpl.lookups||{},updated_at:new Date().toISOString()};
         if(editTpl.id){
-            const{error}=await withTimeout(sb.from(T.TEMPLATES).update(payload).eq('id',editTpl.id));
+            const{error}=await sb.from(T.TEMPLATES).update(payload).eq('id',editTpl.id);
             if(error)throw error;
             const idx=templates.findIndex(t=>t.id===editTpl.id);if(idx>=0)templates[idx]={...templates[idx],...payload};
         }else{
-            const{data,error}=await withTimeout(sb.from(T.TEMPLATES).insert({folder_id:currentFolderId,...payload,created_by:user.name}).select('*').single());
+            const{data,error}=await sb.from(T.TEMPLATES).insert({folder_id:currentFolderId,...payload,created_by:user.name}).select('*').single();
             if(error)throw error;templates.push(data);
         }
         showSt('tpl-status','✅ 保存しました','success');
         setTimeout(()=>nav('folder',{folderId:currentFolderId}),600);
     }catch(e){
-        if(!isRetry){
-            console.warn('Save failed, refreshing and retrying...',e.message);
-            try{await sb.auth.getSession();}catch(re){}
-            return saveTpl(true);
-        }
-        showSt('tpl-status','❌ '+e.message+' — 再ログインしてください','error');
+        showSt('tpl-status','❌ '+e.message+' — ページをリロードして再試行','error');
     }
 }
 
@@ -862,14 +876,42 @@ let reqSheetMode='production';
 function getReqSheetId(){return REQ_SHEETS[reqSheetMode];}
 function getReqSheetName(){const n=new Date();return`${n.getFullYear()}/${n.getMonth()+1}`;}
 
+// Silent GIS re-auth (no popup, no login screen)
+function gisReAuth(){
+    return new Promise((resolve,reject)=>{
+        if(!gisTokenClient){reject(new Error('GIS未初期化。ページをリロードしてください。'));return;}
+        let done=false;
+        const origCb=gisTokenClient.callback;
+        gisTokenClient.callback=r=>{
+            if(done)return;done=true;
+            gisTokenClient.callback=origCb;
+            if(r.access_token){sheetsToken=r.access_token;localStorage.setItem('gis_sheets_token',sheetsToken);resolve();}
+            else{reject(new Error('トークン取得失敗'));}
+        };
+        gisTokenClient.requestAccessToken({prompt:''});
+        setTimeout(()=>{if(!done){done=true;gisTokenClient.callback=origCb;reject(new Error('Re-auth timeout'));}},15000);
+    });
+}
+
+// Request Sheets token (with popup for first time)
+function gisRequestToken(){
+    if(!gisTokenClient){alert('Google認証の準備中。数秒後に再試行してください。');return;}
+    gisTokenClient.requestAccessToken();
+}
+
 async function reqSheetsApi(url,options={},isRetry=false){
-    if(!sheetsToken)sheetsToken=localStorage.getItem('sheets_access_token');
-    if(!sheetsToken)throw new Error('Sheets認証切れ。メインアプリで再ログインしてください。');
+    if(!sheetsToken)sheetsToken=localStorage.getItem('gis_sheets_token');
+    if(!sheetsToken){
+        // First time — need user interaction to get token
+        throw new Error('NEEDS_GIS_AUTH');
+    }
     const r=await fetch(url,{...options,headers:{'Authorization':'Bearer '+sheetsToken,'Content-Type':'application/json',...(options.headers||{})}});
     if(r.status===401&&!isRetry){
-        try{const{data}=await sb.auth.getSession();if(data?.session?.provider_token){sheetsToken=data.session.provider_token;localStorage.setItem('sheets_access_token',sheetsToken);return reqSheetsApi(url,options,true);}}catch(e){}
-        sheetsToken=null;localStorage.removeItem('sheets_access_token');
-        throw new Error('セッション切れ。再ログインしてください。');
+        // Silent re-auth — no popup needed!
+        try{await gisReAuth();return reqSheetsApi(url,options,true);}catch(e){
+            sheetsToken=null;localStorage.removeItem('gis_sheets_token');
+            throw new Error('NEEDS_GIS_AUTH');
+        }
     }
     if(!r.ok){const t=await r.text();throw new Error(`Sheets API error ${r.status}: ${t}`);}
     return r.json();
@@ -918,7 +960,14 @@ async function reqSubmit(){
         setTimeout(()=>{reqSelection=[];regenPrint();},2000);
     }catch(e){
         console.error(e);
-        showSt('req-status','エラー: '+e.message,'error');
+        if(e.message==='NEEDS_GIS_AUTH'){
+            showSt('req-status','📋 Google Sheets認証が必要です。ボタンをクリックして認証してください。','error');
+            // Show auth button
+            const statusEl=document.getElementById('req-status');
+            if(statusEl)statusEl.innerHTML+='<br><button onclick="gisRequestToken()" style="margin-top:8px;padding:8px 16px;background:var(--pri);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">🔑 Google Sheets認証</button>';
+        }else{
+            showSt('req-status','エラー: '+e.message,'error');
+        }
     }
 }
 

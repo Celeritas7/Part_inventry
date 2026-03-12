@@ -45,7 +45,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .folder-card .ico{font-size:2.5rem;margin-bottom:8px}
 .folder-card h3{font-size:.95rem;font-weight:700;margin-bottom:4px}
 .folder-card p{font-size:.78rem;color:var(--t3)}
-.folder-acts{display:flex;gap:4px;justify-content:center;margin-top:8px}
 .li{border:1px solid var(--brd);border-radius:var(--r);padding:14px 16px;display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;transition:border-color .15s;cursor:pointer}
 .li:hover{border-color:var(--pri)}
 .li-info h3{font-size:.9rem;font-weight:600;margin-bottom:2px}
@@ -128,26 +127,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;b
 .status.success{background:var(--ok-bg);color:var(--ok);border:1px solid var(--ok-brd);display:block}
 .status.error{background:var(--err-bg);color:var(--err);border:1px solid var(--err-brd);display:block}
 .status.loading{background:var(--pri-bg);color:var(--pri);display:block}
-@media print{
-    body{background:#fff}
-    .bar,.gen-bar,.no-print,.bread,.req-panel,.sel-all-bar{display:none!important}
-    .shell{max-width:100%;padding:0}.card{box-shadow:none;padding:0;border-radius:0}
-    .pt{font-size:9pt}
-    .pt th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .pt .miss,.pt .miss-in{background:#fef9c3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .pt tr.sec-row td{background:#333!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}
-    .pt th.no-print,.pt td.no-print{display:none!important}
-}
-/* Unit S/N Modal */
-.req-unit-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:20px}
-.req-unit-overlay.active{display:flex}
-.req-unit-modal{background:#fff;border-radius:16px;padding:24px;width:100%;max-width:400px}
-.req-unit-chips{display:flex;flex-wrap:wrap;gap:7px;margin:12px 0}
-.req-unit-chip{padding:8px 12px;border:2px solid var(--brd);border-radius:18px;background:#f9f9f9;font-size:.82rem;cursor:pointer;transition:all .15s}
-.req-unit-chip:hover{border-color:var(--t3)}
-.req-unit-chip.active{background:var(--pri);color:#fff;border-color:var(--pri)}
-@page{margin:8mm}
-body.print-no-header-footer @page{margin-top:5mm;margin-bottom:5mm}
+@media print{body{background:#fff}.bar,.gen-bar,.no-print,.bread,.req-panel,.sel-all-bar{display:none!important}.shell{max-width:100%;padding:0}.card{box-shadow:none;padding:0;border-radius:0}.pt{font-size:9pt}.pt th{background:#eee!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pt .miss,.pt .miss-in{background:#fef9c3!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}.pt tr.sec-row td{background:#333!important;color:#fff!important;-webkit-print-color-adjust:exact;print-color-adjust:exact}}
 @media(max-width:600px){.shell{padding:10px}.bar{padding:12px 14px}.card{padding:14px}.shdr{flex-direction:column;align-items:flex-start}.folder-grid{grid-template-columns:1fr 1fr}.li{flex-direction:column;align-items:flex-start;gap:8px}.li-acts{width:100%}.li-acts .btn{flex:1;justify-content:center}.gen-bar{flex-direction:column;align-items:flex-start}.quick-row{flex-direction:column}.efl-row{flex-direction:column}.req-row{flex-direction:column}.req-actions{flex-direction:column}.req-actions .btn{width:100%;justify-content:center}}
     </style>
 </head>
@@ -180,9 +160,7 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const T={FOLDERS:'part_inventry_app_folders',TEMPLATES:'part_inventry_app_templates',GENERATED:'part_inventry_app_generated_lists',PARTS:'master_parts_list_all',ROLES:'authentication_mode_user_roles'};
 
 if(!window.supabase||!window.supabase.createClient){document.getElementById('loading-section').innerHTML='<div style="text-align:center;padding:40px;color:#b91c1c;">SDK読み込み失敗。リロードしてください。</div>';throw new Error('SDK fail');}
-const sb=window.supabase.createClient(SB_URL,SB_KEY,{
-    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'sb-wylxvmkcrexwfpjpbhyy-auth-token'}
-});
+const sb=window.supabase.createClient(SB_URL,SB_KEY);
 
 // =====================================================
 // STATE
@@ -207,6 +185,19 @@ window.onload=function(){
         else if(ev==='SIGNED_OUT'||(ev==='INITIAL_SESSION'&&!session)){user=null;authReady=true;showAuth('login');}
     });
     setTimeout(()=>{if(!authReady)showAuth('login');},4000);
+
+    // Re-capture token when returning from idle (after SDK refreshes)
+    document.addEventListener('visibilitychange',()=>{
+        if(!document.hidden&&user){
+            setTimeout(async()=>{
+                try{
+                    const{data}=await sb.auth.getSession();
+                    if(data?.session?.provider_token){sheetsToken=data.session.provider_token;localStorage.setItem('sheets_access_token',data.session.provider_token);}
+                    console.log('Token checked on focus');
+                }catch(e){console.warn('Token check error:',e);}
+            },2000);
+        }
+    });
 };
 
 async function handleGoogleLogin(){
@@ -330,36 +321,12 @@ function renderBread(){
 // =====================================================
 function renderFolders(){
     const el=document.getElementById('v-folders');el.style.display='block';
-    const addBtn=user.isAdmin?`<button class="btn btn-g btn-sm" onclick="addFolder()">＋ 新規フォルダ</button>`:'';
-    el.innerHTML=`<div class="card"><div class="shdr"><h2>フォルダ一覧</h2>${addBtn}</div>
+    el.innerHTML=`<div class="card"><div class="shdr"><h2>フォルダ一覧</h2></div>
         <div class="folder-grid">${folders.map(f=>{
             const tc=templates.filter(t=>t.folder_id===f.id).length;
             const gc=generatedLists.filter(g=>g.folder_id===f.id).length;
-            return`<div class="folder-card" onclick="nav('folder',{folderId:${f.id}})"><div class="ico">${f.icon||'📁'}</div><h3>${esc(f.name)}</h3><p>${tc} テンプレート ・ ${gc} リスト</p>
-                ${user.isAdmin?`<div class="folder-acts" onclick="event.stopPropagation()"><button class="btn btn-s btn-sm" onclick="editFolder(${f.id})" style="padding:3px 6px;font-size:.72rem">✏️</button><button class="btn btn-d btn-sm" onclick="delFolder(${f.id})" style="padding:3px 6px;font-size:.72rem">🗑️</button></div>`:''}</div>`;
+            return`<div class="folder-card" onclick="nav('folder',{folderId:${f.id}})"><div class="ico">${f.icon||'📁'}</div><h3>${esc(f.name)}</h3><p>${tc} テンプレート ・ ${gc} リスト</p></div>`;
         }).join('')}${folders.length?'':'<div class="empty"><div class="ico">📁</div><p>フォルダがありません</p></div>'}</div></div>`;
-}
-
-async function addFolder(){
-    const name=prompt('フォルダ名:');if(!name)return;
-    const icon=prompt('アイコン (絵文字):','📁')||'📁';
-    try{const{data,error}=await sb.from(T.FOLDERS).insert({name,icon,sort_order:folders.length+1}).select('*').single();
-    if(error)throw error;folders.push(data);renderFolders();}catch(e){alert('エラー: '+e.message);}
-}
-async function editFolder(id){
-    const f=folders.find(f=>f.id===id);if(!f)return;
-    const name=prompt('フォルダ名:',f.name);if(!name)return;
-    const icon=prompt('アイコン:',f.icon)||f.icon;
-    try{const{error}=await sb.from(T.FOLDERS).update({name,icon}).eq('id',id);
-    if(error)throw error;f.name=name;f.icon=icon;renderFolders();}catch(e){alert('エラー: '+e.message);}
-}
-async function delFolder(id){
-    const tc=templates.filter(t=>t.folder_id===id).length;
-    const gc=generatedLists.filter(g=>g.folder_id===id).length;
-    if(tc||gc){alert(`このフォルダには ${tc}テンプレート、${gc}リスト があります。先に中身を削除してください。`);return;}
-    if(!confirm('このフォルダを削除しますか？'))return;
-    try{const{error}=await sb.from(T.FOLDERS).delete().eq('id',id);
-    if(error)throw error;folders=folders.filter(f=>f.id!==id);renderFolders();}catch(e){alert('エラー: '+e.message);}
 }
 
 // =====================================================
@@ -372,25 +339,14 @@ function renderFolder(){
     const tpls=templates.filter(t=>t.folder_id===f.id);
     const gens=generatedLists.filter(g=>g.folder_id===f.id);
 
-    // Detect if templates need rail spec (have AUTO sections with formulas)
-    const hasRailTpl=tpls.some(t=>(t.sections||[]).some(s=>s.badge==='auto'&&(s.items||[]).some(i=>i.formula&&!i.formula.startsWith('LOOKUP')&&/SEGS|S025|S100|S150|LENGTH|CABLE/.test(i.formula))));
-
     let quickHtml='';
     if(tpls.length){
-        if(hasRailTpl){
-            // Rail template — spec input required
-            quickHtml=`<div class="quick-box no-print"><h3>⚡ クイック生成</h3>
-                <div class="quick-row"><input type="text" id="quick-input" placeholder="3.5/STD/10m" onkeydown="if(event.key==='Enter')quickGen()"><button class="btn btn-g" onclick="quickGen()">生成</button></div>
-                <details style="margin-top:8px"><summary style="font-size:.82rem;color:var(--t2);cursor:pointer">📋 一括生成</summary>
-                    <textarea id="batch-input" class="batch-area" placeholder="3.5/STD/10m&#10;3.25/MR/8m" style="margin-top:8px"></textarea>
-                    <button class="btn btn-g btn-sm" onclick="batchGen()" style="margin-top:6px">一括生成</button></details>
-                <div class="quick-hint">形式: 長さ/タイプ(STD|MR)/ケーブル長</div><div class="status" id="quick-status"></div></div>`;
-        } else {
-            // Fixed/Manual template — no spec needed, simple generate
-            quickHtml=`<div class="quick-box no-print"><h3>⚡ リスト生成</h3>
-                <div class="quick-row"><input type="text" id="quick-name" placeholder="リスト名 (例: ECN対応 #34)" style="border-color:var(--grn)"><button class="btn btn-g" onclick="directGen()">生成</button></div>
-                <div class="quick-hint">リスト名を入力して生成 (仕様入力は不要)</div><div class="status" id="quick-status"></div></div>`;
-        }
+        quickHtml=`<div class="quick-box no-print"><h3>⚡ クイック生成</h3>
+            <div class="quick-row"><input type="text" id="quick-input" placeholder="3.5/STD/10m" onkeydown="if(event.key==='Enter')quickGen()"><button class="btn btn-g" onclick="quickGen()">生成</button></div>
+            <details style="margin-top:8px"><summary style="font-size:.82rem;color:var(--t2);cursor:pointer">📋 一括生成</summary>
+                <textarea id="batch-input" class="batch-area" placeholder="3.5/STD/10m&#10;3.25/MR/8m" style="margin-top:8px"></textarea>
+                <button class="btn btn-g btn-sm" onclick="batchGen()" style="margin-top:6px">一括生成</button></details>
+            <div class="quick-hint">形式: 長さ/タイプ(STD|MR)/ケーブル長</div><div class="status" id="quick-status"></div></div>`;
     }
 
     let tplHtml=tpls.map(t=>{
@@ -412,31 +368,8 @@ function renderFolder(){
         <div class="card"><div class="shdr"><h2>📄 生成済みリスト</h2></div>${genHtml}</div>`;
 }
 
-async function delTpl(id){if(!confirm('テンプレートを削除しますか？'))return;try{await sb.from(T.TEMPLATES).delete().eq('id',id);}catch(e){alert('削除エラー: '+e.message);return;}templates=templates.filter(t=>t.id!==id);renderFolder();}
-async function delGen(id){if(!confirm('削除しますか？'))return;try{await sb.from(T.GENERATED).delete().eq('id',id);}catch(e){alert('削除エラー: '+e.message);return;}generatedLists=generatedLists.filter(g=>g.id!==id);renderFolder();}
-
-// Direct generate for fixed/manual templates (no rail spec)
-async function directGen(){
-    const nameInput=document.getElementById('quick-name');
-    const name=(nameInput?nameInput.value.trim():'')||`リスト ${new Date().toLocaleDateString('ja-JP')}`;
-    const tpl=templates.find(t=>t.folder_id===currentFolderId);
-    if(!tpl){showSt('quick-status','テンプレートがありません','error');return;}
-    showSt('quick-status','生成中...','loading');
-    // Resolve template with empty params (no rail logic)
-    const sections=(tpl.sections||[]).map(sec=>{
-        const items=(sec.items||[]).map(item=>({pn:item.pn||'',qty:item.qty||1,comment:item.comment||''}));
-        return{name:sec.name,badge:sec.badge,items};
-    });
-    const{data,error}=await sb.from(T.GENERATED).insert({
-        template_id:tpl.id,folder_id:currentFolderId,name,spec:'',
-        params:{},segments:{},sections,created_by:user.name
-    }).select('*').single();
-    if(error){showSt('quick-status','エラー: '+error.message,'error');return;}
-    generatedLists.unshift(data);
-    if(nameInput)nameInput.value='';
-    showSt('quick-status',`✅ "${name}" を生成しました`,'success');
-    setTimeout(()=>{hideSt('quick-status');renderFolder();},800);
-}
+async function delTpl(id){if(!confirm('テンプレートを削除しますか？'))return;await sb.from(T.TEMPLATES).delete().eq('id',id);templates=templates.filter(t=>t.id!==id);renderFolder();}
+async function delGen(id){if(!confirm('削除しますか？'))return;await sb.from(T.GENERATED).delete().eq('id',id);generatedLists=generatedLists.filter(g=>g.id!==id);renderFolder();}
 
 // =====================================================
 // QUICK / BATCH GENERATE
@@ -624,7 +557,7 @@ function renderTplContent(){
             else return`<tr><td><input class="pn-in" value="${esc(item.pn)}" onchange="editTpl.sections[${si}].items[${ii}].pn=this.value.trim()" ${readOnly?'readonly':''}></td><td><input class="qty-in" type="number" value="${item.qty||1}" min="1" onchange="editTpl.sections[${si}].items[${ii}].qty=parseInt(this.value)||1" ${readOnly?'readonly':''}></td><td><input value="${esc(item.comment||'')}" onchange="editTpl.sections[${si}].items[${ii}].comment=this.value" ${readOnly?'readonly':''}></td><td class="act">${readOnly?'':`<button class="dbtn" onclick="editTpl.sections[${si}].items.splice(${ii},1);renderTplContent()">✕</button>`}</td></tr>`;
         }).join('');
         let badgeSelect=readOnly?`<span style="font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:6px;background:${badge==='auto'?'#d1fae5':badge==='fixed'?'#e0e7ff':'#fef3c7'}">${badge.toUpperCase()}</span>`:`<select onchange="editTpl.sections[${si}].badge=this.value;renderTplContent()" style="font-size:.72rem;padding:2px 6px;border:1px solid var(--brd);border-radius:6px;font-weight:600"><option value="auto" ${badge==='auto'?'selected':''}>AUTO</option><option value="fixed" ${badge==='fixed'?'selected':''}>FIXED</option><option value="manual" ${badge==='manual'?'selected':''}>MANUAL</option></select>`;
-        return`<div class="rule-card"><div class="rule-header"><input type="text" value="${esc(sec.name)}" onchange="editTpl.sections[${si}].name=this.value" ${readOnly?'readonly':''}>${badgeSelect}${readOnly?'':`<button class="dbtn" onclick="if(confirm('セクション削除？')){editTpl.sections.splice(${si},1);renderTplContent()}" style="margin-left:8px">🗑️</button>`}</div><div class="rule-body"><table class="stbl"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>${readOnly?'':`<div style="display:flex;gap:6px;border-top:1px solid var(--brd)"><button class="add-row" onclick="editTpl.sections[${si}].items.push({pn:'',formula:'',qty:1,comment:''});renderTplContent()" style="flex:1">＋ 行を追加</button><button class="add-row" onclick="triggerCsvImport(${si})" style="flex:1;color:var(--grn)">📄 CSV取込</button></div>`}${isAuto&&!readOnly?`<div class="formula-help"><b>変数:</b> <code>SEGS</code>=総本数 <code>S025</code>=0.25m <code>S100</code>=1m <code>S150</code>=1.5m <code>LENGTH</code>=総長 <code>CABLE</code>=ケーブル長<br><b>Switch:</b> <code>{"STD":"PN-A","MR":"PN-B"}</code><br><b>Lookup:</b> <code>LOOKUP(テーブル名)</code></div>`:''}</div></div>`;
+        return`<div class="rule-card"><div class="rule-header"><input type="text" value="${esc(sec.name)}" onchange="editTpl.sections[${si}].name=this.value" ${readOnly?'readonly':''}>${badgeSelect}${readOnly?'':`<button class="dbtn" onclick="if(confirm('セクション削除？')){editTpl.sections.splice(${si},1);renderTplContent()}" style="margin-left:8px">🗑️</button>`}</div><div class="rule-body"><table class="stbl"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>${readOnly?'':`<button class="add-row" onclick="editTpl.sections[${si}].items.push({pn:'',formula:'',qty:1,comment:''});renderTplContent()">＋ 行を追加</button>`}${isAuto&&!readOnly?`<div class="formula-help"><b>変数:</b> <code>SEGS</code>=総本数 <code>S025</code>=0.25m <code>S100</code>=1m <code>S150</code>=1.5m <code>LENGTH</code>=総長 <code>CABLE</code>=ケーブル長<br><b>Switch:</b> <code>{"STD":"PN-A","MR":"PN-B"}</code><br><b>Lookup:</b> <code>LOOKUP(テーブル名)</code></div>`:''}</div></div>`;
     }).join('');
     let addBtns=readOnly?'':`<div style="display:flex;gap:8px;margin:12px 0" class="no-print"><button class="btn btn-s btn-sm" onclick="editTpl.sections.push({name:'New Section',badge:'auto',items:[]});renderTplContent()">＋ Auto</button><button class="btn btn-s btn-sm" onclick="editTpl.sections.push({name:'New Section',badge:'fixed',items:[]});renderTplContent()">＋ Fixed</button><button class="btn btn-s btn-sm" onclick="editTpl.sections.push({name:'New Section',badge:'manual',items:[]});renderTplContent()">＋ Manual</button></div>`;
     let saveBtns=readOnly?`<div style="margin-top:16px"><button class="btn btn-s" onclick="nav('folder',{folderId:currentFolderId})">← 戻る</button></div>`:`<div class="status" id="tpl-status"></div><div style="display:flex;gap:10px;margin-top:16px;flex-wrap:wrap"><button class="btn btn-p" onclick="saveTpl()">💾 保存</button><button class="btn btn-s" onclick="nav('folder',{folderId:currentFolderId})">キャンセル</button></div>`;
@@ -639,49 +572,6 @@ function addLookupTable(){
     const keys=(keysStr||'length').split(',').map(k=>k.trim());
     editTpl.lookups[name]={label:name,keys,data:{}};
     renderTplContent();
-}
-
-// CSV Import for sections
-let csvTargetSection=-1;
-function triggerCsvImport(si){
-    csvTargetSection=si;
-    let inp=document.getElementById('csv-file-input');
-    if(!inp){inp=document.createElement('input');inp.type='file';inp.id='csv-file-input';inp.accept='.csv,.tsv,.txt';inp.style.display='none';inp.onchange=handleCsvFile;document.body.appendChild(inp);}
-    inp.value='';inp.click();
-}
-function handleCsvFile(e){
-    const file=e.target.files[0];if(!file)return;
-    const reader=new FileReader();
-    reader.onload=function(ev){
-        const text=ev.target.result;
-        const lines=text.split(/\r?\n/).map(l=>l.trim()).filter(l=>l);
-        if(!lines.length)return;
-        const si=csvTargetSection;
-        if(si<0||!editTpl.sections[si])return;
-        const sec=editTpl.sections[si];
-        const isAuto=sec.badge==='auto';
-        let added=0;
-        lines.forEach(line=>{
-            // Auto-detect: tab, comma, or space separated
-            let cols;
-            if(line.includes('\t'))cols=line.split('\t');
-            else if(line.includes(','))cols=line.split(',');
-            else cols=line.split(/\s{2,}/); // 2+ spaces
-            cols=cols.map(c=>c.trim());
-            if(!cols[0])return;
-            if(isAuto){
-                // CSV: P/N, Formula, Comment, SwitchMap
-                sec.items.push({pn:cols[0]||'',formula:cols[1]||'',comment:cols[2]||'',switchField:cols[3]?'asmType':'',switchMap:cols[3]||''});
-            }else{
-                // CSV: P/N, Qty, Comment
-                sec.items.push({pn:cols[0]||'',qty:parseInt(cols[1])||1,comment:cols[2]||''});
-            }
-            added++;
-        });
-        renderTplContent();
-        alert(`✅ ${added}行を取り込みました`);
-    };
-    reader.readAsText(file);
 }
 function addLookupEntry(name){
     const keyInput=document.getElementById('lk-key-'+name);
@@ -709,9 +599,7 @@ function addGroupRow(prefix){
     renderTplContent();
 }
 
-function withTimeout(){} // deprecated, kept for reference
-
-async function saveTpl(){
+async function saveTpl(isRetry){
     editTpl.name=document.getElementById('tpl-name').value.trim();
     if(!editTpl.name){showSt('tpl-status','テンプレート名を入力してください','error');return;}
     showSt('tpl-status','保存中...','loading');
@@ -728,7 +616,12 @@ async function saveTpl(){
         showSt('tpl-status','✅ 保存しました','success');
         setTimeout(()=>nav('folder',{folderId:currentFolderId}),600);
     }catch(e){
-        showSt('tpl-status','❌ '+e.message+' — ページをリロードして再試行','error');
+        if(!isRetry){
+            console.warn('Save failed, retrying...');
+            try{await sb.auth.getSession();}catch(re){}
+            return saveTpl(true);
+        }
+        showSt('tpl-status','エラー: '+e.message+'（再ログインしてください）','error');
     }
 }
 
@@ -798,7 +691,7 @@ function regenPrint(){
                 <option value="BY構築">BY構築</option><option value="生産ジグ">生産ジグ</option><option value="確認中">確認中</option>
                 <option value="その他">その他</option><option value="出庫キャンセル">出庫キャンセル</option></select></div>
             <div class="req-field"><label>S/N</label>
-                <div class="req-inline"><input type="text" id="req-sn" placeholder="GST-00034"><button class="btn btn-sm btn-s" onclick="openReqUnitModal()" title="Unit選択">🏭</button></div></div>
+                <div class="req-inline"><input type="text" id="req-sn" placeholder="GST-00034"></div></div>
         </div>
         <div class="req-field" style="margin-bottom:10px"><label>コメント</label><input type="text" id="req-comment" placeholder="コメント"></div>
         <div class="req-preview" id="req-preview"></div>
@@ -809,8 +702,7 @@ function regenPrint(){
         <div class="status" id="req-status"></div>
     </div>`;
 
-    const hideHF=document.body.classList.contains('print-no-header-footer');
-    el.innerHTML=`${reqPanel}<div class="gen-bar no-print"><label>数量倍率:</label><input type="number" id="mul-input" value="${mul}" min="1" onchange="regenPrint()"><label style="display:flex;align-items:center;gap:4px;font-size:.8rem;cursor:pointer"><input type="checkbox" ${hideHF?'checked':''} onchange="document.body.classList.toggle('print-no-header-footer',this.checked)"> ヘッダー非表示</label><button class="btn btn-p" onclick="window.print()">🖨️ 印刷</button><button class="btn btn-s" onclick="nav('folder',{folderId:currentFolderId})">← 戻る</button></div><div class="card"><div class="ph"><h2>${esc(g.name)}</h2><div class="meta">${meta}</div></div>${selBar}<table class="pt" id="pt">${h}</table></div>`;
+    el.innerHTML=`${reqPanel}<div class="gen-bar no-print"><label>数量倍率:</label><input type="number" id="mul-input" value="${mul}" min="1" onchange="regenPrint()"><button class="btn btn-p" onclick="window.print()">🖨️ 印刷</button><button class="btn btn-s" onclick="nav('folder',{folderId:currentFolderId})">← 戻る</button></div><div class="card"><div class="ph"><h2>${esc(g.name)}</h2><div class="meta">${meta}</div></div>${selBar}<table class="pt" id="pt">${h}</table></div>`;
 
     // Update preview if items selected
     if(selCount)reqUpdatePreview();
@@ -921,75 +813,6 @@ async function reqSubmit(){
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function showSt(id,m,t){const e=document.getElementById(id);if(!e)return;e.textContent=m;e.className='status '+t;}
 function hideSt(id){const e=document.getElementById(id);if(e)e.className='status';}
-
-// =====================================================
-// UNIT S/N MODAL (for requisition panel)
-// =====================================================
-const REQ_UNIT_CODES=[
-    {code:'Ghost',snCode:'GST'},{code:'MB',snCode:'MBB'},{code:'Pillar',snCode:'PLR'},
-    {code:'H&B',snCode:'HBD'},{code:'Arm',snCode:'ARM'},{code:'Gripper',snCode:'GPR'},
-    {code:'DK',snCode:'DPK'},{code:'L-Mot',snCode:'LAC'},{code:'A12',snCode:'A12'},
-    {code:'A35',snCode:'A35'},{code:'A4',snCode:'A4A'}
-];
-let reqUnitCode='',reqUnitNumber='';
-
-function openReqUnitModal(){
-    reqUnitCode='';reqUnitNumber='';
-    const numIn=document.getElementById('req-unit-number');if(numIn)numIn.value='';
-    document.querySelectorAll('#req-unit-chips .req-unit-chip').forEach(c=>c.classList.remove('active'));
-    updateReqUnitPreview();
-    document.getElementById('req-unit-modal').classList.add('active');
-}
-function closeReqUnitModal(){document.getElementById('req-unit-modal').classList.remove('active');}
-function selectReqUnit(code){
-    reqUnitCode=code;
-    document.querySelectorAll('#req-unit-chips .req-unit-chip').forEach(c=>c.classList.toggle('active',c.dataset.code===code));
-    updateReqUnitPreview();
-}
-function updateReqUnitPreview(){
-    reqUnitNumber=(document.getElementById('req-unit-number')||{}).value||'';
-    reqUnitNumber=reqUnitNumber.trim();
-    const btn=document.getElementById('req-unit-confirm');if(!btn)return;
-    if(reqUnitCode&&reqUnitNumber){
-        const uc=REQ_UNIT_CODES.find(u=>u.code===reqUnitCode);
-        btn.textContent=`✅ ${uc?uc.snCode:reqUnitCode}-${reqUnitNumber.padStart(5,'0')}`;btn.disabled=false;
-    }else if(reqUnitCode){btn.textContent='番号を入力してください';btn.disabled=true;}
-    else{btn.textContent='Unitを選択してください';btn.disabled=true;}
-}
-function confirmReqUnit(){
-    if(!reqUnitCode||!reqUnitNumber)return;
-    const uc=REQ_UNIT_CODES.find(u=>u.code===reqUnitCode);
-    const sn=uc?`${uc.snCode}-${reqUnitNumber.padStart(5,'0')}`:`${reqUnitCode}-${reqUnitNumber}`;
-    const snIn=document.getElementById('req-sn');if(snIn)snIn.value=sn;
-    closeReqUnitModal();
-}
 </script>
-
-<!-- Unit S/N Modal for Requisition -->
-<div class="req-unit-overlay" id="req-unit-modal">
-    <div class="req-unit-modal">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-            <h3 style="font-size:1rem">🏭 Unit S/N 選択</h3>
-            <button onclick="closeReqUnitModal()" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--t3)">✕</button>
-        </div>
-        <div class="req-unit-chips" id="req-unit-chips">
-            <button class="req-unit-chip" data-code="Ghost" onclick="selectReqUnit('Ghost')">👻 Ghost</button>
-            <button class="req-unit-chip" data-code="MB" onclick="selectReqUnit('MB')">🛞 MB</button>
-            <button class="req-unit-chip" data-code="Pillar" onclick="selectReqUnit('Pillar')">🏛️ Pillar</button>
-            <button class="req-unit-chip" data-code="H&B" onclick="selectReqUnit('H&B')">🧠 H&B</button>
-            <button class="req-unit-chip" data-code="Arm" onclick="selectReqUnit('Arm')">🦾 Arm</button>
-            <button class="req-unit-chip" data-code="Gripper" onclick="selectReqUnit('Gripper')">🤏 Gripper</button>
-            <button class="req-unit-chip" data-code="DK" onclick="selectReqUnit('DK')">📦 DK</button>
-            <button class="req-unit-chip" data-code="L-Mot" onclick="selectReqUnit('L-Mot')">⚙️ L-Mot</button>
-            <button class="req-unit-chip" data-code="A12" onclick="selectReqUnit('A12')">⚙️ A12</button>
-            <button class="req-unit-chip" data-code="A35" onclick="selectReqUnit('A35')">⚙️ A35</button>
-            <button class="req-unit-chip" data-code="A4" onclick="selectReqUnit('A4')">⚙️ A4</button>
-        </div>
-        <div style="margin:12px 0"><label style="display:block;color:var(--t2);font-size:.82rem;margin-bottom:6px">番号を入力 (例: 34, 105)</label>
-            <input type="number" id="req-unit-number" placeholder="34" oninput="updateReqUnitPreview()" onkeydown="if(event.key==='Enter'&&!document.getElementById('req-unit-confirm').disabled)confirmReqUnit()" style="width:100%;padding:12px;border:2px solid var(--brd);border-radius:10px;font-size:1.1rem;text-align:center">
-        </div>
-        <button id="req-unit-confirm" onclick="confirmReqUnit()" disabled style="width:100%;padding:12px;background:var(--pri);color:#fff;border:none;border-radius:10px;font-size:1rem;font-weight:600;cursor:pointer">Unitを選択してください</button>
-    </div>
-</div>
 </body>
 </html>
