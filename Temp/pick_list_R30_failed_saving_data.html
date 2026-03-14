@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>ピックリスト生成</title>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
-    <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
 *{box-sizing:border-box;margin:0;padding:0}
 :root{--pri:#2563eb;--pri-dk:#1e40af;--pri-bg:rgba(37,99,235,.08);--pri-bg2:rgba(37,99,235,.14);--grn:#059669;--grn-bg:rgba(5,150,105,.08);--card:#fff;--t1:#1e293b;--t2:#64748b;--t3:#94a3b8;--brd:#e2e8f0;--focus:#2563eb;--ok-bg:#f0fdf4;--ok:#15803d;--ok-brd:#bbf7d0;--err-bg:#fef2f2;--err:#b91c1c;--err-brd:#fecaca;--miss:#fef9c3;--r:10px}
@@ -180,15 +179,10 @@ const SB_URL='https://wylxvmkcrexwfpjpbhyy.supabase.co';
 const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Ind5bHh2bWtjcmV4d2ZwanBiaHl5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Njg2MzkxMDYsImV4cCI6MjA4NDIxNTEwNn0.6Bxo42hx4jwlJGWnfjiTpiDUsYfc1QLTN3YtrU1efak';
 const T={FOLDERS:'part_inventry_app_folders',TEMPLATES:'part_inventry_app_templates',GENERATED:'part_inventry_app_generated_lists',PARTS:'master_parts_list_all',ROLES:'authentication_mode_user_roles'};
 
-// Google Identity Services config (same client as Ghost Tracker)
-const GIS_CLIENT_ID='1088099187141-ut0dn0scqt3h99htf3rg8gsrg2oo1ad8.apps.googleusercontent.com';
-const GIS_SCOPES='https://www.googleapis.com/auth/spreadsheets';
-let gisTokenClient=null;
-let sheetsToken=localStorage.getItem('gis_sheets_token')||null;
-
 if(!window.supabase||!window.supabase.createClient){document.getElementById('loading-section').innerHTML='<div style="text-align:center;padding:40px;color:#b91c1c;">SDK読み込み失敗。リロードしてください。</div>';throw new Error('SDK fail');}
-
-const sb=window.supabase.createClient(SB_URL,SB_KEY);
+const sb=window.supabase.createClient(SB_URL,SB_KEY,{
+    auth:{persistSession:true,autoRefreshToken:true,detectSessionInUrl:true,storageKey:'sb-wylxvmkcrexwfpjpbhyy-auth-token'}
+});
 
 // =====================================================
 // STATE
@@ -197,6 +191,7 @@ let user=null; // {email,name,role,isAdmin}
 let folders=[],templates=[],generatedLists=[],partsCache=null;
 let currentView='loading',currentFolderId=null,currentTplId=null;
 let editTpl=null,printData=null,authReady=false;
+let sheetsToken=null;
 let reqSelection=[]; // indices of selected print items
 
 // =====================================================
@@ -205,33 +200,17 @@ let reqSelection=[]; // indices of selected print items
 window.onload=function(){
     sb.auth.onAuthStateChange(async(ev,session)=>{
         if(session&&session.user&&(ev==='SIGNED_IN'||ev==='TOKEN_REFRESHED'||ev==='INITIAL_SESSION')){
+            if(session.provider_token){sheetsToken=session.provider_token;localStorage.setItem('sheets_access_token',session.provider_token);}
+            if(!sheetsToken)sheetsToken=localStorage.getItem('sheets_access_token');
             await checkRole(session.user);authReady=true;
         }
         else if(ev==='SIGNED_OUT'||(ev==='INITIAL_SESSION'&&!session)){user=null;authReady=true;showAuth('login');}
     });
     setTimeout(()=>{if(!authReady)showAuth('login');},4000);
-    // Initialize Google Identity Services for Sheets API
-    initGIS();
 };
 
-function initGIS(){
-    if(typeof google==='undefined'||!google.accounts){setTimeout(initGIS,300);return;}
-    gisTokenClient=google.accounts.oauth2.initTokenClient({
-        client_id:GIS_CLIENT_ID,
-        scope:GIS_SCOPES,
-        callback:r=>{
-            if(r.access_token){
-                sheetsToken=r.access_token;
-                localStorage.setItem('gis_sheets_token',sheetsToken);
-                console.log('GIS: Sheets token obtained');
-            }
-        }
-    });
-    console.log('GIS: Token client initialized');
-}
-
 async function handleGoogleLogin(){
-    const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{redirectTo:window.location.origin+window.location.pathname}});
+    const{error}=await sb.auth.signInWithOAuth({provider:'google',options:{scopes:'https://www.googleapis.com/auth/spreadsheets',redirectTo:window.location.origin+window.location.pathname,queryParams:{access_type:'offline',prompt:'consent'}}});
     if(error){const e=document.getElementById('login-error');e.textContent='ログイン失敗: '+error.message;e.style.display='block';}
 }
 async function checkRole(u){
@@ -245,7 +224,7 @@ async function checkRole(u){
         nav('folders');
     }catch(e){console.error(e);showAuth('login');}
 }
-async function handleLogout(){await sb.auth.signOut();user=null;folders=[];templates=[];generatedLists=[];partsCache=null;sheetsToken=null;localStorage.removeItem('gis_sheets_token');document.getElementById('bar-right').style.display='none';}
+async function handleLogout(){await sb.auth.signOut();user=null;folders=[];templates=[];generatedLists=[];partsCache=null;document.getElementById('bar-right').style.display='none';}
 function showAuth(v){
     document.getElementById('loading-section').style.display=v==='loading'?'block':'none';
     document.getElementById('login-section').style.display=v==='login'?'block':'none';
@@ -876,42 +855,14 @@ let reqSheetMode='production';
 function getReqSheetId(){return REQ_SHEETS[reqSheetMode];}
 function getReqSheetName(){const n=new Date();return`${n.getFullYear()}/${n.getMonth()+1}`;}
 
-// Silent GIS re-auth (no popup, no login screen)
-function gisReAuth(){
-    return new Promise((resolve,reject)=>{
-        if(!gisTokenClient){reject(new Error('GIS未初期化。ページをリロードしてください。'));return;}
-        let done=false;
-        const origCb=gisTokenClient.callback;
-        gisTokenClient.callback=r=>{
-            if(done)return;done=true;
-            gisTokenClient.callback=origCb;
-            if(r.access_token){sheetsToken=r.access_token;localStorage.setItem('gis_sheets_token',sheetsToken);resolve();}
-            else{reject(new Error('トークン取得失敗'));}
-        };
-        gisTokenClient.requestAccessToken({prompt:''});
-        setTimeout(()=>{if(!done){done=true;gisTokenClient.callback=origCb;reject(new Error('Re-auth timeout'));}},15000);
-    });
-}
-
-// Request Sheets token (with popup for first time)
-function gisRequestToken(){
-    if(!gisTokenClient){alert('Google認証の準備中。数秒後に再試行してください。');return;}
-    gisTokenClient.requestAccessToken();
-}
-
 async function reqSheetsApi(url,options={},isRetry=false){
-    if(!sheetsToken)sheetsToken=localStorage.getItem('gis_sheets_token');
-    if(!sheetsToken){
-        // First time — need user interaction to get token
-        throw new Error('NEEDS_GIS_AUTH');
-    }
+    if(!sheetsToken)sheetsToken=localStorage.getItem('sheets_access_token');
+    if(!sheetsToken)throw new Error('Sheets認証切れ。メインアプリで再ログインしてください。');
     const r=await fetch(url,{...options,headers:{'Authorization':'Bearer '+sheetsToken,'Content-Type':'application/json',...(options.headers||{})}});
     if(r.status===401&&!isRetry){
-        // Silent re-auth — no popup needed!
-        try{await gisReAuth();return reqSheetsApi(url,options,true);}catch(e){
-            sheetsToken=null;localStorage.removeItem('gis_sheets_token');
-            throw new Error('NEEDS_GIS_AUTH');
-        }
+        try{const{data}=await sb.auth.getSession();if(data?.session?.provider_token){sheetsToken=data.session.provider_token;localStorage.setItem('sheets_access_token',sheetsToken);return reqSheetsApi(url,options,true);}}catch(e){}
+        sheetsToken=null;localStorage.removeItem('sheets_access_token');
+        throw new Error('セッション切れ。再ログインしてください。');
     }
     if(!r.ok){const t=await r.text();throw new Error(`Sheets API error ${r.status}: ${t}`);}
     return r.json();
@@ -960,14 +911,7 @@ async function reqSubmit(){
         setTimeout(()=>{reqSelection=[];regenPrint();},2000);
     }catch(e){
         console.error(e);
-        if(e.message==='NEEDS_GIS_AUTH'){
-            showSt('req-status','📋 Google Sheets認証が必要です。ボタンをクリックして認証してください。','error');
-            // Show auth button
-            const statusEl=document.getElementById('req-status');
-            if(statusEl)statusEl.innerHTML+='<br><button onclick="gisRequestToken()" style="margin-top:8px;padding:8px 16px;background:var(--pri);color:#fff;border:none;border-radius:8px;font-weight:600;cursor:pointer">🔑 Google Sheets認証</button>';
-        }else{
-            showSt('req-status','エラー: '+e.message,'error');
-        }
+        showSt('req-status','エラー: '+e.message,'error');
     }
 }
 
